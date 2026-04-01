@@ -1262,20 +1262,12 @@ async function openChatWithSupabase(mode: string) {
     if (existing) {
       chatId = existing.id
     } else {
-      // chats.buyer_id / seller_id が profiles.id を参照するため、未登録だと FK エラーになる
+      // buyer_id は profiles.id を参照するため、自分の行だけ upsert（seller は出品者側で作成済み想定・RLS で buyer が触れない）
       const { error: buyerProfErr } = await supabase
         .from('profiles')
         .upsert({ id: CURRENT_USER_ID }, { onConflict: 'id', ignoreDuplicates: true })
       if (buyerProfErr) {
         console.error('[meguru] profiles upsert (buyer):', buyerProfErr.message, buyerProfErr.code)
-        if (mode === 'pc') pcOpenChatFromDetail(); else mOpenChatFromDetail()
-        return
-      }
-      const { error: sellerProfErr } = await supabase
-        .from('profiles')
-        .upsert({ id: curItem.userId }, { onConflict: 'id', ignoreDuplicates: true })
-      if (sellerProfErr) {
-        console.error('[meguru] profiles upsert (seller):', sellerProfErr.message, sellerProfErr.code)
         if (mode === 'pc') pcOpenChatFromDetail(); else mOpenChatFromDetail()
         return
       }
