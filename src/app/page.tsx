@@ -17,7 +17,21 @@ const ITEMS = [
 ]
 
 type ChatMsg = { from: string; text?: string; time?: string; id?: string; createdAt?: string }
-type Chat = { name: string; sub: string; avt: string; ie: string; in_: string; ip: string; unread: number; itemId: number; msgs: ChatMsg[]; lastAt: number; supabaseId?: string }
+type Chat = {
+  name: string
+  sub: string
+  avt: string
+  ie: string
+  in_: string
+  ip: string
+  unread: number
+  itemId: number
+  msgs: ChatMsg[]
+  lastAt: number
+  supabaseId?: string
+  buyerId?: string
+  sellerId?: string
+}
 type Item = typeof ITEMS[0] & { imgSrc?: string; images?: string[]; sold?: boolean; expiry?: string; supabaseId?: string; userId?: string }
 
 const CHATS: Record<string, Chat> = {
@@ -107,6 +121,40 @@ function markSupabaseChatRead(supabaseChatId: string) {
 function getSupabaseChatLastReadMs(supabaseChatId: string): number {
   const raw = localStorage.getItem(LS_CHAT_READ_PREFIX + supabaseChatId)
   return raw ? new Date(raw).getTime() : 0
+}
+
+/** 自分が受け取った評価（表示用・Supabase reviews） */
+let MY_REVIEW_AVG = 0
+let MY_REVIEW_COUNT = 0
+
+function totalUnreadSupabaseChats(): number {
+  return getChatListEntries().reduce((sum, [, c]) => sum + (c.unread > 0 ? c.unread : 0), 0)
+}
+
+function updateSbChatUnreadBadge() {
+  const n = totalUnreadSupabaseChats()
+  const show = n > 0 && !!CURRENT_USER_ID
+  const pc = document.getElementById('pc-sb-chat-unread')
+  if (pc) pc.style.display = show ? 'block' : 'none'
+  document.querySelectorAll<HTMLElement>('.m-nav-chat-unread-dot').forEach((el) => {
+    el.style.display = show ? 'block' : 'none'
+  })
+}
+
+/** 該当スレのチャット画面が前面に表示されているか（未読に含めない） */
+function isSupabaseChatThreadVisible(chatKey: string): boolean {
+  if (curChatId !== chatKey) return false
+  const panel = document.getElementById('pc-panel')
+  const pcChat = document.getElementById('pc-panel-chat')
+  const pcOpen =
+    panel &&
+    !panel.classList.contains('hidden') &&
+    pcChat &&
+    pcChat.style.display !== 'none' &&
+    pcChat.style.display !== ''
+  const mobChat = document.getElementById('ms-chat')
+  const mobOpen = mobChat?.classList.contains('active')
+  return !!(pcOpen || mobOpen)
 }
 
 /** ログイン時は Supabase チャットのみ一覧に出す（デモ用チャットは非表示） */
@@ -573,6 +621,12 @@ function openDetail(id: number, mode: string) {
     // SOLD状態の反映
     const pcSoldBanner=document.getElementById('pc-det-sold-banner'); if(pcSoldBanner) pcSoldBanner.style.display=curItem.sold?'flex':'none'
     const pcChatBtn=document.getElementById('pc-det-chat-btn'); if(pcChatBtn) pcChatBtn.style.display=curItem.sold?'none':'flex'
+    const rateUid = curItem.mine ? CURRENT_USER_ID : curItem.userId
+    if (rateUid) {
+      void fetchAggregateReviewsForUser(rateUid).then(({ avg, count }) => applySellerRatingToDetail(avg, count, 'pc'))
+    } else {
+      applySellerRatingToDetail(0, 0, 'pc')
+    }
   } else {
     renderDetailGallery(curItem, 'mob')
     setAvt(document.getElementById('m-d-avt') as HTMLElement|null)
@@ -590,6 +644,12 @@ function openDetail(id: number, mode: string) {
     // SOLD状態の反映
     const mSoldBanner=document.getElementById('m-det-sold-banner'); if(mSoldBanner) mSoldBanner.style.display=curItem.sold?'flex':'none'
     const mChatBtn=document.getElementById('m-det-chat-btn'); if(mChatBtn) mChatBtn.style.display=curItem.sold?'none':'flex'
+    const rateUid = curItem.mine ? CURRENT_USER_ID : curItem.userId
+    if (rateUid) {
+      void fetchAggregateReviewsForUser(rateUid).then(({ avg, count }) => applySellerRatingToDetail(avg, count, 'mob'))
+    } else {
+      applySellerRatingToDetail(0, 0, 'mob')
+    }
     mNav('ms-detail')
   }
 }
@@ -699,8 +759,6 @@ function mOpenChatFromDetail() {
 }
 function openChat(chatId: string, mode: string) {
   openChatCore(chatId); const c=CHATS[chatId]
-  if (c?.supabaseId && CURRENT_USER_ID) subscribeToChat(c.supabaseId, chatId)
-  else unsubscribeFromChat()
   if (mode==='pc') {
     document.querySelectorAll('#pc-chatlist-items .cl-item').forEach(el=>el.classList.remove('active'))
     const target=document.querySelector(`#pc-chatlist-items [data-chat="${chatId}"]`); if(target) target.classList.add('active')
@@ -744,8 +802,19 @@ function renderMsgs(mode: string) {
   })
   setTimeout(()=>box.scrollTop=box.scrollHeight,50)
 }
-/* ── TRADE COMPLETE ── */
+/* ── TRADE COMPLETE & REVIEWS ── */
 let tradeModalMode = 'pc'
+
+type ReviewModalCtx = {
+  mode: string
+  revieweeName: string
+  revieweeId: string
+  chatUuid: string
+  itemUuid: string | null
+}
+
+let reviewModalCtx: ReviewModalCtx | null = null
+
 function openTradeModal(mode: string) {
   const chat = CHATS[curChatId]
   if (!chat) return
@@ -757,11 +826,136 @@ function openTradeModal(mode: string) {
 function closeTradeModal() {
   document.getElementById('trade-modal')?.classList.add('hidden')
 }
+function closeReviewModal() {
+  document.getElementById('review-modal')?.classList.add('hidden')
+  reviewModalCtx = null
+}
+
+async function fetchAggregateReviewsForUser(userId: string): Promise<{ avg: number; count: number }> {
+  const { data, error } = await createClient().from('reviews').select('rating').eq('reviewee_id', userId)
+  if (error || !data?.length) return { avg: 0, count: 0 }
+  const sum = data.reduce((a, r) => a + Number((r as { rating: number }).rating), 0)
+  return { avg: sum / data.length, count: data.length }
+}
+
+async function refreshMyReviewStatsUI(userId: string) {
+  const { avg, count } = await fetchAggregateReviewsForUser(userId)
+  MY_REVIEW_AVG = avg
+  MY_REVIEW_COUNT = count
+  const revNum = count > 0 ? `★${avg.toFixed(1)}` : '—'
+  const revLbl = count > 0 ? `評価（${count}件）` : '評価'
+  const pcN = document.getElementById('pc-mp-rev-num')
+  const mN = document.getElementById('m-mp-rev-num')
+  if (pcN) pcN.textContent = revNum
+  if (mN) mN.textContent = revNum
+  const pcL = document.getElementById('pc-mp-rev-lbl')
+  const mL = document.getElementById('m-mp-rev-lbl')
+  if (pcL) pcL.textContent = revLbl
+  if (mL) mL.textContent = revLbl
+  const profSum = count > 0 ? `平均 ★${avg.toFixed(1)}（${count}件）` : 'まだ評価はありません'
+  const p1 = document.getElementById('pc-prof-rev-summary')
+  const p2 = document.getElementById('m-prof-preview-rating')
+  if (p1) {
+    p1.textContent = profSum
+    p1.style.display = 'block'
+  }
+  if (p2) {
+    p2.textContent = count > 0 ? `★${avg.toFixed(1)}（${count}件）` : '評価はまだありません'
+    p2.style.display = 'block'
+  }
+}
+
+async function syncUserProfileFromSupabase(userId: string) {
+  try {
+    const { data, error } = await createClient()
+      .from('profiles')
+      .select('name, area, bio, avatar_url')
+      .eq('id', userId)
+      .maybeSingle()
+    if (error || !data) return
+    if (typeof (data as { name?: string }).name === 'string' && (data as { name: string }).name)
+      USER.name = (data as { name: string }).name
+    if (typeof (data as { area?: string }).area === 'string' && (data as { area: string }).area)
+      USER.area = (data as { area: string }).area
+    if (typeof (data as { bio?: string }).bio === 'string') USER.bio = (data as { bio: string }).bio
+    const av = (data as { avatar_url?: string }).avatar_url
+    if (typeof av === 'string' && av) USER.avt = av
+    updateAllUserRefs()
+  } catch (e) {
+    console.warn('[meguru] syncUserProfileFromSupabase', e)
+  }
+}
+
+function applySellerRatingToDetail(avg: number, count: number, mode: string) {
+  const label = count > 0 ? `${avg.toFixed(1)}` : '—'
+  const sub = count > 0 ? `（${count}件）` : ''
+  if (mode === 'pc') {
+    const el = document.getElementById('pc-det-rating')
+    if (el) el.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="var(--k)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> ${label}<span style="font-size:.65rem;color:var(--mu);font-weight:400">${sub}</span>`
+    const pr = document.getElementById('pc-d-rating')
+    if (pr) pr.innerHTML = `★ ${label}<small style="color:var(--mu);font-weight:400">${sub}</small>`
+  } else {
+    const el = document.getElementById('m-det-rating')
+    if (el) el.innerHTML = `★ ${label}<small style="color:var(--mu);font-weight:400;margin-left:2px">${sub}</small>`
+  }
+}
+
+async function maybeOpenReviewModalAfterTrade(chat: Chat, item: Item, mode: string) {
+  if (!chat.supabaseId || !CURRENT_USER_ID || !chat.buyerId || !chat.sellerId) {
+    showToast('取引が完了しました！')
+    return
+  }
+  const { data: existing } = await createClient()
+    .from('reviews')
+    .select('id')
+    .eq('chat_id', chat.supabaseId)
+    .eq('reviewer_id', CURRENT_USER_ID)
+    .maybeSingle()
+  if (existing) {
+    showToast('取引が完了しました！')
+    return
+  }
+  const revieweeId = CURRENT_USER_ID === chat.buyerId ? chat.sellerId : chat.buyerId
+  reviewModalCtx = {
+    mode,
+    revieweeName: chat.name,
+    revieweeId,
+    chatUuid: chat.supabaseId,
+    itemUuid: item.supabaseId ?? null,
+  }
+  const desc = document.getElementById('review-modal-desc')
+  if (desc) desc.textContent = `${chat.name}さんとの取引はいかがでしたか？1〜5で評価してください。`
+  document.getElementById('review-modal')?.classList.remove('hidden')
+  showToast('取引が完了しました！')
+}
+
+async function submitReviewRating(rating: number) {
+  if (!reviewModalCtx || !CURRENT_USER_ID) return
+  const supabase = createClient()
+  const row: Record<string, unknown> = {
+    chat_id: reviewModalCtx.chatUuid,
+    reviewer_id: CURRENT_USER_ID,
+    reviewee_id: reviewModalCtx.revieweeId,
+    rating,
+  }
+  if (reviewModalCtx.itemUuid) row.item_id = reviewModalCtx.itemUuid
+  const { error } = await supabase.from('reviews').insert(row)
+  if (error) {
+    console.error('[meguru] review insert:', error.message, error.code)
+    showToast('評価の保存に失敗しました')
+    return
+  }
+  closeReviewModal()
+  await refreshMyReviewStatsUI(CURRENT_USER_ID)
+  showToast('評価を保存しました')
+}
+
 function confirmCompleteTrade() {
   const chat = CHATS[curChatId]
   if (!chat) { closeTradeModal(); return }
-  const item = ITEMS.find(x => x.id === chat.itemId)
-  if (!item) { closeTradeModal(); return }
+  const found = ITEMS.find(x => x.id === chat.itemId)
+  if (!found) { closeTradeModal(); return }
+  const item = found as Item
   item.sold = true
   const t = new Date()
   const time = t.getHours()+':'+String(t.getMinutes()).padStart(2,'0')
@@ -777,8 +971,20 @@ function confirmCompleteTrade() {
   renderChatList('mob')
   updateCompleteBtn('pc')
   updateCompleteBtn('mob')
+  updateMypage('pc')
+  updateMypage('mob')
   closeTradeModal()
-  showToast('取引が完了しました！')
+
+  const mode = tradeModalMode
+  if (item.supabaseId && CURRENT_USER_ID) {
+    void createClient()
+      .from('items')
+      .update({ is_sold: true })
+      .eq('id', item.supabaseId)
+      .then(({ error }) => { if (error) console.warn('[meguru] is_sold update:', error.message) })
+  }
+
+  void maybeOpenReviewModalAfterTrade(chat, item, mode)
 }
 function updateCompleteBtn(mode: string) {
   const chat = CHATS[curChatId]
@@ -863,50 +1069,80 @@ function mapSupabaseItem(row: any, userId: string | null): Item {
   }
 }
 
-/* ── REALTIME CHAT ── */
+/* ── REALTIME MESSAGES（全チャット・サイドバー未読含む） ── */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let activeRealtimeChannel: any = null
+let globalMessagesChannel: any = null
+let loadChatsDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
-function unsubscribeFromChat() {
-  if (activeRealtimeChannel) {
-    createClient().removeChannel(activeRealtimeChannel)
-    activeRealtimeChannel = null
+function unsubscribeMessageRealtime() {
+  if (globalMessagesChannel) {
+    createClient().removeChannel(globalMessagesChannel)
+    globalMessagesChannel = null
   }
 }
 
-function subscribeToChat(supabaseChatId: string, chatKey: string) {
-  unsubscribeFromChat()
+function subscribeGlobalMessages() {
+  if (!CURRENT_USER_ID) return
+  unsubscribeMessageRealtime()
   const supabase = createClient()
-  const channel = supabase
-    .channel(`messages-${supabaseChatId}`)
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'messages',
-      filter: `chat_id=eq.${supabaseChatId}`,
-    }, (payload) => {
+  globalMessagesChannel = supabase
+    .channel(`meguru-messages-all-${CURRENT_USER_ID}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages' },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const m = payload.new as any
-      const mid = m.id as string | undefined
-      if (!CHATS[chatKey] || !mid) return
-      if (CHATS[chatKey].msgs.some((x) => x.id === mid)) return
-      const t = new Date(m.created_at)
-      const time = t.getHours() + ':' + String(t.getMinutes()).padStart(2, '0')
-      const from = m.sender_id === CURRENT_USER_ID ? 'me' : 'them'
-      CHATS[chatKey].msgs.push({ from, text: m.text, time, id: mid, createdAt: m.created_at })
-      CHATS[chatKey].lastAt = new Date(m.created_at).getTime()
-      if (from === 'them' && curChatId !== chatKey) CHATS[chatKey].unread = (CHATS[chatKey].unread || 0) + 1
-      if (curChatId === chatKey) {
-        const pcChatVisible = (document.getElementById('pc-panel-chat')?.style.display || '') !== 'none'
-        renderMsgs(pcChatVisible ? 'pc' : 'mob')
+      (payload) => {
+        const m = payload.new as any
+        const chatId = m.chat_id as string | undefined
+        const mid = m.id as string | undefined
+        const senderId = m.sender_id as string | undefined
+        if (!chatId || !mid || !senderId) return
+        const chatKey = `sb_${chatId}`
+
+        const scheduleReloadChats = () => {
+          if (loadChatsDebounceTimer) clearTimeout(loadChatsDebounceTimer)
+          loadChatsDebounceTimer = setTimeout(() => {
+            loadChatsDebounceTimer = null
+            void loadChatsFromSupabase()
+          }, 400)
+        }
+
+        if (!CHATS[chatKey]) {
+          scheduleReloadChats()
+          return
+        }
+
+        if (CHATS[chatKey].msgs.some((x) => x.id === mid)) return
+        const t = new Date(m.created_at)
+        const time = t.getHours() + ':' + String(t.getMinutes()).padStart(2, '0')
+        const from = senderId === CURRENT_USER_ID ? 'me' : 'them'
+        CHATS[chatKey].msgs.push({ from, text: m.text, time, id: mid, createdAt: m.created_at })
+        CHATS[chatKey].lastAt = new Date(m.created_at).getTime()
+
+        if (from === 'them') {
+          if (isSupabaseChatThreadVisible(chatKey)) {
+            markSupabaseChatRead(chatId)
+            CHATS[chatKey].unread = 0
+            const pcChat = document.getElementById('pc-panel-chat')
+            const usePc =
+              pcChat &&
+              pcChat.style.display !== 'none' &&
+              pcChat.style.display !== '' &&
+              !document.getElementById('pc-panel')?.classList.contains('hidden')
+            renderMsgs(usePc ? 'pc' : 'mob')
+          } else {
+            CHATS[chatKey].unread = (CHATS[chatKey].unread || 0) + 1
+          }
+        }
+
+        renderChatList('pc')
+        renderChatList('mob')
+        updateSbChatUnreadBadge()
       }
-      renderChatList('pc')
-      renderChatList('mob')
-    })
+    )
     .subscribe((status) => {
-      console.log('[meguru] realtime:', status, supabaseChatId.slice(0, 8))
+      if (status === 'SUBSCRIBED') console.log('[meguru] messages realtime: subscribed')
     })
-  activeRealtimeChannel = channel
 }
 
 async function loadMessagesForChat(supabaseChatId: string, chatKey: string) {
@@ -953,6 +1189,7 @@ async function loadChatsFromSupabase() {
       console.log('[meguru] loadChats: 0 chats')
       renderChatList('pc')
       renderChatList('mob')
+      updateSbChatUnreadBadge()
       return
     }
 
@@ -996,11 +1233,14 @@ async function loadChatsFromSupabase() {
           }
         }),
         supabaseId: chat.id,
+        buyerId: chat.buyer_id,
+        sellerId: chat.seller_id,
       }
     }
     console.log('[meguru] loadChats: loaded', chatsData.length, 'chats from Supabase')
     renderChatList('pc')
     renderChatList('mob')
+    updateSbChatUnreadBadge()
   } catch (e) { console.error('[meguru] loadChatsFromSupabase error:', e) }
 }
 
@@ -1022,6 +1262,24 @@ async function openChatWithSupabase(mode: string) {
     if (existing) {
       chatId = existing.id
     } else {
+      // chats.buyer_id / seller_id が profiles.id を参照するため、未登録だと FK エラーになる
+      const { error: buyerProfErr } = await supabase
+        .from('profiles')
+        .upsert({ id: CURRENT_USER_ID }, { onConflict: 'id', ignoreDuplicates: true })
+      if (buyerProfErr) {
+        console.error('[meguru] profiles upsert (buyer):', buyerProfErr.message, buyerProfErr.code)
+        if (mode === 'pc') pcOpenChatFromDetail(); else mOpenChatFromDetail()
+        return
+      }
+      const { error: sellerProfErr } = await supabase
+        .from('profiles')
+        .upsert({ id: curItem.userId }, { onConflict: 'id', ignoreDuplicates: true })
+      if (sellerProfErr) {
+        console.error('[meguru] profiles upsert (seller):', sellerProfErr.message, sellerProfErr.code)
+        if (mode === 'pc') pcOpenChatFromDetail(); else mOpenChatFromDetail()
+        return
+      }
+
       const { data: newChat, error } = await supabase.from('chats')
         .insert({ item_id: curItem.supabaseId, buyer_id: CURRENT_USER_ID, seller_id: curItem.userId })
         .select('id').single()
@@ -1046,6 +1304,8 @@ async function openChatWithSupabase(mode: string) {
         lastAt: Date.now(),
         msgs: [],
         supabaseId: chatId,
+        buyerId: CURRENT_USER_ID,
+        sellerId: curItem.userId,
       }
     } else {
       const row = CHATS[key]
@@ -1055,6 +1315,8 @@ async function openChatWithSupabase(mode: string) {
       row.in_ = curItem.name
       row.ip = `${curItem.price}${curItem.unit ? ' ' + curItem.unit : ''}`.trim()
       row.itemId = curItem.id
+      row.buyerId = row.buyerId ?? CURRENT_USER_ID ?? undefined
+      row.sellerId = row.sellerId ?? curItem.userId
     }
     curItem.chatKey = key
     await loadMessagesForChat(chatId, key)
@@ -1148,6 +1410,7 @@ function renderChatList(mode: string) {
   }).join('')
   if (mode==='pc') { const el=document.getElementById('pc-chatlist-items'); if(el) el.innerHTML=html }
   else { const el=document.getElementById('m-chatlist-body'); if(el) el.innerHTML=html }
+  updateSbChatUnreadBadge()
 }
 
 /* ── NOTIF ── */
@@ -1168,14 +1431,19 @@ function notifTap(i: number, mode: string) {
 /* ── MYPAGE ── */
 function updateMypage(mode: string) {
   const mine=ITEMS.filter(i=>i.mine)
+  const txDone = TXHISTORY.filter((x) => x.status === '完了').length
   if (mode==='pc') {
     const cnt=document.getElementById('pc-mp-cnt'); if(cnt) cnt.textContent=String(mine.length)
     const sub=document.getElementById('pc-mp-sub'); if(sub) sub.textContent=`${mine.length}件出品中`
     const fs=document.getElementById('pc-fav-sub'); if(fs) fs.textContent=`${favSet.size}件`
+    const txc = document.getElementById('pc-mp-tx-cnt'); if (txc) txc.textContent = String(txDone)
+    const txs = document.getElementById('pc-mp-tx-row-sub'); if (txs) txs.textContent = `完了${txDone}件`
   } else {
     const cnt=document.getElementById('m-mp-cnt'); if(cnt) cnt.textContent=String(mine.length)
     const sub=document.getElementById('m-mp-sub'); if(sub) sub.textContent=`${mine.length}件出品中`
     const fs=document.getElementById('m-fav-sub'); if(fs) fs.textContent=`${favSet.size}件`
+    const txc = document.getElementById('m-mp-tx-cnt'); if (txc) txc.textContent = String(txDone)
+    const txs = document.getElementById('m-mp-tx-row-sub'); if (txs) txs.textContent = `完了${txDone}件`
   }
 }
 
@@ -1685,12 +1953,14 @@ export default function Page() {
       CURRENT_USER_ID = session?.user?.id ?? null
       setUserEmail(session?.user?.email ?? null)
       if (!session?.user) {
-        unsubscribeFromChat()
+        unsubscribeMessageRealtime()
         Object.keys(CHATS).forEach((k) => { if (k.startsWith('sb_')) delete CHATS[k] })
+        updateSbChatUnreadBadge()
       }
       loadChatsFromSupabase().then(() => {
         renderChatList('pc')
         renderChatList('mob')
+        if (session?.user) subscribeGlobalMessages()
       })
     })
 
@@ -1732,6 +2002,7 @@ export default function Page() {
       loadChatsFromSupabase().then(() => {
         renderChatList('pc')
         renderChatList('mob')
+        subscribeGlobalMessages()
       })
       renderChatList('pc')
       renderChatList('mob')
@@ -1740,11 +2011,19 @@ export default function Page() {
       const hasUnread = NOTIFS.some(n=>n.unread)
       const dot = document.getElementById('m-notif-dot')
       if (dot) dot.style.display = hasUnread ? 'block' : 'none'
+
+      await syncUserProfileFromSupabase(userId)
+      await refreshMyReviewStatsUI(userId)
+      updateMypage('pc')
+      updateMypage('mob')
     }
 
     init()
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      unsubscribeMessageRealtime()
+    }
   }, [])
 
   return (
@@ -1810,8 +2089,9 @@ export default function Page() {
               <span className="sbi"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg></span>加工品・その他
             </button>
             <p className="sb-section">マイページ</p>
-            <button className="sb-item" onClick={() => pcGo('chatlist')}>
+            <button type="button" className="sb-item sb-item--chat" onClick={() => pcGo('chatlist')}>
               <span className="sbi"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>やりとり
+              <span className="sb-unread-dot" id="pc-sb-chat-unread" aria-hidden="true" />
             </button>
             <button className="sb-item" onClick={() => pcSubPage('mylistings')}>
               <span className="sbi"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>出品中のもの
@@ -1985,9 +2265,9 @@ export default function Page() {
                         <p className="pc-det-seller-name" id="pc-det-sname">—</p>
                         <p className="pc-det-seller-sub" id="pc-det-sloc">—</p>
                       </div>
-                      <div className="pc-det-rating">
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                        5.0
+                      <div className="pc-det-rating" id="pc-det-rating">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="var(--k)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        —
                       </div>
                     </div>
                     <hr className="pc-det-divider" />
@@ -2068,14 +2348,14 @@ export default function Page() {
                 </div>
                 <div className="pc-mp-stats">
                   <div className="pc-mp-stat"><div className="pc-mp-stat-num" id="pc-mp-cnt">—</div><div className="pc-mp-stat-lbl">出品中</div></div>
-                  <div className="pc-mp-stat"><div className="pc-mp-stat-num">12</div><div className="pc-mp-stat-lbl">取引完了</div></div>
-                  <div className="pc-mp-stat"><div className="pc-mp-stat-num">★4.9</div><div className="pc-mp-stat-lbl">評価</div></div>
+                  <div className="pc-mp-stat"><div className="pc-mp-stat-num" id="pc-mp-tx-cnt">0</div><div className="pc-mp-stat-lbl">取引完了</div></div>
+                  <div className="pc-mp-stat"><div className="pc-mp-stat-num" id="pc-mp-rev-num">—</div><div className="pc-mp-stat-lbl" id="pc-mp-rev-lbl">評価</div></div>
                 </div>
               </div>
               <p className="pc-mp-sec">出品・取引</p>
               <div className="pc-mp-grid">
                 <div className="pc-mp-row" onClick={() => pcSubPage('mylistings')}><div className="pc-mp-row-icon ri-k">📦</div><div><div className="pc-mp-row-label">出品中のもの</div><div className="pc-mp-row-sub" id="pc-mp-sub">—</div></div><span className="pc-mp-arrow">›</span></div>
-                <div className="pc-mp-row" onClick={() => pcSubPage('txhistory')}><div className="pc-mp-row-icon ri-g">📋</div><div><div className="pc-mp-row-label">取引履歴</div><div className="pc-mp-row-sub">完了12件</div></div><span className="pc-mp-arrow">›</span></div>
+                <div className="pc-mp-row" onClick={() => pcSubPage('txhistory')}><div className="pc-mp-row-icon ri-g">📋</div><div><div className="pc-mp-row-label">取引履歴</div><div className="pc-mp-row-sub" id="pc-mp-tx-row-sub">完了0件</div></div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => showFavs('pc')}><div className="pc-mp-row-icon ri-k">❤️</div><div><div className="pc-mp-row-label">お気に入り</div><div className="pc-mp-row-sub" id="pc-fav-sub">0件</div></div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => pcSubPage('profedit')}><div className="pc-mp-row-icon ri-b">✏️</div><div className="pc-mp-row-label">プロフィール編集</div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={handleLogout} style={{color:'#c0392b'}}><div className="pc-mp-row-icon" style={{background:'#fef2f2',borderRadius:'10px',padding:'8px',display:'flex',alignItems:'center',justifyContent:'center'}}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div className="pc-mp-row-label" style={{color:'#c0392b'}}>ログアウト</div><span className="pc-mp-arrow" style={{color:'#c0392b'}}>›</span></div>
@@ -2121,6 +2401,7 @@ export default function Page() {
                   }} />
                 </div>
                 <p className="pc-prof-name">田中 拓也</p>
+                <p id="pc-prof-rev-summary" style={{display:'none',fontSize:'.78rem',color:'var(--k)',fontWeight:600,marginTop:'6px',letterSpacing:'.02em'}} />
               </div>
               <div className="pc-form-full">
                 <div className="fg"><label className="lbl">名前</label><input className="inp" id="pc-prof-name" defaultValue="田中 拓也" style={{maxWidth:'360px'}} /></div>
@@ -2138,7 +2419,7 @@ export default function Page() {
               <div className="panel-scroll" id="pc-panel-scroll">
                 <div className="panel-hero bk" id="pc-d-hero">🍊<div className="p-badges"><span className="p-badge pb-k" id="pc-d-b">NEW</span><span className="p-badge pb-g">手渡しOK</span></div></div>
                 <div className="panel-body">
-                  <div className="p-seller"><div className="p-avt" id="pc-d-avt">👴</div><div><p className="p-sname" id="pc-d-sname">鈴木さん</p><p className="p-sloc" id="pc-d-sloc">駒ヶ根市赤穂</p></div><span className="p-rating">★ 5.0</span></div>
+                  <div className="p-seller"><div className="p-avt" id="pc-d-avt">👴</div><div><p className="p-sname" id="pc-d-sname">鈴木さん</p><p className="p-sloc" id="pc-d-sloc">駒ヶ根市赤穂</p></div><span className="p-rating" id="pc-d-rating">★ —</span></div>
                   <h2 className="p-title" id="pc-d-title">渋柿 約15kg</h2>
                   <p className="p-price" id="pc-d-price">¥500 <small>/ 箱</small></p>
                   <div className="p-tags"><span className="p-tag" id="pc-d-cat">🍊 果物</span><span className="p-tag">手渡しOK</span><span className="p-tag">今週末受取可</span></div>
@@ -2229,7 +2510,13 @@ export default function Page() {
             <button className="m-nt on" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
             <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
             <button className="m-nt-post" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
-            <button className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>チャット</span></button>
+            <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
+              <span className="m-nt-ico-wrap">
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span className="m-nav-chat-unread-dot" aria-hidden="true" />
+              </span>
+              <span>チャット</span>
+            </button>
             <button className="m-nt" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
           </div>
         </div>
@@ -2261,13 +2548,13 @@ export default function Page() {
             </div>
             <div className="m-mp-stats">
               <div className="m-mp-stat"><div className="m-mp-stat-n" id="m-mp-cnt">—</div><div className="m-mp-stat-l">出品中</div></div>
-              <div className="m-mp-stat"><div className="m-mp-stat-n">12</div><div className="m-mp-stat-l">取引完了</div></div>
-              <div className="m-mp-stat"><div className="m-mp-stat-n">★4.9</div><div className="m-mp-stat-l">評価</div></div>
+              <div className="m-mp-stat"><div className="m-mp-stat-n" id="m-mp-tx-cnt">0</div><div className="m-mp-stat-l">取引完了</div></div>
+              <div className="m-mp-stat"><div className="m-mp-stat-n" id="m-mp-rev-num">—</div><div className="m-mp-stat-l" id="m-mp-rev-lbl">評価</div></div>
             </div>
             <p className="m-mp-sec">出品・取引</p>
             <div style={{background:'#fff'}}>
               <div className="m-mp-row" onClick={() => mNav('ms-mylistings')}><div className="m-mp-row-icon ri-k">📦</div><div style={{flex:1}}><div className="m-mp-row-label">出品中のもの</div><div className="m-mp-row-sub" id="m-mp-sub">—</div></div><span className="m-mp-arrow">›</span></div>
-              <div className="m-mp-row" onClick={() => mNav('ms-txhistory')}><div className="m-mp-row-icon ri-g">📋</div><div style={{flex:1}}><div className="m-mp-row-label">取引履歴</div><div className="m-mp-row-sub">完了12件</div></div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => mNav('ms-txhistory')}><div className="m-mp-row-icon ri-g">📋</div><div style={{flex:1}}><div className="m-mp-row-label">取引履歴</div><div className="m-mp-row-sub" id="m-mp-tx-row-sub">完了0件</div></div><span className="m-mp-arrow">›</span></div>
               <div className="m-mp-row" onClick={() => showFavs('mob')}><div className="m-mp-row-icon ri-k">❤️</div><div style={{flex:1}}><div className="m-mp-row-label">お気に入り</div><div className="m-mp-row-sub" id="m-fav-sub">0件</div></div><span className="m-mp-arrow">›</span></div>
             </div>
             <p className="m-mp-sec">アカウント</p>
@@ -2283,7 +2570,13 @@ export default function Page() {
             <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
             <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
             <button className="m-nt-post" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
-            <button className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>チャット</span></button>
+            <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
+              <span className="m-nt-ico-wrap">
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span className="m-nav-chat-unread-dot" aria-hidden="true" />
+              </span>
+              <span>チャット</span>
+            </button>
             <button className="m-nt on" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
           </div>
         </div>
@@ -2418,7 +2711,7 @@ export default function Page() {
               <div id="m-det-thumbs" className="m-det-thumbs" style={{display:'none'}}></div>
             </div>
             <div className="m-det-body">
-              <div className="m-d-seller"><div className="m-d-avt" id="m-d-avt">👴</div><div><p className="m-d-name" id="m-d-sname">鈴木さん</p><p className="m-d-loc" id="m-d-sloc">駒ヶ根市赤穂</p></div><span className="m-d-rating">★ 5.0</span></div>
+              <div className="m-d-seller"><div className="m-d-avt" id="m-d-avt">👴</div><div><p className="m-d-name" id="m-d-sname">鈴木さん</p><p className="m-d-loc" id="m-d-sloc">駒ヶ根市赤穂</p></div><span className="m-d-rating" id="m-det-rating">★ —</span></div>
               <h2 className="m-d-title" id="m-d-title">渋柿 約15kg</h2>
               <p className="m-d-price" id="m-d-price">¥500 <small>/ 箱</small></p>
               <div className="m-d-tags"><span className="m-d-tag" id="m-d-cat">🍊 果物</span><span className="m-d-tag">手渡しOK</span><span className="m-d-tag">今週末受取可</span></div>
@@ -2451,7 +2744,13 @@ export default function Page() {
             <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
             <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
             <button className="m-nt-post" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
-            <button className="m-nt on" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>チャット</span></button>
+            <button type="button" className="m-nt on" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
+              <span className="m-nt-ico-wrap">
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span className="m-nav-chat-unread-dot" aria-hidden="true" />
+              </span>
+              <span>チャット</span>
+            </button>
             <button className="m-nt" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
           </div>
         </div>
@@ -2514,6 +2813,7 @@ export default function Page() {
                 }} />
               </div>
               <p id="m-prof-preview-name" style={{fontFamily:'var(--sf)',fontSize:'1rem',fontWeight:700,color:'#fff'}}>田中 拓也</p>
+              <p id="m-prof-preview-rating" style={{display:'none',fontSize:'.72rem',color:'rgba(255,255,255,.88)',fontWeight:500,marginTop:'4px'}} />
             </div>
             <div style={{padding:'18px 14px',display:'flex',flexDirection:'column',gap:'15px'}}>
               <div><label className="lbl">名前</label><input className="inp" id="m-prof-name" defaultValue="田中 拓也" /></div>
@@ -2561,9 +2861,32 @@ export default function Page() {
           <p className="trade-modal-title">取引を完了しますか？</p>
           <p className="trade-modal-desc">相手と直接会って、商品を受け取りましたか？<br />受け取り確認後に完了してください。</p>
           <div className="trade-modal-btns">
-            <button className="trade-modal-cancel" onClick={closeTradeModal}>キャンセル</button>
-            <button className="trade-modal-confirm" onClick={confirmCompleteTrade}>完了する</button>
+            <button type="button" className="trade-modal-cancel" onClick={closeTradeModal}>キャンセル</button>
+            <button type="button" className="trade-modal-confirm" onClick={confirmCompleteTrade}>完了する</button>
           </div>
+        </div>
+      </div>
+
+      <div className="trade-modal-overlay hidden" id="review-modal">
+        <div className="trade-modal-box review-modal-box">
+          <p className="trade-modal-title">取引の評価</p>
+          <p className="trade-modal-desc" id="review-modal-desc">相手を1〜5で評価してください。</p>
+          <div className="review-star-row" role="group" aria-label="1から5の評価">
+            {([1, 2, 3, 4, 5] as const).map((n) => (
+              <button
+                key={n}
+                type="button"
+                className="review-star-btn"
+                aria-label={`星${n}`}
+                onClick={() => void submitReviewRating(n)}
+              >
+                ★
+              </button>
+            ))}
+          </div>
+          <button type="button" className="review-skip-btn" onClick={closeReviewModal}>
+            スキップ
+          </button>
         </div>
       </div>
 
