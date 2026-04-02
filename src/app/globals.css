@@ -498,8 +498,8 @@ input, textarea, select { font-family:var(--ss); }
 .m-back  { width:33px; height:33px; border-radius:50%; background:var(--pa); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .15s; }
 .m-back svg { width:15px; height:15px; stroke:var(--g); fill:none; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
 
-/* Mobile scrollable */
-.m-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+/* Mobile scrollable（min-height:0 で flex 子が縮み、下の m-nav が常に表示される） */
+.m-body { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 .m-body::-webkit-scrollbar { display:none; }
 /* ホーム: オレンジ出品FABが上にせり出すため、ボトムナビ分の余白をメインスクロール領域に確保 */
 #ms-home > .m-body {

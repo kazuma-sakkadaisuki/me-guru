@@ -2807,7 +2807,7 @@ export default function Page() {
 
         {/* HOME */}
         <div className="scn active" id="ms-home">
-          <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar">
             <span className="m-logo">MEGURU</span>
             <div style={{marginLeft:'auto',display:'flex',gap:'7px'}}>
@@ -2861,7 +2861,7 @@ export default function Page() {
 
         {/* SEARCH（ホームと同構造: トップバー → スクロール本体 → ボトムナビ） */}
         <div className="scn" id="ms-search">
-          <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar">
             <span className="m-logo">MEGURU</span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: '7px' }}>
@@ -2912,14 +2912,14 @@ export default function Page() {
 
         {/* NOTIF */}
         <div className="scn" id="ms-notif">
-          <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar"><button className="m-back" onClick={mBack}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button><span className="m-title">お知らせ</span></div>
           <div className="m-body" id="m-notif-body"></div>
         </div>
 
         {/* MYPAGE */}
         <div className="scn" id="ms-mypage">
-          <div className="m-sbar drk"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar drk"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-body">
             <div className="m-mp-head">
               <div className="m-mp-avt" id="m-mp-avt-el" style={{overflow:'hidden'}}>🧑</div>
@@ -2964,7 +2964,7 @@ export default function Page() {
 
         {/* POST */}
         <div className="scn" id="ms-post">
-          <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar"><button className="m-back" onClick={mBack}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button><span className="m-title">余りものを出品する</span></div>
           <div className="m-body">
             <div className="m-post-body">
@@ -3054,7 +3054,7 @@ export default function Page() {
 
         {/* COMPLETE */}
         <div className="scn" id="ms-complete">
-          <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar"><span className="m-logo">MEGURU</span></div>
           <div className="m-body">
             <div className="m-comp-wrap">
@@ -3075,7 +3075,7 @@ export default function Page() {
 
         {/* DETAIL */}
         <div className="scn" id="ms-detail">
-          <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar"><button className="m-back" onClick={mBack}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button><span style={{flex:1}}></span><button className="ibtn" onClick={() => showToast('リンクをコピーしました')}><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button></div>
           <div className="m-body">
             {/* 画像ギャラリー */}
@@ -3118,7 +3118,7 @@ export default function Page() {
 
         {/* USER PROFILE */}
         <div className="scn" id="ms-userprofile">
-          <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar">
             <button type="button" className="m-back" onClick={mBack} aria-label="戻る"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
             <span className="m-title">プロフィール</span>
@@ -3138,7 +3138,7 @@ export default function Page() {
 
         {/* CHAT LIST */}
         <div className="scn" id="ms-chatlist">
-          <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar"><span className="m-logo">MEGURU</span><span style={{fontSize:'.7rem',color:'var(--mu)',fontWeight:300,marginLeft:'5px'}}>やりとり</span></div>
           <div className="m-body" id="m-chatlist-body"></div>
           <div className="m-nav">
@@ -3158,7 +3158,7 @@ export default function Page() {
 
         {/* CHAT VIEW */}
         <div className="scn" id="ms-chat">
-          <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-chat-tbar">
             <button className="m-back" onClick={mBack}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
             <div className="m-d-avt" id="m-chat-avt" style={{width:'32px',height:'32px',fontSize:'.88rem'}}>👴</div>
@@ -3184,21 +3184,21 @@ export default function Page() {
 
         {/* MY LISTINGS */}
         <div className="scn" id="ms-mylistings">
-          <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar"><button className="m-back" onClick={mBack}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button><span className="m-title" id="m-mylistings-title">出品中のもの</span></div>
           <div className="m-body"><div className="m-grid" id="m-mylistings-grid" style={{paddingTop:'13px'}}></div></div>
         </div>
 
         {/* TX HISTORY */}
         <div className="scn" id="ms-txhistory">
-          <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar"><button className="m-back" onClick={mBack}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button><span className="m-title">取引履歴</span></div>
           <div className="m-body" id="m-tx-body"></div>
         </div>
 
         {/* PROF EDIT */}
         <div className="scn" id="ms-profedit">
-          <div className="m-sbar drk"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-sbar drk"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar" style={{background:'var(--g)'}}>
             <button className="m-back" style={{background:'rgba(255,255,255,.2)'}} onClick={mBack}><svg viewBox="0 0 24 24" style={{stroke:'#fff'}}><polyline points="15 18 9 12 15 6"/></svg></button>
             <span className="m-title" style={{color:'#fff'}}>プロフィール編集</span>
