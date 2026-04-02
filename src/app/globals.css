@@ -497,6 +497,14 @@ input, textarea, select { font-family:var(--ss); }
 /* Mobile scrollable */
 .m-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 .m-body::-webkit-scrollbar { display:none; }
+/* ホーム: オレンジ出品FABが上にせり出すため、ボトムナビ分の余白をメインスクロール領域に確保 */
+#ms-home > .m-body {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+/* .m-grid 既定の 90px と二重にならないようホームのグリッド下は控えめに */
+#ms-home .m-grid {
+  padding: 0 12px 12px;
+}
 
 /* Mobile bottom nav */
 .m-nav { flex-shrink:0; display:flex; background:#fff; border-top:1px solid var(--bd); padding:6px 0 max(16px,env(safe-area-inset-bottom)); }
