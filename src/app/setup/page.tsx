@@ -3,7 +3,8 @@
 import { type ChangeEvent, useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { AREA_DATA, DISTRICT_DATA, LS_AREA_KEY, LS_DISTRICTS_KEY } from '@/lib/area-data'
+import { LS_AREA_KEY, LS_DISTRICTS_KEY } from '@/lib/area-data'
+import { NAGANO_MUNICIPALITIES, NAGANO_PREF } from '@/lib/nagano-municipalities'
 
 const MAX_AVATAR_BYTES = 1_800_000
 
@@ -11,9 +12,7 @@ export default function SetupPage() {
   const router = useRouter()
   const [gateDone, setGateDone] = useState(false)
   const [displayName, setDisplayName] = useState('')
-  const [pref, setPref] = useState('')
-  const [city, setCity] = useState('')
-  const [districts, setDistricts] = useState<string[]>([])
+  const [municipality, setMunicipality] = useState('')
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -44,27 +43,6 @@ export default function SetupPage() {
     }
   }, [router])
 
-  const onPickPref = useCallback((p: string) => {
-    setPref(p)
-    setCity('')
-    setDistricts([])
-    setError('')
-  }, [])
-
-  const onPickCity = useCallback(
-    (c: string) => {
-      if (!pref) return
-      setCity(c)
-      setDistricts([])
-      setError('')
-    },
-    [pref],
-  )
-
-  const toggleDistrict = useCallback((d: string) => {
-    setDistricts((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]))
-  }, [])
-
   const onAvatarChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !file.type.startsWith('image/')) return
@@ -90,8 +68,8 @@ export default function SetupPage() {
       setError('お名前を入力してください。')
       return
     }
-    if (!pref || !city) {
-      setError('都道府県と市区町村を選んでください。')
+    if (!municipality) {
+      setError('市区町村を選んでください。')
       return
     }
 
@@ -104,9 +82,9 @@ export default function SetupPage() {
       return
     }
 
-    const area = `${pref} ${city}`
+    const area = `${NAGANO_PREF} ${municipality}`
     localStorage.setItem(LS_AREA_KEY, area)
-    localStorage.setItem(LS_DISTRICTS_KEY, JSON.stringify(districts))
+    localStorage.setItem(LS_DISTRICTS_KEY, JSON.stringify([]))
 
     setSaving(true)
     try {
@@ -129,9 +107,6 @@ export default function SetupPage() {
     }
   }
 
-  const cityList = pref && AREA_DATA[pref] ? AREA_DATA[pref] : []
-  const districtList = city ? DISTRICT_DATA[city] || [] : []
-
   if (!gateDone) {
     return (
       <div className="setup-root setup-root--loading">
@@ -144,7 +119,7 @@ export default function SetupPage() {
     <div className="setup-root">
       <div className="setup-card">
         <h1 className="setup-ttl">はじめにプロフィールを設定</h1>
-        <p className="setup-lead">表示名・お住まいのエリアを登録して、MEGURU を始めましょう。</p>
+        <p className="setup-lead">表示名とお住まいの市区町村を登録して、MEGURU を始めましょう。</p>
 
         <div className="setup-field">
           <label className="setup-lbl" htmlFor="setup-name">
@@ -165,45 +140,26 @@ export default function SetupPage() {
           <p className="setup-lbl">
             お住まいのエリア <span className="setup-req">必須</span>
           </p>
-          <div className="area-field">
-            <p className="area-field-lbl">都道府県</p>
-            <div className="area-card-grid">
-              {Object.keys(AREA_DATA).map((p) => (
-                <button key={p} type="button" className={`area-card-btn${pref === p ? ' on' : ''}`} onClick={() => onPickPref(p)}>
-                  {p}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="area-field">
-            <p className="area-field-lbl">市区町村</p>
-            {!pref ? (
-              <p className="area-cards-hint area-cards-muted">まず都道府県を選んでください</p>
-            ) : (
-              <div className="area-card-grid area-card-grid-city">
-                {cityList.map((c) => (
-                  <button key={c} type="button" className={`area-card-btn area-card-btn-city${city === c ? ' on' : ''}`} onClick={() => onPickCity(c)}>
-                    {c}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {districtList.length > 0 && (
-            <div className="area-field" id="setup-dist-wrap">
-              <p className="area-field-lbl">
-                地区 <span className="area-field-sub">（任意・複数選択可）</span>
-              </p>
-              <p className="area-dist-note">選ばない場合は市区町村全体として扱います</p>
-              <div className="area-dist-chips">
-                {districtList.map((d) => (
-                  <button key={d} type="button" className={`area-chip${districts.includes(d) ? ' on' : ''}`} onClick={() => toggleDistrict(d)}>
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <p className="setup-pref-fixed">{NAGANO_PREF}</p>
+          <label className="setup-lbl setup-lbl--sub" htmlFor="setup-muni">
+            市区町村
+          </label>
+          <select
+            id="setup-muni"
+            className="setup-select"
+            value={municipality}
+            onChange={(e) => {
+              setMunicipality(e.target.value)
+              setError('')
+            }}
+          >
+            <option value="">選択してください</option>
+            {NAGANO_MUNICIPALITIES.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="setup-field">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { AREA_DATA, DISTRICT_DATA, LS_AREA_KEY, LS_DISTRICTS_KEY } from '@/lib/area-data'
+import { NAGANO_MUNICIPALITIES, NAGANO_PREF } from '@/lib/nagano-municipalities'
 
 /* ── DATA ── */
 const ITEMS = [
@@ -138,7 +139,7 @@ const NOTIFS = [
 ]
 
 /* ── GLOBAL USER STATE ── */
-const USER = { name: '田中 拓也', area: '駒ヶ根市赤穂', bio: 'よろしくお願いします。', avt: '' }
+const USER = { name: '田中 拓也', area: '', bio: 'よろしくお願いします。', avt: '' }
 
 /* ── MODULE-LEVEL STATE ── */
 let curItem: Item = ITEMS[0]
@@ -210,20 +211,40 @@ function initAreaFromStorage() {
   return false
 }
 
+/** プロフィール／LS に長野県内の市区町村が入っているか（未設定時はバナーに「長野県」・一覧は全件） */
+function userHasProfileArea(): boolean {
+  const a = (USER.area || '').trim()
+  if (!a) return false
+  return NAGANO_MUNICIPALITIES.some((m) => a.includes(m))
+}
+
 function updateAreaDisplay() {
-  const city = USER.area ? (getUserCity() || USER.area) : 'エリア未設定'
-  const distLabel = activeDistricts.length > 0 ? `（${activeDistricts.join('・')}）` : ''
-  ;(['pc-area-display','m-area-display'] as const).forEach(id => {
-    const el = document.getElementById(id); if (el) el.textContent = city + distLabel
+  let label: string
+  if (!userHasProfileArea()) {
+    label = NAGANO_PREF
+  } else {
+    const city = getUserCity() || USER.area
+    const distLabel = activeDistricts.length > 0 ? `（${activeDistricts.join('・')}）` : ''
+    label = city + distLabel
+  }
+  ;(['pc-area-display', 'm-area-display'] as const).forEach((id) => {
+    const el = document.getElementById(id)
+    if (el) el.textContent = label
   })
 }
 
-function _areaPrefHtml(currentPref: string) {
-  const grid = document.getElementById('area-pref-cards')
-  if (!grid) return
-  grid.innerHTML = Object.keys(AREA_DATA).map(p =>
-    `<button type="button" class="area-card-btn${p === currentPref ? ' on' : ''}" onclick="window.onSelectAreaPref('${p.replace(/'/g, "\\'")}')">${p}</button>`
-  ).join('')
+/** エリアモーダル：南信を先頭にしつつ長野県全市区町村（77）を列挙 */
+function naganoCitiesForAreaModal(): string[] {
+  const priority = [
+    '伊那市', '駒ヶ根市', '飯田市', '松本市', '長野市', '上田市',
+    '飯島町', '中川村', '宮田村', '箕輪町', '辰野町', '南箕輪村',
+    '松川町', '高森町', '阿南町', '岡谷市', '諏訪市', '茅野市', '塩尻市', '小諸市',
+    '阿智村', '平谷村', '根羽村', '下條村', '売木村', '天龍村', '泰阜村', '喬木村', '豊丘村', '大鹿村',
+  ]
+  const set = new Set(NAGANO_MUNICIPALITIES)
+  const head = priority.filter((x) => set.has(x))
+  const rest = NAGANO_MUNICIPALITIES.filter((x) => !head.includes(x)).sort((a, b) => a.localeCompare(b, 'ja'))
+  return [...head, ...rest]
 }
 
 function _areaDistHtml(city: string) {
@@ -244,26 +265,26 @@ function _areaDistHtml(city: string) {
 function _areaCityHtml(pref: string, current?: string) {
   const grid = document.getElementById('area-city-cards')
   if (!grid) return
-  if (!pref || !AREA_DATA[pref]) {
-    grid.innerHTML = '<p class="area-cards-hint">まず都道府県を選んでください</p>'
+  const cityList =
+    pref === NAGANO_PREF ? naganoCitiesForAreaModal() : pref && AREA_DATA[pref] ? AREA_DATA[pref] : null
+  if (!pref || !cityList?.length) {
+    grid.innerHTML = '<p class="area-cards-hint">市区町村を選べません</p>'
     grid.classList.add('area-cards-muted')
     const dw = document.getElementById('area-dist-wrap'); if (dw) dw.style.display = 'none'
     return
   }
   grid.classList.remove('area-cards-muted')
-  grid.innerHTML = AREA_DATA[pref].map(c => {
+  grid.innerHTML = cityList.map(c => {
     const esc = c.replace(/'/g, "\\'")
     return `<button type="button" class="area-card-btn area-card-btn-city${c === (current ?? '') ? ' on' : ''}" onclick="window.onSelectAreaCity('${esc}')">${c}</button>`
   }).join('')
 }
 
 function showAreaModal() {
-  const currentPref = USER.area.split(' ')[0] || ''
-  const currentCity = getUserCity()
-  selectedPref = currentPref
+  selectedPref = NAGANO_PREF
+  const currentCity = userHasProfileArea() ? getUserCity() : ''
   selectedCity = currentCity
-  _areaPrefHtml(currentPref)
-  _areaCityHtml(currentPref, currentCity)
+  _areaCityHtml(NAGANO_PREF, currentCity)
   _areaDistHtml(currentCity)
   document.getElementById('area-modal-overlay')?.classList.remove('hidden')
 }
@@ -272,20 +293,19 @@ function closeAreaModal() {
   document.getElementById('area-modal-overlay')?.classList.add('hidden')
 }
 
-function onSelectAreaPref(pref: string) {
-  selectedPref = pref
+function onSelectAreaPref(_pref: string) {
+  selectedPref = NAGANO_PREF
   selectedCity = ''
   activeDistricts = []
-  _areaPrefHtml(pref)
-  _areaCityHtml(pref, '')
+  _areaCityHtml(NAGANO_PREF, '')
   _areaDistHtml('')
 }
 
 function onSelectAreaCity(city: string) {
+  selectedPref = NAGANO_PREF
   selectedCity = city
   activeDistricts = []
-  _areaPrefHtml(selectedPref)
-  _areaCityHtml(selectedPref, city)
+  _areaCityHtml(NAGANO_PREF, city)
   _areaDistHtml(city)
 }
 
@@ -296,9 +316,9 @@ function toggleAreaDistrict(d: string) {
 }
 
 async function selectAreaApply() {
-  const pref = selectedPref
+  const pref = NAGANO_PREF
   const city = selectedCity
-  if (!pref || !city) { showToast('都道府県と市区町村を選択してください'); return }
+  if (!city) { showToast('市区町村を選択してください'); return }
   const area = `${pref} ${city}`
   USER.area = area; selectedPref = pref; selectedCity = city
   localStorage.setItem(LS_AREA_KEY, area)
@@ -312,10 +332,11 @@ async function selectAreaApply() {
   showToast(`「${city}${distLabel}」で絞り込みました`)
 }
 
-// 後方互換性のため残す（初回ログイン時モーダル用）
+// 後方互換性のため残す
 function selectAreaPref(pref: string) { onSelectAreaPref(pref) }
 async function selectAreaCity(city: string) {
-  const area = `${selectedPref} ${city}`
+  const area = `${NAGANO_PREF} ${city}`
+  selectedPref = NAGANO_PREF
   USER.area = area; activeDistricts = []; selectedCity = city
   localStorage.setItem(LS_AREA_KEY, area)
   localStorage.setItem(LS_DISTRICTS_KEY, '[]')
@@ -350,31 +371,44 @@ function applySortFilter(items: Item[], sortMode: string): Item[] {
   // 'new': keep ITEMS order (newest first via unshift)
   return list
 }
+function itemIsInNagano(it: Item): boolean {
+  if (it.loc.includes(NAGANO_PREF)) return true
+  return NAGANO_MUNICIPALITIES.some((m) => it.loc.includes(m))
+}
+
 function applyAreaFilter(items: Item[]): Item[] {
   filterMessage = ''
-  if (areaFilterMode !== 'local' || !USER.area) return items
+  const naganoOnly = items.filter(itemIsInNagano)
+
+  if (areaFilterMode === 'all') {
+    if (naganoOnly.length === 0) {
+      filterMessage = '長野県内の出品が見つかりません。すべて表示しています。'
+      return items
+    }
+    return naganoOnly
+  }
+
+  if (!userHasProfileArea()) {
+    return items
+  }
+
   const city = getUserCity()
   if (!city) return items
-  let cityFiltered = items.filter(i => i.loc.includes(city))
+  let cityFiltered = items.filter((i) => i.loc.includes(city))
 
-  // 地区フィルター
   if (activeDistricts.length > 0) {
-    const distFiltered = cityFiltered.filter(i => activeDistricts.some(d => i.loc.includes(d)))
+    const distFiltered = cityFiltered.filter((i) => activeDistricts.some((d) => i.loc.includes(d)))
     if (distFiltered.length > 0) return distFiltered
-    // 地区0件 → 市全体にフォールバック
     filterMessage = `${activeDistricts.join('・')}には出品がありません。${city}全体を表示しています。`
     return cityFiltered
   }
 
   if (cityFiltered.length === 0) {
-    // 市0件 → 都道府県にフォールバック
-    const pref = USER.area.split(' ')[0] || ''
-    const prefFiltered = pref ? items.filter(i => i.loc.includes(pref.replace(/[都道府県]$/, ''))) : []
-    if (prefFiltered.length > 0) {
-      filterMessage = `${city}には出品がありません。${pref}全体を表示しています。`
-      return prefFiltered
+    if (naganoOnly.length > 0) {
+      filterMessage = `${city}には出品がありません。長野県内の出品を表示しています。`
+      return naganoOnly
     }
-    filterMessage = `${city}には出品がありません。全国の商品を表示しています。`
+    filterMessage = `${city}には出品がありません。すべて表示しています。`
     return items
   }
   return cityFiltered
@@ -930,8 +964,24 @@ async function syncUserProfileFromSupabase(userId: string) {
     if (error || !data) return
     if (typeof (data as { name?: string }).name === 'string' && (data as { name: string }).name)
       USER.name = (data as { name: string }).name
-    if (typeof (data as { area?: string }).area === 'string' && (data as { area: string }).area)
-      USER.area = (data as { area: string }).area
+    const areaRaw = (data as { area?: string | null }).area
+    if (typeof areaRaw === 'string' && areaRaw.trim()) {
+      USER.area = areaRaw.trim()
+      try {
+        localStorage.setItem(LS_AREA_KEY, USER.area)
+      } catch {
+        /* ignore */
+      }
+    } else {
+      USER.area = ''
+      activeDistricts = []
+      try {
+        localStorage.removeItem(LS_AREA_KEY)
+        localStorage.removeItem(LS_DISTRICTS_KEY)
+      } catch {
+        /* ignore */
+      }
+    }
     if (typeof (data as { bio?: string }).bio === 'string') USER.bio = (data as { bio: string }).bio
     const av = (data as { avatar_url?: string }).avatar_url
     if (typeof av === 'string' && av) USER.avt = av
@@ -2067,7 +2117,7 @@ export default function Page() {
       renderSkeletonGrid('m-home-grid')
 
       // エリア設定を復元
-      const hasArea = initAreaFromStorage()
+      initAreaFromStorage()
       updateAreaDisplay()
 
       // Supabase からアイテムを読み込み（失敗時は localStorage にフォールバック）
@@ -2080,8 +2130,6 @@ export default function Page() {
       applyMobFilter()
       initPostLocSelects()
 
-      // ログイン済みでエリア未設定なら選択モーダルを表示
-      if (userId && !hasArea) setTimeout(showAreaModal, 800)
       initMobCats()
 
       // Supabase チャット一覧を読み込み（非同期 - UIブロックなし）
@@ -2205,8 +2253,8 @@ export default function Page() {
                     の余りもの
                   </h1>
                   <div className="area-tog-row" style={{marginTop:'9px'}}>
-                    <button id="pc-area-tog-local" className="area-tog on" onClick={() => toggleAreaFilter('local')}>このエリアのみ</button>
-                    <button id="pc-area-tog-all" className="area-tog" onClick={() => toggleAreaFilter('all')}>全国を見る</button>
+                    <button id="pc-area-tog-local" className="area-tog on" onClick={() => toggleAreaFilter('local')}>このエリア</button>
+                    <button id="pc-area-tog-all" className="area-tog" onClick={() => toggleAreaFilter('all')}>長野県全体</button>
                   </div>
                 </div>
                 <select className="sort-sel" onChange={(e) => pcSort(e.target.value)}>
@@ -2596,7 +2644,7 @@ export default function Page() {
               </div>
               <div className="area-tog-row-mob">
                 <button id="m-area-tog-local" className="area-tog-mob on" onClick={() => toggleAreaFilter('local')}>このエリア</button>
-                <button id="m-area-tog-all" className="area-tog-mob" onClick={() => toggleAreaFilter('all')}>全国を見る</button>
+                <button id="m-area-tog-all" className="area-tog-mob" onClick={() => toggleAreaFilter('all')}>長野県全体</button>
               </div>
             </div>
             <div className="m-sbar-wrap"><div className="m-sbar-inner" onClick={() => mNav('ms-search')}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><input placeholder="柿、薪、野菜など…" readOnly style={{cursor:'pointer'}} /></div></div>
@@ -2971,7 +3019,7 @@ export default function Page() {
           <div className="area-modal-scroll">
             <div className="area-field">
               <p className="area-field-lbl">都道府県</p>
-              <div className="area-card-grid" id="area-pref-cards" />
+              <div className="area-modal-pref-fixed">{NAGANO_PREF}</div>
             </div>
             <div className="area-field">
               <p className="area-field-lbl">市区町村</p>

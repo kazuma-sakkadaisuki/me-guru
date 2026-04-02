@@ -877,6 +877,17 @@ input, textarea, select { font-family:var(--ss); }
   scrollbar-width:thin;
   font-family:var(--ss);
 }
+.area-modal-pref-fixed {
+  display:inline-block;
+  padding:10px 14px;
+  font-size:.92rem;
+  font-weight:700;
+  color:var(--g);
+  background:rgba(45,90,39,.08);
+  border-radius:12px;
+  border:1.5px solid rgba(45,90,39,.2);
+  font-family:var(--ss);
+}
 .area-modal-footer {
   flex-shrink:0;
   padding:18px 24px 22px;
@@ -1007,7 +1018,7 @@ input, textarea, select { font-family:var(--ss); }
   display:flex;
   align-items:flex-start;
   justify-content:center;
-  font-family:var(--ss);
+  font-family:'Noto Sans JP',sans-serif;
 }
 .setup-root--loading {
   align-items:center;
@@ -1020,9 +1031,10 @@ input, textarea, select { font-family:var(--ss); }
   border-radius:18px;
   padding:28px 22px 30px;
   box-shadow:0 20px 50px rgba(0,0,0,.18), 0 0 0 1px rgba(45,90,39,.1);
+  font-family:'Noto Sans JP',sans-serif;
 }
 .setup-ttl {
-  font-family:var(--sf);
+  font-family:'Noto Sans JP',sans-serif;
   font-size:1.22rem;
   font-weight:700;
   color:var(--g);
@@ -1062,6 +1074,33 @@ input, textarea, select { font-family:var(--ss); }
   transition:border-color .15s;
 }
 .setup-inp:focus { border-color:var(--g); }
+.setup-pref-fixed {
+  display:inline-block;
+  padding:10px 14px;
+  margin-bottom:10px;
+  font-size:.92rem;
+  font-weight:700;
+  color:var(--g);
+  background:rgba(45,90,39,.08);
+  border-radius:10px;
+  border:1.5px solid rgba(45,90,39,.2);
+}
+.setup-lbl--sub { margin-top:4px; font-size:.78rem; color:var(--mu); }
+.setup-select {
+  width:100%;
+  box-sizing:border-box;
+  padding:13px 14px;
+  font-size:.92rem;
+  font-family:'Noto Sans JP',sans-serif;
+  border:1.5px solid rgba(45,90,39,.2);
+  border-radius:12px;
+  background:#fff;
+  outline:none;
+  cursor:pointer;
+  appearance:auto;
+  transition:border-color .15s;
+}
+.setup-select:focus { border-color:var(--g); }
 .setup-avt-row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
 .setup-avt-preview {
   width:72px; height:72px; border-radius:50%;
@@ -1080,6 +1119,7 @@ input, textarea, select { font-family:var(--ss); }
   padding:10px 18px;
   font-size:.82rem;
   font-weight:600;
+  font-family:'Noto Sans JP',sans-serif;
   color:var(--g);
   background:#fff;
   border:1.5px solid rgba(45,90,39,.28);
@@ -1108,7 +1148,7 @@ input, textarea, select { font-family:var(--ss); }
   color:#fff;
   border:none;
   border-radius:14px;
-  font-family:var(--ss);
+  font-family:'Noto Sans JP',sans-serif;
   font-size:1rem;
   font-weight:700;
   letter-spacing:.08em;
