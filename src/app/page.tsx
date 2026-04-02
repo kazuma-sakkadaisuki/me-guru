@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { AREA_DATA, DISTRICT_DATA, LS_AREA_KEY, LS_DISTRICTS_KEY } from '@/lib/area-data'
+import { AREA_DATA, getDistrictsForCity, LS_AREA_KEY, LS_DISTRICTS_KEY } from '@/lib/area-data'
 import { NAGANO_MUNICIPALITIES, NAGANO_PREF } from '@/lib/nagano-municipalities'
 
 /* ── DATA ── */
@@ -78,6 +78,15 @@ function updateSbChatUnreadBadge() {
   document.querySelectorAll<HTMLElement>('.m-nav-chat-unread-dot').forEach((el) => {
     el.style.display = show ? 'block' : 'none'
   })
+  const bellDot = document.getElementById('m-notif-dot')
+  if (bellDot) bellDot.style.display = show ? 'block' : 'none'
+}
+
+/** CHATS 更新後、お知らせ画面を開いていればリストを再描画 */
+function refreshNotifListsIfOpen() {
+  const pcNotif = document.getElementById('pc-pg-notif')
+  if (pcNotif && pcNotif.style.display !== 'none') renderPcNotifs()
+  if (document.getElementById('ms-notif')?.classList.contains('active')) renderMobNotifs()
 }
 
 /** 該当スレのチャット画面が前面に表示されているか（未読に含めない） */
@@ -116,6 +125,13 @@ function isEmailLike(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())
 }
 
+/** マイページヘッダー表示用（空・メール形式は出さない） */
+function mypageHeaderName(): string {
+  const t = (USER.name || '').trim()
+  if (!t || isEmailLike(t)) return '名前未設定'
+  return t
+}
+
 /* ── Category card SVG icons (concrete silhouettes) ── */
 const CAT_CARD_ICONS: Record<string, string> = {
   // 柿: 丸い果実＋4弁のヘタ＋軸
@@ -130,13 +146,94 @@ const CAT_CARD_ICONS: Record<string, string> = {
   other: `<svg class="cat-icon" viewBox="0 0 48 48"><rect x="14" y="3" width="20" height="7" rx="3.5" fill="#2D5A27"/><rect x="16" y="9" width="16" height="6" rx="2" fill="#6a8a6a"/><rect x="10" y="14" width="28" height="30" rx="5" fill="#8aaa8a"/><rect x="12" y="41" width="24" height="4" rx="2" fill="#6a8a6a"/><rect x="14" y="18" width="5" height="20" rx="2.5" fill="white" opacity="0.22"/></svg>`,
   misc: `<svg class="cat-icon" viewBox="0 0 48 48"><path d="M6 18 L24 8 L42 18 L42 40 Q42 44 38 44 L10 44 Q6 44 6 40z" fill="#8a8478"/><path d="M6 18 L24 28 L42 18" stroke="#6a6468" stroke-width="2" fill="none"/><line x1="24" y1="28" x2="24" y2="44" stroke="#6a6468" stroke-width="2"/></svg>`,
 }
-const NOTIFS = [
-  {icon:'💬',cls:'ni-c',title:'田中さんからメッセージが届きました',sub:'「土曜日の午前中にお伺いします！」',time:'3分前',unread:true,chatKey:'tanaka'},
-  {icon:'💬',cls:'ni-c',title:'佐藤さんが渋柿に興味を持っています',sub:'「はじめまして！渋柿をぜひ分けていただけますか？」',time:'18分前',unread:true,chatKey:'sato'},
-  {icon:'🍊',cls:'ni-k',title:'あなたの出品が15人に見られました',sub:'「渋柿 約15kg」の閲覧数が増えています。',time:'1時間前',unread:false,chatKey:null},
-  {icon:'💬',cls:'ni-c',title:'山本さんとの取引が完了しました',sub:'「薪 乾燥済み」の取引ありがとうございました！',time:'昨日',unread:false,chatKey:'yamamoto'},
-  {icon:'📣',cls:'ni-s',title:'MEGURUへようこそ！',sub:'農村の余りものを地域でつなぐプラットフォームです。',time:'3日前',unread:false,chatKey:null},
+/** メッセージ以外の固定お知らせ（チャットとは別・タップでチャットは開かない） */
+const STATIC_NOTIF_DEFS: { id: string; icon: string; cls: string; title: string; sub: string; timeLabel: string }[] = [
+  { id: 'static:views', icon: '🍊', cls: 'ni-k', title: 'あなたの出品が注目されています', sub: '出品の閲覧やお問い合わせはチャット一覧からご確認ください。', timeLabel: '—' },
+  { id: 'static:welcome', icon: '📣', cls: 'ni-s', title: 'MEGURUへようこそ！', sub: '農村の余りものを地域でつなぐプラットフォームです。', timeLabel: '—' },
 ]
+
+type AppNotifRow = {
+  nid: string
+  icon: string
+  cls: string
+  title: string
+  sub: string
+  time: string
+  unread: boolean
+  chatKey: string | null
+}
+
+function formatRelativeJa(ms: number): string {
+  const sec = Math.max(0, Math.floor((Date.now() - ms) / 1000))
+  if (sec < 10) return 'たった今'
+  if (sec < 60) return '1分以内'
+  const min = Math.floor(sec / 60)
+  if (min < 60) return `${min}分前`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `${h}時間前`
+  const d = Math.floor(h / 24)
+  if (d < 7) return `${d}日前`
+  try {
+    return new Date(ms).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })
+  } catch {
+    return ''
+  }
+}
+
+function notifPeerDisplayName(chat: Chat): string {
+  let n = chat.name.replace(/（[^）]*）/g, '').trim()
+  if (!n || isEmailLike(n)) n = '相手'
+  if (n.endsWith('さん')) return n
+  return `${n}さん`
+}
+
+function lastChatSnippet(chat: Chat): { preview: string; lastFromThem: boolean } {
+  const withText = chat.msgs.filter((m) => m.text && m.text.trim() && m.from !== 'ds' && m.from !== 'system')
+  const last = withText[withText.length - 1]
+  if (!last?.text) return { preview: 'メッセージがあります', lastFromThem: false }
+  const t = last.text.trim()
+  const preview = t.length > 56 ? `${t.slice(0, 54)}…` : t
+  return { preview, lastFromThem: last.from === 'them' }
+}
+
+/** Supabase チャット（messages と同一ソース）からメッセージ系お知らせを生成 */
+function buildMessageNotifRows(): AppNotifRow[] {
+  const entries = getChatListEntries()
+    .filter(([, c]) => c.msgs.some((m) => m.text?.trim() && m.from !== 'ds' && m.from !== 'system'))
+    .sort(([, a], [, b]) => b.lastAt - a.lastAt)
+  return entries.map(([key, c]) => {
+    const peer = notifPeerDisplayName(c)
+    const { preview, lastFromThem } = lastChatSnippet(c)
+    const title = lastFromThem ? `${peer}からメッセージが届きました` : `${peer}とのチャット`
+    return {
+      nid: key,
+      icon: '💬',
+      cls: 'ni-c',
+      title,
+      sub: `「${preview}」`,
+      time: formatRelativeJa(c.lastAt),
+      unread: c.unread > 0,
+      chatKey: key,
+    }
+  })
+}
+
+function buildStaticNotifRows(): AppNotifRow[] {
+  return STATIC_NOTIF_DEFS.map((d) => ({
+    nid: d.id,
+    icon: d.icon,
+    cls: d.cls,
+    title: d.title,
+    sub: d.sub,
+    time: d.timeLabel,
+    unread: false,
+    chatKey: null,
+  }))
+}
+
+function getMergedNotifs(): AppNotifRow[] {
+  return [...buildMessageNotifRows(), ...buildStaticNotifRows()]
+}
 
 /* ── GLOBAL USER STATE ── */
 const USER = { name: '田中 拓也', area: '', bio: 'よろしくお願いします。', avt: '' }
@@ -248,12 +345,16 @@ function naganoCitiesForAreaModal(): string[] {
 }
 
 function _areaDistHtml(city: string) {
-  const districts = city ? (DISTRICT_DATA[city] || []) : []
+  const districts = getDistrictsForCity(city)
   const wrap = document.getElementById('area-dist-wrap')
-  if (!wrap) return
-  if (districts.length === 0) { wrap.style.display = 'none'; return }
-  wrap.style.display = 'block'
   const list = document.getElementById('area-dist-list')
+  if (!wrap) return
+  if (districts.length === 0) {
+    wrap.style.display = 'none'
+    if (list) list.innerHTML = ''
+    return
+  }
+  wrap.style.display = 'block'
   if (!list) return
   list.innerHTML = districts.map(d => {
     const esc = d.replace(/'/g, "\\'")
@@ -486,7 +587,11 @@ function mNav(id: string) {
   if (!next) return
   next.classList.remove('back'); next.classList.add('active')
   if (id==='ms-chatlist') renderChatList('mob')
-  if (id==='ms-search') { setTimeout(()=>(document.getElementById('m-search-inp') as HTMLInputElement)?.focus(),280); renderGrid(ITEMS,'m-search-grid','mob') }
+  if (id === 'ms-search') {
+    initMobCats()
+    setTimeout(() => (document.getElementById('m-search-inp') as HTMLInputElement)?.focus(), 280)
+    mDoSearch()
+  }
   if (id==='ms-notif') renderMobNotifs()
   if (id==='ms-mypage') updateMypage('mob')
   if (id==='ms-txhistory') renderTxHistory('mob')
@@ -795,6 +900,8 @@ function openChatCore(chatId: string) {
   }
   renderChatList('pc')
   renderChatList('mob')
+  updateSbChatUnreadBadge()
+  refreshNotifListsIfOpen()
 }
 
 // 既存のチャットを使うか、出品者ごとに新規スレッドを自動生成
@@ -1248,6 +1355,7 @@ function subscribeGlobalMessages() {
         renderChatList('pc')
         renderChatList('mob')
         updateSbChatUnreadBadge()
+        refreshNotifListsIfOpen()
       }
     )
     .subscribe((status) => {
@@ -1286,6 +1394,7 @@ function wipeSupabaseChatsFromMemoryAndRefresh() {
   renderChatList('pc')
   renderChatList('mob')
   updateSbChatUnreadBadge()
+  refreshNotifListsIfOpen()
 }
 
 /** 失敗時は []（ネットワーク等で fetch が落ちると Supabase クライアントが TypeError を投げることがある） */
@@ -1313,6 +1422,7 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
       renderChatList('pc')
       renderChatList('mob')
       updateSbChatUnreadBadge()
+      refreshNotifListsIfOpen()
       return []
     }
 
@@ -1369,6 +1479,7 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
     renderChatList('pc')
     renderChatList('mob')
     updateSbChatUnreadBadge()
+    refreshNotifListsIfOpen()
     return chatsData
   } catch (e) {
     console.error('[meguru] loadChatsFromSupabase error:', e)
@@ -1538,19 +1649,39 @@ function renderChatList(mode: string) {
   updateSbChatUnreadBadge()
 }
 
-/* ── NOTIF ── */
+/* ── NOTIF（メッセージ行は CHATS ＝ Supabase messages と同期） ── */
+function notifNidJs(nid: string): string {
+  return nid.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+}
 function renderPcNotifs() {
-  const el=document.getElementById('pc-notif-list')
-  if (el) el.innerHTML=NOTIFS.map((n,i)=>`<div class="n-item${n.unread?' unread':''}" onclick="notifTap(${i},'pc')"><div class="n-icon ${n.cls}">${n.icon}</div><div style="flex:1"><p class="n-title">${n.title}</p><p class="n-sub">${n.sub}</p></div><span class="n-time">${n.time}</span>${n.unread?'<div class="n-dot"></div>':''}</div>`).join('')
+  const el = document.getElementById('pc-notif-list')
+  if (!el) return
+  const rows = getMergedNotifs()
+  el.innerHTML = rows
+    .map(
+      (n) =>
+        `<div class="n-item${n.unread ? ' unread' : ''}" onclick="notifTap('${notifNidJs(n.nid)}','pc')"><div class="n-icon ${n.cls}">${n.icon}</div><div style="flex:1"><p class="n-title">${escChatHtml(n.title)}</p><p class="n-sub">${escChatHtml(n.sub)}</p></div><span class="n-time">${escChatHtml(n.time)}</span>${n.unread ? '<div class="n-dot"></div>' : ''}</div>`
+    )
+    .join('')
 }
 function renderMobNotifs() {
-  const el=document.getElementById('m-notif-body')
-  if (el) el.innerHTML=NOTIFS.map((n,i)=>`<div class="m-n-item${n.unread?' unread':''}" onclick="notifTap(${i},'mob')"><div class="m-n-icon ${n.cls}">${n.icon}</div><div style="flex:1"><p class="m-n-title">${n.title}</p><p class="m-n-sub">${n.sub}</p></div><span class="m-n-time">${n.time}</span>${n.unread?'<div class="m-n-dot"></div>':''}</div>`).join('')
-  const dot=document.getElementById('m-notif-dot'); if(dot) dot.style.display='none'
+  const el = document.getElementById('m-notif-body')
+  if (!el) return
+  const rows = getMergedNotifs()
+  el.innerHTML = rows
+    .map(
+      (n) =>
+        `<div class="m-n-item${n.unread ? ' unread' : ''}" onclick="notifTap('${notifNidJs(n.nid)}','mob')"><div class="m-n-icon ${n.cls}">${n.icon}</div><div style="flex:1"><p class="m-n-title">${escChatHtml(n.title)}</p><p class="m-n-sub">${escChatHtml(n.sub)}</p></div><span class="m-n-time">${escChatHtml(n.time)}</span>${n.unread ? '<div class="m-n-dot"></div>' : ''}</div>`
+    )
+    .join('')
+  updateSbChatUnreadBadge()
 }
-function notifTap(i: number, mode: string) {
-  NOTIFS[i].unread=false
-  const key=NOTIFS[i].chatKey; if(key) openChat(key,mode)
+function notifTap(nid: string, mode: string) {
+  if (nid.startsWith('sb_')) {
+    openChat(nid, mode)
+    return
+  }
+  if (nid === 'static:views') showToast('出品の反応はチャット一覧でご確認ください')
 }
 
 /* ── MYPAGE ── */
@@ -1726,9 +1857,10 @@ function initPostLocSelects() {
       citySel.disabled = false
     }
     const distSel = document.getElementById(`${pre}-post-loc-dist`) as HTMLSelectElement
-    if (distSel && currentCity && DISTRICT_DATA[currentCity]) {
+    const distListInit = getDistrictsForCity(currentCity)
+    if (distSel && distListInit.length > 0) {
       distSel.innerHTML = '<option value="">地区（任意）</option>' +
-        DISTRICT_DATA[currentCity].map(d => `<option value="${d}">${d}</option>`).join('')
+        distListInit.map(d => `<option value="${d}">${d}</option>`).join('')
       distSel.disabled = false
     }
   })
@@ -1756,7 +1888,7 @@ function onPostLocCityChange(sel: HTMLSelectElement) {
   const city = sel.value
   const distSel = document.getElementById(`${pre}-post-loc-dist`) as HTMLSelectElement
   if (!distSel) return
-  const districts = city ? (DISTRICT_DATA[city] || []) : []
+  const districts = getDistrictsForCity(city)
   if (districts.length === 0) {
     distSel.innerHTML = '<option value="">地区（任意）</option>'; distSel.disabled = true
   } else {
@@ -1967,7 +2099,10 @@ function updateAllUserRefs() {
     ? `<img src="${USER.avt}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
     : null
   // Mypage headers
-  ;(['pc-mp-name-el','m-mp-name-el'] as const).forEach(id => { const el=document.getElementById(id); if(el) el.textContent=USER.name })
+  ;(['pc-mp-name-el', 'm-mp-name-el'] as const).forEach((id) => {
+    const el = document.getElementById(id)
+    if (el) el.textContent = mypageHeaderName()
+  })
   ;(['pc-mp-area-el','m-mp-area-el'] as const).forEach(id => { const el=document.getElementById(id); if(el) el.textContent=`${USER.area} · 2025年から利用中` })
   if (avHtml) {
     ;(['pc-mp-avt-el','m-mp-avt-el'] as const).forEach(id => { const el=document.getElementById(id) as HTMLElement|null; if(el){el.style.fontSize='0';el.innerHTML=avHtml} })
@@ -1975,10 +2110,15 @@ function updateAllUserRefs() {
   // Profile form previews
   ;(['pc-prof-name','m-prof-name'] as const).forEach(id => { const el=document.getElementById(id) as HTMLInputElement|null; if(el) el.value=USER.name })
   ;(['pc-prof-area','m-prof-area'] as const).forEach(id => { const el=document.getElementById(id) as HTMLInputElement|null; if(el) el.value=USER.area })
-  const pcPN=document.querySelector('.pc-prof-name') as HTMLElement|null; if(pcPN) pcPN.textContent=USER.name
-  const mPN=document.getElementById('m-prof-preview-name') as HTMLElement|null; if(mPN) mPN.textContent=USER.name
+  const pcPN = document.querySelector('.pc-prof-name') as HTMLElement | null
+  if (pcPN) pcPN.textContent = mypageHeaderName()
+  const mPN = document.getElementById('m-prof-preview-name') as HTMLElement | null
+  if (mPN) mPN.textContent = mypageHeaderName()
   // Update mine items seller data
-  ITEMS.filter(i=>i.mine).forEach(i => { i.seller=USER.name; i.sloc=USER.area })
+  ITEMS.filter((i) => i.mine).forEach((i) => {
+    i.seller = mypageHeaderName()
+    i.sloc = USER.area
+  })
   // Re-render grids so mine cards reflect updated name
   updateAreaDisplay()
   applyPcFilter(); applyMobFilter()
@@ -1986,11 +2126,13 @@ function updateAllUserRefs() {
   if (curItem.mine) {
     const avtEl=document.getElementById('pc-det-avt') as HTMLElement|null
     if (avtEl) { if(avHtml){avtEl.style.fontSize='0';avtEl.innerHTML=avHtml}else{avtEl.style.fontSize='';avtEl.textContent='🧑'} }
-    const snEl=document.getElementById('pc-det-sname'); if(snEl) snEl.textContent=USER.name
+    const snEl = document.getElementById('pc-det-sname')
+    if (snEl) snEl.textContent = mypageHeaderName()
     const slEl=document.getElementById('pc-det-sloc'); if(slEl) slEl.textContent=USER.area
     const mAvt=document.getElementById('m-d-avt') as HTMLElement|null
     if (mAvt) { if(avHtml){mAvt.style.fontSize='0';mAvt.innerHTML=avHtml}else{mAvt.style.fontSize='';mAvt.textContent='🧑'} }
-    const mSn=document.getElementById('m-d-sname'); if(mSn) mSn.textContent=USER.name
+    const mSn = document.getElementById('m-d-sname')
+    if (mSn) mSn.textContent = mypageHeaderName()
     const mSl=document.getElementById('m-d-sloc'); if(mSl) mSl.textContent=USER.area
   }
 }
@@ -2081,10 +2223,12 @@ export default function Page() {
         unsubscribeMessageRealtime()
         Object.keys(CHATS).forEach((k) => { if (k.startsWith('sb_')) delete CHATS[k] })
         updateSbChatUnreadBadge()
+        refreshNotifListsIfOpen()
       }
       loadChatsFromSupabase().then(() => {
         renderChatList('pc')
         renderChatList('mob')
+        refreshNotifListsIfOpen()
         if (session?.user) subscribeGlobalMessages()
       })
     })
@@ -2136,15 +2280,14 @@ export default function Page() {
       loadChatsFromSupabase().then(() => {
         renderChatList('pc')
         renderChatList('mob')
+        refreshNotifListsIfOpen()
         subscribeGlobalMessages()
       })
       renderChatList('pc')
       renderChatList('mob')
       renderTxHistory('pc')
       renderTxHistory('mob')
-      const hasUnread = NOTIFS.some(n=>n.unread)
-      const dot = document.getElementById('m-notif-dot')
-      if (dot) dot.style.display = hasUnread ? 'block' : 'none'
+      updateSbChatUnreadBadge()
 
       await syncUserProfileFromSupabase(userId)
       await refreshMyReviewStatsUI(userId)
@@ -2159,6 +2302,19 @@ export default function Page() {
       unsubscribeMessageRealtime()
     }
   }, [])
+
+  /* React の再レンダーで innerHTML が消えるため、認証表示のたびにモバイルチップ・グリッドを再生成 */
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      initPcCats()
+      initMobCats()
+      initPostLocSelects()
+      applyPcFilter()
+      applyMobFilter()
+      mDoSearch()
+    }, 0)
+    return () => clearTimeout(id)
+  }, [userEmail])
 
   return (
     <>
@@ -2499,7 +2655,6 @@ export default function Page() {
                 <div>
                   <p className="pc-mp-name" id="pc-mp-name-el">田中 拓也</p>
                   <p className="pc-mp-sub" id="pc-mp-area-el">駒ヶ根市赤穂 · 2025年から利用中</p>
-                  {userEmail && <p style={{fontSize:'.73rem',color:'var(--mu)',marginTop:'3px',letterSpacing:'.02em'}}>{userEmail}</p>}
                 </div>
                 <div className="pc-mp-stats">
                   <div className="pc-mp-stat"><div className="pc-mp-stat-num" id="pc-mp-cnt">—</div><div className="pc-mp-stat-lbl">出品中</div></div>
@@ -2509,11 +2664,13 @@ export default function Page() {
               </div>
               <p className="pc-mp-sec">出品・取引</p>
               <div className="pc-mp-grid">
-                <div className="pc-mp-row" onClick={() => pcSubPage('mylistings')}><div className="pc-mp-row-icon ri-k">📦</div><div><div className="pc-mp-row-label">出品中のもの</div><div className="pc-mp-row-sub" id="pc-mp-sub">—</div></div><span className="pc-mp-arrow">›</span></div>
-                <div className="pc-mp-row" onClick={() => pcSubPage('txhistory')}><div className="pc-mp-row-icon ri-g">📋</div><div><div className="pc-mp-row-label">取引履歴</div><div className="pc-mp-row-sub" id="pc-mp-tx-row-sub">完了0件</div></div><span className="pc-mp-arrow">›</span></div>
-                <div className="pc-mp-row" onClick={() => showFavs('pc')}><div className="pc-mp-row-icon ri-k">❤️</div><div><div className="pc-mp-row-label">お気に入り</div><div className="pc-mp-row-sub" id="pc-fav-sub">0件</div></div><span className="pc-mp-arrow">›</span></div>
-                <div className="pc-mp-row" onClick={() => { if (!CURRENT_USER_ID) { showToast('ログインしてください'); return } void openPublicProfile(CURRENT_USER_ID, 'pc') }}><div className="pc-mp-row-icon ri-g">🌿</div><div><div className="pc-mp-row-label">プロフィールを表示</div><div className="pc-mp-row-sub">公開ページ（出品・評価）</div></div><span className="pc-mp-arrow">›</span></div>
-                <div className="pc-mp-row" onClick={() => pcSubPage('profedit')}><div className="pc-mp-row-icon ri-b">✏️</div><div className="pc-mp-row-label">プロフィール編集</div><span className="pc-mp-arrow">›</span></div>
+                <div className="pc-mp-row" onClick={() => pcSubPage('mylistings')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div><div><div className="pc-mp-row-label">出品中のもの</div><div className="pc-mp-row-sub" id="pc-mp-sub">—</div></div><span className="pc-mp-arrow">›</span></div>
+                <div className="pc-mp-row" onClick={() => pcSubPage('txhistory')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="14" y2="16"/></svg></div><div><div className="pc-mp-row-label">取引履歴</div><div className="pc-mp-row-sub" id="pc-mp-tx-row-sub">完了0件</div></div><span className="pc-mp-arrow">›</span></div>
+                <div className="pc-mp-row" onClick={() => showFavs('pc')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24" className="mp-ico-fill"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div><div className="pc-mp-row-label">お気に入り</div><div className="pc-mp-row-sub" id="pc-fav-sub">0件</div></div><span className="pc-mp-arrow">›</span></div>
+                <div className="pc-mp-row" onClick={() => { if (!CURRENT_USER_ID) { showToast('ログインしてください'); return } void openPublicProfile(CURRENT_USER_ID, 'pc') }}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div><div className="pc-mp-row-label">プロフィールを表示</div><div className="pc-mp-row-sub">公開ページ（出品・評価）</div></div><span className="pc-mp-arrow">›</span></div>
+                <div className="pc-mp-row" onClick={() => pcSubPage('profedit')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div className="pc-mp-row-label">プロフィール編集</div><span className="pc-mp-arrow">›</span></div>
+                <div className="pc-mp-row" onClick={() => showToast('設定は準備中です')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div><div className="pc-mp-row-label">設定</div><span className="pc-mp-arrow">›</span></div>
+                <div className="pc-mp-row" onClick={() => showToast('MEGURUについて')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><div className="pc-mp-row-label">MEGURUについて</div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={handleLogout} style={{color:'#c0392b'}}><div className="pc-mp-row-icon" style={{background:'#fef2f2',borderRadius:'10px',padding:'8px',display:'flex',alignItems:'center',justifyContent:'center'}}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div className="pc-mp-row-label" style={{color:'#c0392b'}}>ログアウト</div><span className="pc-mp-arrow" style={{color:'#c0392b'}}>›</span></div>
               </div>
             </div>
@@ -2700,7 +2857,6 @@ export default function Page() {
               <div className="m-mp-avt" id="m-mp-avt-el" style={{overflow:'hidden'}}>🧑</div>
               <p className="m-mp-name" id="m-mp-name-el">田中 拓也</p>
               <p className="m-mp-sub" id="m-mp-area-el">駒ヶ根市赤穂 · 2025年から利用中</p>
-              {userEmail && <p style={{fontSize:'.72rem',color:'var(--mu)',marginTop:'4px',letterSpacing:'.02em'}}>{userEmail}</p>}
             </div>
             <div className="m-mp-stats">
               <div className="m-mp-stat"><div className="m-mp-stat-n" id="m-mp-cnt">—</div><div className="m-mp-stat-l">出品中</div></div>
@@ -2709,16 +2865,16 @@ export default function Page() {
             </div>
             <p className="m-mp-sec">出品・取引</p>
             <div style={{background:'#fff'}}>
-              <div className="m-mp-row" onClick={() => mNav('ms-mylistings')}><div className="m-mp-row-icon ri-k">📦</div><div style={{flex:1}}><div className="m-mp-row-label">出品中のもの</div><div className="m-mp-row-sub" id="m-mp-sub">—</div></div><span className="m-mp-arrow">›</span></div>
-              <div className="m-mp-row" onClick={() => mNav('ms-txhistory')}><div className="m-mp-row-icon ri-g">📋</div><div style={{flex:1}}><div className="m-mp-row-label">取引履歴</div><div className="m-mp-row-sub" id="m-mp-tx-row-sub">完了0件</div></div><span className="m-mp-arrow">›</span></div>
-              <div className="m-mp-row" onClick={() => showFavs('mob')}><div className="m-mp-row-icon ri-k">❤️</div><div style={{flex:1}}><div className="m-mp-row-label">お気に入り</div><div className="m-mp-row-sub" id="m-fav-sub">0件</div></div><span className="m-mp-arrow">›</span></div>
-              <div className="m-mp-row" onClick={() => { if (!CURRENT_USER_ID) { showToast('ログインしてください'); return } void openPublicProfile(CURRENT_USER_ID, 'mob') }}><div className="m-mp-row-icon ri-g">🌿</div><div style={{flex:1}}><div className="m-mp-row-label">プロフィールを表示</div><div className="m-mp-row-sub">公開ページ</div></div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => mNav('ms-mylistings')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div><div style={{flex:1}}><div className="m-mp-row-label">出品中のもの</div><div className="m-mp-row-sub" id="m-mp-sub">—</div></div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => mNav('ms-txhistory')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="14" y2="16"/></svg></div><div style={{flex:1}}><div className="m-mp-row-label">取引履歴</div><div className="m-mp-row-sub" id="m-mp-tx-row-sub">完了0件</div></div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => showFavs('mob')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24" className="mp-ico-fill"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div style={{flex:1}}><div className="m-mp-row-label">お気に入り</div><div className="m-mp-row-sub" id="m-fav-sub">0件</div></div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => { if (!CURRENT_USER_ID) { showToast('ログインしてください'); return } void openPublicProfile(CURRENT_USER_ID, 'mob') }}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div style={{flex:1}}><div className="m-mp-row-label">プロフィールを表示</div><div className="m-mp-row-sub">公開ページ</div></div><span className="m-mp-arrow">›</span></div>
             </div>
             <p className="m-mp-sec">アカウント</p>
             <div style={{background:'#fff'}}>
-              <div className="m-mp-row" onClick={() => mNav('ms-profedit')}><div className="m-mp-row-icon ri-b">✏️</div><div className="m-mp-row-label">プロフィール編集</div><span className="m-mp-arrow">›</span></div>
-              <div className="m-mp-row" onClick={() => showToast('設定は準備中です')}><div className="m-mp-row-icon ri-b">⚙️</div><div className="m-mp-row-label">設定</div><span className="m-mp-arrow">›</span></div>
-              <div className="m-mp-row" onClick={() => showToast('MEGURUについて')}><div className="m-mp-row-icon ri-g">🌿</div><div className="m-mp-row-label">MEGURUについて</div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => mNav('ms-profedit')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div className="m-mp-row-label">プロフィール編集</div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => showToast('設定は準備中です')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div><div className="m-mp-row-label">設定</div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => showToast('MEGURUについて')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><div className="m-mp-row-label">MEGURUについて</div><span className="m-mp-arrow">›</span></div>
               <div className="m-mp-row" onClick={handleLogout} style={{color:'#c0392b'}}><div className="m-mp-row-icon" style={{background:'#fef2f2',borderRadius:'10px',padding:'8px',display:'flex',alignItems:'center',justifyContent:'center'}}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div className="m-mp-row-label" style={{color:'#c0392b'}}>ログアウト</div><span className="m-mp-arrow" style={{color:'#c0392b'}}>›</span></div>
             </div>
             <div style={{padding:'24px 14px',textAlign:'center'}}><p style={{fontSize:'.69rem',color:'var(--mu)',fontWeight:300,lineHeight:2.2}}>MEGURU v1.0.0 · 長野県駒ヶ根市 · 2025<br /><span style={{color:'var(--g)',fontWeight:500}}>農村の余りものを、誰かの暮らしへ。</span></p></div>

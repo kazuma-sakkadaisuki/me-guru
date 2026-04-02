@@ -19,6 +19,14 @@ button { cursor:pointer; font-family:var(--ss); border:none; background:none; }
 .login-page button[role="tab"] { position:relative; z-index:2; -webkit-appearance:none; appearance:none; }
 .login-page button[type="submit"] { background:var(--g); }
 input, textarea, select { font-family:var(--ss); }
+/* iOS: 16px 未満のフォームでフォーカス時に画面が拡大されるのを防ぐ */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="submit"]):not([type="button"]):not([type="image"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
 ::-webkit-scrollbar { width:5px; height:5px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:rgba(45,90,39,0.18); border-radius:3px; }
@@ -374,6 +382,24 @@ input, textarea, select { font-family:var(--ss); }
 .pc-mp-row  { display:flex; align-items:center; gap:12px; padding:13px 16px; background:#fff; border-radius:10px; border:1px solid var(--bd); cursor:pointer; transition:all .18s; }
 .pc-mp-row:hover { border-color:var(--g); background:var(--gp); }
 .pc-mp-row-icon { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:.95rem; flex-shrink:0; }
+/* マイページ行アイコン（緑 #2D5A27 / クリーム #F8F4EE） */
+.mp-ico-wrap {
+  background: var(--cr);
+  border: 1px solid rgba(45, 90, 39, 0.22);
+  box-sizing: border-box;
+}
+.mp-ico-wrap svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  stroke: var(--g);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.mp-ico-wrap svg.mp-ico-fill { stroke: none; }
+.mp-ico-wrap svg.mp-ico-fill path { fill: var(--g); stroke: none; }
 .ri-g { background:var(--gp); } .ri-k { background:var(--kp); } .ri-b { background:#f0ebe3; }
 .pc-mp-row-label { font-size:.86rem; font-weight:500; color:var(--ink); flex:1; }
 .pc-mp-row-sub   { font-size:.7rem; color:var(--mu); margin-top:1px; }
@@ -448,9 +474,12 @@ input, textarea, select { font-family:var(--ss); }
 @media (max-width:767px) { .mob-root { display:flex; } }
 
 /* Screen engine */
-.scn { display:none; flex-direction:column; position:absolute; inset:0; background:var(--cr); z-index:5; }
+.scn { display:none; flex-direction:column; position:absolute; inset:0; background:var(--cr); z-index:5; min-height:0; }
 .scn.active { display:flex; animation:scnIn .2s ease both; }
 .scn.back   { display:flex; animation:scnBack .2s ease both; }
+/* さがす: カテゴリチップが潰れず、一覧エリアがスクロール領域になる */
+#ms-search > .m-chips { flex-shrink: 0; }
+#ms-search > .m-body { flex: 1; min-height: 0; }
 @keyframes scnIn   { from{opacity:0;transform:translateX(22px)} to{opacity:1;transform:translateX(0)} }
 @keyframes scnBack { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
 
