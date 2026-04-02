@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { AREA_DATA, DISTRICT_DATA, LS_AREA_KEY, LS_DISTRICTS_KEY } from '@/lib/area-data'
 
 /* ── DATA ── */
 const ITEMS = [
@@ -50,69 +51,6 @@ const CATMAP: Record<string,string> = {fruit:'🍊 果物',veg:'🥒 野菜',woo
 const EMOJIMAP: Record<string,string> = {fruit:'🍊',veg:'🥒',wood:'🪵',herb:'🌿',other:'🧴',misc:'📦'}
 const BGMAP: Record<string,string> = {fruit:'bk',veg:'bg',wood:'bb',herb:'bg',other:'by',misc:'by'}
 
-/* ── AREA DATA ── */
-const AREA_DATA: Record<string, string[]> = {
-  '北海道':['札幌市','函館市','旭川市','釧路市','帯広市','北見市','小樽市','苫小牧市','千歳市','江別市'],
-  '青森県':['青森市','弘前市','八戸市','五所川原市','十和田市','黒石市','むつ市'],
-  '岩手県':['盛岡市','花巻市','北上市','一関市','宮古市','釜石市','大船渡市'],
-  '宮城県':['仙台市','石巻市','気仙沼市','名取市','多賀城市','塩竈市','白石市'],
-  '秋田県':['秋田市','横手市','大館市','能代市','大仙市','湯沢市','由利本荘市'],
-  '山形県':['山形市','米沢市','鶴岡市','酒田市','新庄市','天童市','上山市'],
-  '福島県':['福島市','郡山市','いわき市','会津若松市','白河市','須賀川市','南相馬市'],
-  '茨城県':['水戸市','つくば市','日立市','土浦市','古河市','ひたちなか市','取手市'],
-  '栃木県':['宇都宮市','足利市','栃木市','小山市','日光市','鹿沼市','真岡市'],
-  '群馬県':['前橋市','高崎市','桐生市','伊勢崎市','太田市','渋川市','富岡市'],
-  '埼玉県':['さいたま市','川越市','熊谷市','川口市','所沢市','越谷市','春日部市','志木市','新座市'],
-  '千葉県':['千葉市','船橋市','松戸市','市川市','柏市','市原市','習志野市','流山市','成田市'],
-  '東京都':['千代田区','中央区','港区','新宿区','渋谷区','世田谷区','品川区','目黒区','大田区','杉並区','中野区','練馬区','足立区','八王子市','立川市'],
-  '神奈川県':['横浜市','川崎市','相模原市','横須賀市','鎌倉市','藤沢市','平塚市','小田原市','茅ヶ崎市','厚木市','大和市'],
-  '新潟県':['新潟市','長岡市','上越市','三条市','柏崎市','新発田市','燕市','十日町市','佐渡市'],
-  '富山県':['富山市','高岡市','魚津市','氷見市','黒部市','砺波市','射水市','小矢部市'],
-  '石川県':['金沢市','白山市','小松市','加賀市','七尾市','輪島市','羽咋市','能美市'],
-  '福井県':['福井市','敦賀市','越前市','坂井市','小浜市','大野市','鯖江市'],
-  '山梨県':['甲府市','甲斐市','笛吹市','南アルプス市','甲州市','都留市','大月市','山梨市'],
-  '長野県':['長野市','松本市','上田市','岡谷市','飯田市','諏訪市','須坂市','小諸市','伊那市','駒ヶ根市','中野市','大町市','飯山市','茅野市','塩尻市','佐久市','千曲市','東御市','安曇野市','辰野町','箕輪町','南箕輪村','飯島町','中川村','宮田村','松川町','高森町','阿南町'],
-  '岐阜県':['岐阜市','大垣市','高山市','各務原市','多治見市','関市','中津川市','可児市','土岐市'],
-  '静岡県':['静岡市','浜松市','沼津市','富士市','磐田市','焼津市','掛川市','富士宮市','伊東市'],
-  '愛知県':['名古屋市','豊橋市','岡崎市','一宮市','春日井市','豊田市','安城市','刈谷市','西尾市','小牧市'],
-  '三重県':['津市','四日市市','伊勢市','松阪市','桑名市','鈴鹿市','名張市','亀山市'],
-  '滋賀県':['大津市','草津市','彦根市','長浜市','近江八幡市','守山市','栗東市','甲賀市'],
-  '京都府':['京都市','宇治市','亀岡市','長岡京市','城陽市','向日市','八幡市','京田辺市'],
-  '大阪府':['大阪市','堺市','豊中市','高槻市','枚方市','吹田市','茨木市','八尾市','東大阪市','寝屋川市'],
-  '兵庫県':['神戸市','姫路市','尼崎市','明石市','西宮市','宝塚市','加古川市','伊丹市','芦屋市'],
-  '奈良県':['奈良市','橿原市','生駒市','大和郡山市','天理市','桜井市','香芝市','大和高田市'],
-  '和歌山県':['和歌山市','田辺市','海南市','橋本市','有田市','御坊市','新宮市'],
-  '鳥取県':['鳥取市','米子市','倉吉市','境港市'],
-  '島根県':['松江市','出雲市','浜田市','益田市','大田市','安来市','雲南市'],
-  '岡山県':['岡山市','倉敷市','津山市','総社市','玉野市','笠岡市','高梁市','真庭市'],
-  '広島県':['広島市','福山市','呉市','尾道市','三原市','三次市','廿日市市','東広島市'],
-  '山口県':['山口市','下関市','宇部市','周南市','防府市','岩国市','萩市','光市'],
-  '徳島県':['徳島市','阿南市','鳴門市','吉野川市','小松島市','阿波市','三好市'],
-  '香川県':['高松市','丸亀市','坂出市','観音寺市','三豊市','さぬき市','善通寺市'],
-  '愛媛県':['松山市','今治市','新居浜市','西条市','宇和島市','大洲市','四国中央市'],
-  '高知県':['高知市','南国市','四万十市','須崎市','香南市','安芸市','香美市'],
-  '福岡県':['福岡市','北九州市','久留米市','飯塚市','春日市','大野城市','太宰府市','糸島市','筑紫野市'],
-  '佐賀県':['佐賀市','唐津市','鳥栖市','伊万里市','武雄市','小城市','嬉野市'],
-  '長崎県':['長崎市','佐世保市','諫早市','大村市','島原市','対馬市','五島市'],
-  '熊本県':['熊本市','八代市','荒尾市','玉名市','山鹿市','菊池市','宇城市','阿蘇市','天草市'],
-  '大分県':['大分市','別府市','中津市','日田市','佐伯市','由布市','臼杵市','宇佐市'],
-  '宮崎県':['宮崎市','都城市','延岡市','日南市','小林市','日向市','西都市'],
-  '鹿児島県':['鹿児島市','霧島市','薩摩川内市','鹿屋市','姶良市','出水市','指宿市','枕崎市'],
-  '沖縄県':['那覇市','沖縄市','うるま市','浦添市','名護市','糸満市','豊見城市','宮古島市','石垣市'],
-}
-
-/* 市区町村 → 地区一覧（登録されている市のみ）*/
-const DISTRICT_DATA: Record<string, string[]> = {
-  '駒ヶ根市': ['東伊那', '赤穂', '中沢', '福岡', '北割', '小町屋', '飯坂'],
-  '伊那市': ['伊那', '高遠', '長谷'],
-  '箕輪町': ['木下', '沢', '松島', '中箕輪', '富田', '三日町'],
-  '飯島町': ['七久保', '飯島', '田切'],
-  '中川村': ['大草', '片桐'],
-  '宮田村': ['宮田'],
-  '松本市': ['松本', '波田', '四賀', '梓川', '安曇'],
-  '長野市': ['長野', '松代', '篠ノ井', '豊野', '戸隠', '鬼無里', '信更'],
-}
-const LS_DISTRICTS_KEY = 'meguru_user_districts'
 const LS_CHAT_READ_PREFIX = 'meguru_chat_read_'
 
 function markSupabaseChatRead(supabaseChatId: string) {
@@ -168,6 +106,15 @@ function escChatHtml(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+function escAttrUrl(u: string) {
+  return u.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+}
+
+/** profiles.name がメール形式のとき Item.seller をマスク（詳細・チャット等） */
+function isEmailLike(s: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())
+}
+
 /* ── Category card SVG icons (concrete silhouettes) ── */
 const CAT_CARD_ICONS: Record<string, string> = {
   // 柿: 丸い果実＋4弁のヘタ＋軸
@@ -212,6 +159,7 @@ let selectedPref = ''
 let selectedCity = ''
 let activeDistricts: string[] = []
 let filterMessage = ''
+let PROFILE_VIEW_USER_ID: string | null = null
 
 /* ── TOAST ── */
 let _tt: ReturnType<typeof setTimeout>
@@ -223,13 +171,15 @@ function showToast(msg: string) {
 }
 
 /* ── PC NAV ── */
-const PC_PAGES = ['listing','post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','detail']
+const PC_PAGES = ['listing','post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','detail','userprofile']
 function pcGo(page: string) {
   PC_PAGES.forEach(p => { const el = document.getElementById('pc-pg-'+p); if (el) el.style.display='none' })
   const el = document.getElementById('pc-pg-'+page); if (el) el.style.display=''
   if (!['listing','chatlist','mylistings'].includes(page)) document.getElementById('pc-panel')?.classList.add('hidden')
   document.querySelectorAll('.pc-nav-tab').forEach(t => t.classList.remove('on'))
-  const tab = document.getElementById('pct-'+page); if (tab) tab.classList.add('on')
+  if (page !== 'userprofile') {
+    const tab = document.getElementById('pct-'+page); if (tab) tab.classList.add('on')
+  }
   document.querySelectorAll('.sb-item').forEach(t => t.classList.remove('on'))
   if (page==='notif') renderPcNotifs()
   if (page==='mypage') { updateMypage('pc'); (document.getElementById('pc-pg-mypage') as HTMLElement).style.display='' }
@@ -242,8 +192,6 @@ function pcSubPage(p: string) { pcGo(p) }
 
 /* ── SORT & FILTER ── */
 /* ── AREA ── */
-const LS_AREA_KEY = 'meguru_user_area'
-
 function getUserCity(): string {
   const matches = USER.area.match(/[^\s]+[市町村区]/g)
   return matches ? matches[matches.length - 1] : USER.area
@@ -587,7 +535,112 @@ function cardHTML(it: Item, mode: string) {
 function renderGrid(list: Item[], gridId: string, mode: string) {
   const g = document.getElementById(gridId)
   if (!g) return
-  g.innerHTML = list.length ? list.map(i=>cardHTML(i,mode)).join('') : `<div class="empty-state" style="grid-column:1/-1"><div class="ei">🔍</div><p>見つかりませんでした。<br>別のキーワードで試してみてください。</p></div>`
+  g.innerHTML = list.length ? list.map(i=>cardHTML(i,mode)).join('') : `<div class="empty-state" style="grid-column:1/-1"><p>見つかりませんでした。<br>別のキーワードで試してみてください。</p></div>`
+}
+
+async function openPublicProfile(userId: string | null | undefined, mode: 'pc' | 'mob') {
+  if (!userId) {
+    showToast('この出品のプロフィールは表示できません')
+    return
+  }
+  if (!CURRENT_USER_ID) {
+    showToast('プロフィールを見るにはログインしてください')
+    return
+  }
+  PROFILE_VIEW_USER_ID = userId
+  if (mode === 'pc') {
+    pcGo('userprofile')
+    await hydrateUserProfilePage('pc')
+  } else {
+    mNav('ms-userprofile')
+    await hydrateUserProfilePage('mob')
+  }
+}
+
+async function hydrateUserProfilePage(mode: 'pc' | 'mob') {
+  const uid = PROFILE_VIEW_USER_ID
+  if (!uid) return
+  const supabase = createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: prof } = await supabase.from('profiles').select('id,name,area,bio,avatar_url').eq('id', uid).maybeSingle()
+  const { avg, count } = await fetchAggregateReviewsForUser(uid)
+  const { data: rows } = await supabase
+    .from('items')
+    .select('*, profiles(name, area)')
+    .eq('user_id', uid)
+    .eq('is_sold', false)
+    .order('created_at', { ascending: false })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const listings = (rows || []).map((row: any) => mapSupabaseItem(row, CURRENT_USER_ID)) as Item[]
+  for (const it of listings) {
+    if (it.supabaseId && !ITEMS.some((x) => (x as Item).supabaseId === it.supabaseId)) ITEMS.push(it)
+  }
+
+  const fallback = ITEMS.find((i) => (i as Item).userId === uid) as Item | undefined
+  const sellerShort = fallback?.seller.replace(/（[^）]*）/g, '').trim()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const p = prof as any
+  const name = (p?.name as string) || sellerShort || 'ユーザー'
+  const area = (p?.area as string) || fallback?.sloc || '—'
+  const bio = (typeof p?.bio === 'string' && p.bio.trim()) ? p.bio : '自己紹介はまだありません。'
+  const av = (p?.avatar_url as string) || ''
+
+  const ratingHtml =
+    count > 0
+      ? `<span>★${avg.toFixed(1)}</span><span style="font-size:.78rem;font-weight:500;color:var(--mu)">（${count}件の評価）</span>`
+      : `<span style="color:var(--mu);font-weight:500">まだ評価はありません</span>`
+
+  if (mode === 'pc') {
+    const avEl = document.getElementById('pc-up-avt')
+    if (avEl) {
+      if (av) {
+        avEl.style.fontSize = '0'
+        avEl.innerHTML = `<img src="${escAttrUrl(av)}" alt="" style="width:100%;height:100%;object-fit:cover;" />`
+      } else {
+        avEl.style.fontSize = '2.4rem'
+        avEl.textContent = '🧑'
+      }
+    }
+    const nm = document.getElementById('pc-up-name'); if (nm) nm.textContent = name
+    const ar = document.getElementById('pc-up-area'); if (ar) ar.textContent = area
+    const rt = document.getElementById('pc-up-rating'); if (rt) rt.innerHTML = ratingHtml
+    const bi = document.getElementById('pc-up-bio'); if (bi) bi.textContent = bio
+    renderGrid(listings, 'pc-up-grid', 'pc')
+  } else {
+    const avEl = document.getElementById('m-up-avt')
+    if (avEl) {
+      if (av) {
+        avEl.style.fontSize = '0'
+        avEl.innerHTML = `<img src="${escAttrUrl(av)}" alt="" style="width:100%;height:100%;object-fit:cover;" />`
+      } else {
+        avEl.style.fontSize = '2rem'
+        avEl.textContent = '🧑'
+      }
+    }
+    const nm = document.getElementById('m-up-name'); if (nm) nm.textContent = name
+    const ar = document.getElementById('m-up-area'); if (ar) ar.textContent = area
+    const rt = document.getElementById('m-up-rating'); if (rt) rt.innerHTML = ratingHtml
+    const bi = document.getElementById('m-up-bio'); if (bi) bi.textContent = bio
+    renderGrid(listings, 'm-up-grid', 'mob')
+  }
+}
+
+function wireSellerProfileClicks(mode: 'pc' | 'mob') {
+  const uid = curItem.mine ? CURRENT_USER_ID : curItem.userId
+  const can = !!(uid && CURRENT_USER_ID)
+  const ids = mode === 'pc' ? (['pc-det-sname', 'pc-d-sname'] as const) : (['m-d-sname'] as const)
+  ids.forEach((id) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    el.classList.toggle('seller-name-link', can)
+    el.onclick = can
+      ? (e: MouseEvent) => {
+          e.preventDefault()
+          e.stopPropagation()
+          void openPublicProfile(uid, mode)
+        }
+      : null
+  })
 }
 
 /* ── DETAIL ── */
@@ -627,6 +680,7 @@ function openDetail(id: number, mode: string) {
     } else {
       applySellerRatingToDetail(0, 0, 'pc')
     }
+    wireSellerProfileClicks('pc')
   } else {
     renderDetailGallery(curItem, 'mob')
     setAvt(document.getElementById('m-d-avt') as HTMLElement|null)
@@ -650,6 +704,7 @@ function openDetail(id: number, mode: string) {
     } else {
       applySellerRatingToDetail(0, 0, 'mob')
     }
+    wireSellerProfileClicks('mob')
     mNav('ms-detail')
   }
 }
@@ -1054,7 +1109,12 @@ function mapSupabaseItem(row: any, userId: string | null): Item {
     bg: BGMAP[row.category] || 'by',
     loc: row.location || '駒ヶ根市',
     badge: row.is_free ? 'free' : 'new',
-    seller: row.profiles?.name || '出品者',
+    seller: (() => {
+      const n = row.profiles?.name
+      const t = typeof n === 'string' ? n.trim() : ''
+      if (!t) return '出品者'
+      return isEmailLike(t) ? '出品者' : t
+    })(),
     sloc: row.profiles?.area ? `${row.profiles.area}` : '駒ヶ根市',
     savt: '🧑',
     desc: row.description || '詳細は出品者にお問い合わせください。',
@@ -1171,8 +1231,16 @@ async function loadMessagesForChat(supabaseChatId: string, chatKey: string) {
   } catch (e) { console.error('[meguru] loadMessagesForChat error:', e) }
 }
 
-async function loadChatsFromSupabase() {
-  if (!CURRENT_USER_ID) return
+function wipeSupabaseChatsFromMemoryAndRefresh() {
+  Object.keys(CHATS).forEach((k) => { if (k.startsWith('sb_')) delete CHATS[k] })
+  renderChatList('pc')
+  renderChatList('mob')
+  updateSbChatUnreadBadge()
+}
+
+/** 失敗時は []（ネットワーク等で fetch が落ちると Supabase クライアントが TypeError を投げることがある） */
+async function loadChatsFromSupabase(): Promise<unknown[]> {
+  if (!CURRENT_USER_ID) return []
   try {
     const supabase = createClient()
     const { data: chatsData, error } = await supabase
@@ -1183,23 +1251,33 @@ async function loadChatsFromSupabase() {
         item:item_id(id, name, price, unit, category, images)`)
       .or(`buyer_id.eq.${CURRENT_USER_ID},seller_id.eq.${CURRENT_USER_ID}`)
       .order('created_at', { ascending: false })
-    if (error) { console.error('[meguru] loadChats error:', error.message, error.code); return }
+    if (error) {
+      console.error('[meguru] loadChats error:', error.message, error.code)
+      wipeSupabaseChatsFromMemoryAndRefresh()
+      return []
+    }
+
     Object.keys(CHATS).forEach((k) => { if (k.startsWith('sb_')) delete CHATS[k] })
     if (!chatsData || chatsData.length === 0) {
       console.log('[meguru] loadChats: 0 chats')
       renderChatList('pc')
       renderChatList('mob')
       updateSbChatUnreadBadge()
-      return
+      return []
     }
 
     // 全チャットのメッセージを一括取得
     const chatIds = (chatsData as any[]).map((c) => c.id)
-    const { data: allMsgs } = await supabase
+    const { data: allMsgs, error: msgsError } = await supabase
       .from('messages')
       .select('id, chat_id, sender_id, text, created_at')
       .in('chat_id', chatIds)
       .order('created_at', { ascending: true })
+    if (msgsError) {
+      console.error('[meguru] loadChats messages error:', msgsError.message, msgsError.code)
+      wipeSupabaseChatsFromMemoryAndRefresh()
+      return []
+    }
 
     for (const chat of chatsData as any[]) {
       const key = `sb_${chat.id}`
@@ -1241,7 +1319,12 @@ async function loadChatsFromSupabase() {
     renderChatList('pc')
     renderChatList('mob')
     updateSbChatUnreadBadge()
-  } catch (e) { console.error('[meguru] loadChatsFromSupabase error:', e) }
+    return chatsData
+  } catch (e) {
+    console.error('[meguru] loadChatsFromSupabase error:', e)
+    wipeSupabaseChatsFromMemoryAndRefresh()
+    return []
+  }
 }
 
 async function openChatWithSupabase(mode: string) {
@@ -1968,6 +2051,17 @@ export default function Page() {
       CURRENT_USER_ID = userId
       setUserEmail(session.user.email ?? null)
 
+      const { data: profGate } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', userId)
+        .maybeSingle()
+      const gateName = profGate?.name
+      if (gateName == null || String(gateName).trim() === '') {
+        window.location.href = '/setup'
+        return
+      }
+
       // スケルトン表示
       renderSkeletonGrid('pc-grid')
       renderSkeletonGrid('m-home-grid')
@@ -2129,6 +2223,27 @@ export default function Page() {
               </div>
               <div className="filter-msg" id="pc-filter-msg" style={{display:'none'}}></div>
               <div className="pc-grid" id="pc-grid"></div>
+            </div>
+
+            {/* USER PROFILE（出品者・自分） */}
+            <div id="pc-pg-userprofile" style={{display:'none'}}>
+              <div className="pc-det-topbar" style={{marginBottom:'8px'}}>
+                <button type="button" className="pc-det-back" onClick={() => pcGo('listing')} aria-label="戻る">
+                  <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <h1 className="pc-ph-title" style={{margin:0,flex:1}}>プロフィール</h1>
+              </div>
+              <div className="pc-userprofile-head">
+                <div className="pc-up-avt" id="pc-up-avt">🧑</div>
+                <div className="pc-up-meta">
+                  <p className="pc-up-name" id="pc-up-name">—</p>
+                  <p className="pc-up-area" id="pc-up-area">—</p>
+                  <div className="pc-up-rating" id="pc-up-rating" />
+                  <p className="pc-up-bio" id="pc-up-bio">—</p>
+                </div>
+              </div>
+              <p className="pc-up-sec">出品中の商品</p>
+              <div className="pc-grid" id="pc-up-grid" />
             </div>
 
             {/* POST */}
@@ -2349,6 +2464,7 @@ export default function Page() {
                 <div className="pc-mp-row" onClick={() => pcSubPage('mylistings')}><div className="pc-mp-row-icon ri-k">📦</div><div><div className="pc-mp-row-label">出品中のもの</div><div className="pc-mp-row-sub" id="pc-mp-sub">—</div></div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => pcSubPage('txhistory')}><div className="pc-mp-row-icon ri-g">📋</div><div><div className="pc-mp-row-label">取引履歴</div><div className="pc-mp-row-sub" id="pc-mp-tx-row-sub">完了0件</div></div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => showFavs('pc')}><div className="pc-mp-row-icon ri-k">❤️</div><div><div className="pc-mp-row-label">お気に入り</div><div className="pc-mp-row-sub" id="pc-fav-sub">0件</div></div><span className="pc-mp-arrow">›</span></div>
+                <div className="pc-mp-row" onClick={() => { if (!CURRENT_USER_ID) { showToast('ログインしてください'); return } void openPublicProfile(CURRENT_USER_ID, 'pc') }}><div className="pc-mp-row-icon ri-g">🌿</div><div><div className="pc-mp-row-label">プロフィールを表示</div><div className="pc-mp-row-sub">公開ページ（出品・評価）</div></div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => pcSubPage('profedit')}><div className="pc-mp-row-icon ri-b">✏️</div><div className="pc-mp-row-label">プロフィール編集</div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={handleLogout} style={{color:'#c0392b'}}><div className="pc-mp-row-icon" style={{background:'#fef2f2',borderRadius:'10px',padding:'8px',display:'flex',alignItems:'center',justifyContent:'center'}}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div className="pc-mp-row-label" style={{color:'#c0392b'}}>ログアウト</div><span className="pc-mp-arrow" style={{color:'#c0392b'}}>›</span></div>
               </div>
@@ -2548,6 +2664,7 @@ export default function Page() {
               <div className="m-mp-row" onClick={() => mNav('ms-mylistings')}><div className="m-mp-row-icon ri-k">📦</div><div style={{flex:1}}><div className="m-mp-row-label">出品中のもの</div><div className="m-mp-row-sub" id="m-mp-sub">—</div></div><span className="m-mp-arrow">›</span></div>
               <div className="m-mp-row" onClick={() => mNav('ms-txhistory')}><div className="m-mp-row-icon ri-g">📋</div><div style={{flex:1}}><div className="m-mp-row-label">取引履歴</div><div className="m-mp-row-sub" id="m-mp-tx-row-sub">完了0件</div></div><span className="m-mp-arrow">›</span></div>
               <div className="m-mp-row" onClick={() => showFavs('mob')}><div className="m-mp-row-icon ri-k">❤️</div><div style={{flex:1}}><div className="m-mp-row-label">お気に入り</div><div className="m-mp-row-sub" id="m-fav-sub">0件</div></div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => { if (!CURRENT_USER_ID) { showToast('ログインしてください'); return } void openPublicProfile(CURRENT_USER_ID, 'mob') }}><div className="m-mp-row-icon ri-g">🌿</div><div style={{flex:1}}><div className="m-mp-row-label">プロフィールを表示</div><div className="m-mp-row-sub">公開ページ</div></div><span className="m-mp-arrow">›</span></div>
             </div>
             <p className="m-mp-sec">アカウント</p>
             <div style={{background:'#fff'}}>
@@ -2727,6 +2844,26 @@ export default function Page() {
           </div>
         </div>
 
+        {/* USER PROFILE */}
+        <div className="scn" id="ms-userprofile">
+          <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div className="m-tbar">
+            <button type="button" className="m-back" onClick={mBack} aria-label="戻る"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+            <span className="m-title">プロフィール</span>
+          </div>
+          <div className="m-body" style={{padding:0}}>
+            <div className="m-up-head">
+              <div className="m-up-avt" id="m-up-avt">🧑</div>
+              <p className="m-up-name" id="m-up-name">—</p>
+              <p className="m-up-area" id="m-up-area">—</p>
+              <div className="m-up-rating" id="m-up-rating" />
+              <p className="m-up-bio" id="m-up-bio">—</p>
+            </div>
+            <p className="m-up-sec">出品中の商品</p>
+            <div className="m-grid" id="m-up-grid" style={{padding:'0 12px 20px'}} />
+          </div>
+        </div>
+
         {/* CHAT LIST */}
         <div className="scn" id="ms-chatlist">
           <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
@@ -2757,7 +2894,13 @@ export default function Page() {
               <p style={{fontFamily:'var(--sf)',fontSize:'.9rem',fontWeight:600,color:'var(--ink)'}} id="m-chat-pname">鈴木さん</p>
               <p style={{fontSize:'.63rem',color:'var(--mu)'}} id="m-chat-psub">駒ヶ根市赤穂</p>
             </div>
-            <button className="ibtn" onClick={() => showToast('相手のプロフィールを確認')}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+            <button type="button" className="ibtn" title="プロフィール" onClick={() => {
+              const c = CHATS[curChatId]
+              if (!CURRENT_USER_ID) { showToast('ログインしてください'); return }
+              const oid = c?.buyerId && c?.sellerId ? (CURRENT_USER_ID === c.buyerId ? c.sellerId : c.buyerId) : null
+              if (oid) void openPublicProfile(oid, 'mob')
+              else showToast('プロフィールを表示できません')
+            }}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
           </div>
           <div className="m-chat-strip"><div className="cis-wrap" style={{flex:1,minWidth:0}}><span className="cis-e" id="m-cis-e">🍊</span><div style={{minWidth:0}}><p className="cis-n" id="m-cis-n" style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>渋柿</p><p className="cis-p" id="m-cis-p">¥500</p></div></div></div>
           <div className="m-chat-msgs" id="m-chat-msgs"></div>

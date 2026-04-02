@@ -72,7 +72,7 @@ export default function LoginPage() {
         setError(toJaMessage(err.message, false))
         return
       }
-      window.location.href = '/'
+      window.location.href = '/setup'
     } catch {
       setError('通信エラーが発生しました。接続を確認してください。')
     }
@@ -108,6 +108,7 @@ export default function LoginPage() {
             textAlign: 'center',
             marginBottom: 8,
             letterSpacing: '0.06em',
+            fontFamily: "'Noto Serif JP', serif",
           }}
         >
           MEGURU
