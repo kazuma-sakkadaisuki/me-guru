@@ -477,9 +477,13 @@ input, textarea, select { font-family:var(--ss); }
 .scn { display:none; flex-direction:column; position:absolute; inset:0; background:var(--cr); z-index:5; min-height:0; }
 .scn.active { display:flex; animation:scnIn .2s ease both; }
 .scn.back   { display:flex; animation:scnBack .2s ease both; }
-/* さがす: カテゴリチップが潰れず、一覧エリアがスクロール領域になる */
-#ms-search > .m-chips { flex-shrink: 0; }
-#ms-search > .m-body { flex: 1; min-height: 0; }
+/* さがす: ホーム同様、FAB・ボトムナビと重ならないようスクロール余白 */
+#ms-search > .m-body {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+#ms-search .m-grid {
+  padding: 0 12px 12px;
+}
 @keyframes scnIn   { from{opacity:0;transform:translateX(22px)} to{opacity:1;transform:translateX(0)} }
 @keyframes scnBack { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
 

@@ -78,8 +78,9 @@ function updateSbChatUnreadBadge() {
   document.querySelectorAll<HTMLElement>('.m-nav-chat-unread-dot').forEach((el) => {
     el.style.display = show ? 'block' : 'none'
   })
-  const bellDot = document.getElementById('m-notif-dot')
-  if (bellDot) bellDot.style.display = show ? 'block' : 'none'
+  document.querySelectorAll<HTMLElement>('.m-bell-ndot').forEach((el) => {
+    el.style.display = show ? 'block' : 'none'
+  })
 }
 
 /** CHATS 更新後、お知らせ画面を開いていればリストを再描画 */
@@ -516,7 +517,8 @@ function applyAreaFilter(items: Item[]): Item[] {
 }
 
 function _showFilterMsg(gridId: string) {
-  const msgId = gridId === 'pc-grid' ? 'pc-filter-msg' : 'm-filter-msg'
+  const msgId =
+    gridId === 'pc-grid' ? 'pc-filter-msg' : gridId === 'm-search-grid' ? 'm-search-filter-msg' : 'm-filter-msg'
   const el = document.getElementById(msgId)
   if (!el) return
   if (filterMessage) {
@@ -538,6 +540,7 @@ function applyMobFilter() {
   const base = applyAreaFilter(catFiltered)
   renderGrid(applySortFilter(base, mobSortMode), 'm-home-grid', 'mob')
   _showFilterMsg('m-home-grid')
+  mDoSearch()
 }
 function pcSort(val: string) { pcSortMode = val; applyPcFilter() }
 function mobSort(val: string) { mobSortMode = val; applyMobFilter() }
@@ -588,7 +591,11 @@ function mNav(id: string) {
   next.classList.remove('back'); next.classList.add('active')
   if (id==='ms-chatlist') renderChatList('mob')
   if (id === 'ms-search') {
+    document.querySelectorAll('#mob-root .m-nt').forEach((b) => b.classList.remove('on'))
+    document.querySelectorAll('[data-t="ms-search"]').forEach((b) => b.classList.add('on'))
     initMobCats()
+    const sortSel = document.getElementById('m-search-sort-sel') as HTMLSelectElement | null
+    if (sortSel) sortSel.value = mobSortMode
     setTimeout(() => (document.getElementById('m-search-inp') as HTMLInputElement)?.focus(), 280)
     mDoSearch()
   }
@@ -622,7 +629,7 @@ function initMobCats() {
   const homeCats = document.getElementById('m-home-cats')
   if (homeCats) homeCats.innerHTML = cats.map(c=>`<div class="m-chip${c.k==='all'?' on':''}" onclick="mHomeCat(this,'${c.k}','${c.l}')">${chipSvg(c.k)}${c.l}</div>`).join('')
   const searchCats = document.getElementById('m-search-cats')
-  if (searchCats) searchCats.innerHTML = cats.map(c=>`<div class="m-chip${c.k==='all'?' on':''}" onclick="mSearchCat(this,'${c.k}')">${chipSvg(c.k)}${c.l}</div>`).join('')
+  if (searchCats) searchCats.innerHTML = cats.map(c=>`<div class="m-chip${c.k===mSearchCatKey?' on':''}" onclick="mSearchCat(this,'${c.k}')">${chipSvg(c.k)}${c.l}</div>`).join('')
   const fcats = [{v:'fruit',l:'果物'},{v:'veg',l:'野菜'},{v:'wood',l:'薪・木材'},{v:'herb',l:'山菜・ハーブ'},{v:'other',l:'加工品'},{v:'misc',l:'その他'}]
   const mFormCats = document.getElementById('m-form-cats')
   if (mFormCats) mFormCats.innerHTML = fcats.map(c=>`<button class="fchip${c.v==='veg'?' on':''}" data-v="${c.v}" onclick="selCat(this,'mob')">${chipSvg(c.v)}${c.l}</button>`).join('')
@@ -637,14 +644,32 @@ function mSearchCat(el: HTMLElement, cat: string) {
   document.getElementById('m-search-cats')?.querySelectorAll('.m-chip').forEach(c=>c.classList.remove('on')); el.classList.add('on')
   mSearchCatKey=cat; mDoSearch()
 }
+const M_SEARCH_CAT_LABELS: Record<string, string> = {
+  all: 'すべて',
+  fruit: '果物',
+  veg: '野菜',
+  wood: '薪・木材',
+  herb: '山菜',
+  other: '加工品',
+}
+
 function mDoSearch() {
   const inp = document.getElementById('m-search-inp') as HTMLInputElement
   const kw = inp?.value.toLowerCase().trim() ?? ''
-  let list = mSearchCatKey==='all' ? [...ITEMS] : ITEMS.filter(i=>i.cat===mSearchCatKey)
-  if (kw) list = list.filter(i=>i.name.toLowerCase().includes(kw)||i.loc.toLowerCase().includes(kw))
+  const catFiltered = mSearchCatKey === 'all' ? ITEMS : ITEMS.filter((i) => i.cat === mSearchCatKey)
+  const base = applyAreaFilter(catFiltered)
+  const list = applySortFilter(
+    kw ? base.filter((i) => i.name.toLowerCase().includes(kw) || i.loc.toLowerCase().includes(kw)) : base,
+    mobSortMode
+  )
   const t = document.getElementById('m-search-title')
-  if (t) t.textContent = kw?`「${kw}」の検索結果 ${list.length}件`:`すべての余りもの (${ITEMS.length}件)`
-  renderGrid(list,'m-search-grid','mob')
+  if (t) {
+    if (kw) t.textContent = `「${kw}」の検索結果 ${list.length}件`
+    else if (mSearchCatKey === 'all') t.textContent = `すべての余りもの (${list.length}件)`
+    else t.textContent = `${M_SEARCH_CAT_LABELS[mSearchCatKey] ?? mSearchCatKey} (${list.length}件)`
+  }
+  renderGrid(list, 'm-search-grid', 'mob')
+  _showFilterMsg('m-search-grid')
 }
 
 /* ── RENDER GRID ── */
@@ -2787,7 +2812,7 @@ export default function Page() {
             <span className="m-logo">MEGURU</span>
             <div style={{marginLeft:'auto',display:'flex',gap:'7px'}}>
               <button className="ibtn" onClick={() => mNav('ms-search')} title="検索"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg></button>
-              <button className="ibtn" id="m-bell" onClick={() => mNav('ms-notif')} title="通知"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span className="ndot" id="m-notif-dot" style={{display:'none'}}></span></button>
+              <button className="ibtn" id="m-bell" onClick={() => mNav('ms-notif')} title="通知"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span className="ndot m-bell-ndot" style={{display:'none'}} aria-hidden /></button>
             </div>
           </div>
           <div className="m-body">
@@ -2834,12 +2859,55 @@ export default function Page() {
           </div>
         </div>
 
-        {/* SEARCH */}
+        {/* SEARCH（ホームと同構造: トップバー → スクロール本体 → ボトムナビ） */}
         <div className="scn" id="ms-search">
           <div className="m-sbar"><span>9:41</span><span>●●● 100%</span></div>
-          <div className="m-tbar" style={{gap:'8px'}}><div className="m-sfull"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><input id="m-search-inp" placeholder="キーワードを入力…" onChange={mDoSearch} autoComplete="off" /></div><button className="m-scancel" onClick={mBack}>キャンセル</button></div>
-          <div className="m-chips" id="m-search-cats" style={{paddingTop:'10px'}}></div>
-          <div className="m-body"><p className="m-sec-title" id="m-search-title">すべての余りもの</p><div className="m-grid" id="m-search-grid"></div></div>
+          <div className="m-tbar">
+            <span className="m-logo">MEGURU</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '7px' }}>
+              <button type="button" className="ibtn" onClick={() => (document.getElementById('m-search-inp') as HTMLInputElement | null)?.focus()} title="検索">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+              </button>
+              <button type="button" className="ibtn" onClick={() => mNav('ms-notif')} title="通知">
+                <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                <span className="ndot m-bell-ndot" style={{ display: 'none' }} aria-hidden />
+              </button>
+            </div>
+          </div>
+          <div className="m-body">
+            <div className="m-sbar-wrap">
+              <div className="m-sfull" style={{ width: '100%', boxSizing: 'border-box' }}>
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+                <input id="m-search-inp" placeholder="柿、薪、野菜、地名など…" onChange={mDoSearch} autoComplete="off" />
+              </div>
+            </div>
+            <div className="m-chips" id="m-search-cats"></div>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '3px 12px 9px', gap: '8px' }}>
+              <p className="m-sec-title" id="m-search-title" style={{ margin: 0, padding: 0, flex: 1 }}>すべての余りもの</p>
+              <select id="m-search-sort-sel" className="sort-sel sort-sel-mob" defaultValue="new" onChange={(e) => mobSort(e.target.value)}>
+                <option value="new">新着順</option>
+                <option value="free">無料のみ</option>
+                <option value="cheap">安い順</option>
+                <option value="expensive">高い順</option>
+                <option value="soon">受取が近い順</option>
+              </select>
+            </div>
+            <div className="filter-msg" id="m-search-filter-msg" style={{ display: 'none' }}></div>
+            <div className="m-grid" id="m-search-grid"></div>
+          </div>
+          <div className="m-nav" id="mn-search">
+            <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
+            <button className="m-nt on" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
+            <button className="m-nt-post" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
+            <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
+              <span className="m-nt-ico-wrap">
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span className="m-nav-chat-unread-dot" aria-hidden="true" />
+              </span>
+              <span>チャット</span>
+            </button>
+            <button className="m-nt" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
+          </div>
         </div>
 
         {/* NOTIF */}
