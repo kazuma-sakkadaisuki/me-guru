@@ -2807,7 +2807,6 @@ export default function Page() {
 
         {/* HOME */}
         <div className="scn active" id="ms-home">
-          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar">
             <span className="m-logo">MEGURU</span>
             <div style={{marginLeft:'auto',display:'flex',gap:'7px'}}>
@@ -2861,7 +2860,6 @@ export default function Page() {
 
         {/* SEARCH（ホームと同構造: トップバー → スクロール本体 → ボトムナビ） */}
         <div className="scn" id="ms-search">
-          <div className="m-sbar"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar">
             <span className="m-logo">MEGURU</span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: '7px' }}>
