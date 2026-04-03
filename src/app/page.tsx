@@ -2600,7 +2600,6 @@ export default function Page() {
 
     // ── 認証状態変化の監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const prevId = CURRENT_USER_ID
       CURRENT_USER_ID = session?.user?.id ?? null
       setUserEmail(session?.user?.email ?? null)
       if (!session?.user) {
@@ -2617,9 +2616,6 @@ export default function Page() {
         applyPcFilter()
         applyMobFilter()
         mDoSearch()
-      } else if (!prevId && session.user) {
-        window.location.reload()
-        return
       }
       loadChatsFromSupabase().then(() => {
         renderChatList('pc')
