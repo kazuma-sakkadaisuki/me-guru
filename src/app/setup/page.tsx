@@ -18,8 +18,10 @@ export default function SetupPage() {
     const check = async () => {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
+      console.log('session:', session)
       if (!session) { router.replace('/login'); return }
       const { data } = await supabase.from('profiles').select('name').eq('id', session.user.id).single()
+      console.log('profile data:', data)
       if (data?.name && data.name.trim() !== '') { router.replace('/'); return }
     }
     check()
