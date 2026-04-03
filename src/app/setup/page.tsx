@@ -20,7 +20,7 @@ export default function SetupPage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.replace('/login'); return }
       const { data } = await supabase.from('profiles').select('name').eq('id', session.user.id).single()
-      if (data?.name) { router.replace('/'); return }
+      if (data?.name && data.name.trim() !== '') { router.replace('/'); return }
     }
     check()
   }, [router])
