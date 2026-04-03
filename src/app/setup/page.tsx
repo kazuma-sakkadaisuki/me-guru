@@ -3,8 +3,10 @@
 import { type ChangeEvent, useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { LS_AREA_KEY, LS_DISTRICTS_KEY } from '@/lib/area-data'
-import { NAGANO_MUNICIPALITIES, NAGANO_PREF } from '@/lib/nagano-municipalities'
+import { AREA_DATA, LS_AREA_KEY, LS_DISTRICTS_KEY } from '@/lib/area-data'
+
+const NAGANO_PREF = '長野県' as const
+const NAGANO_MUNICIPALITIES = AREA_DATA[NAGANO_PREF]
 
 const MAX_AVATAR_BYTES = 1_800_000
 
