@@ -1,191 +1,68 @@
 'use client'
 
-import { type ChangeEvent, useCallback, useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { AREA_DATA, LS_AREA_KEY, LS_DISTRICTS_KEY } from '@/lib/area-data'
+import { AREA_DATA } from '@/lib/area-data'
 
-const NAGANO_PREF = '長野県' as const
-const NAGANO_MUNICIPALITIES = AREA_DATA[NAGANO_PREF]
-
-const MAX_AVATAR_BYTES = 1_800_000
+const MUNICIPALITIES = AREA_DATA['長野県'] || []
 
 export default function SetupPage() {
   const router = useRouter()
-  const [gateDone, setGateDone] = useState(false)
-  const [displayName, setDisplayName] = useState('')
+  const [name, setName] = useState('')
   const [municipality, setMunicipality] = useState('')
-  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    let cancelled = false
-    async function gate() {
+    const check = async () => {
       const supabase = createClient()
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) {
-        router.replace('/login')
-        return
-      }
-      const { data: prof } = await supabase.from('profiles').select('name').eq('id', session.user.id).maybeSingle()
-      if (cancelled) return
-      const n = prof?.name
-      if (n != null && String(n).trim() !== '') {
-        router.replace('/')
-        return
-      }
-      setGateDone(true)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.replace('/login'); return }
+      const { data } = await supabase.from('profiles').select('name').eq('id', session.user.id).single()
+      if (data?.name) { router.replace('/'); return }
     }
-    void gate()
-    return () => {
-      cancelled = true
-    }
+    check()
   }, [router])
 
-  const onAvatarChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const r = String(reader.result || '')
-      if (r.length > MAX_AVATAR_BYTES) {
-        setError('画像は小さめのファイルにしてください（約1.5MB以下を推奨）')
-        setAvatarDataUrl(null)
-        return
-      }
-      setError('')
-      setAvatarDataUrl(r)
-    }
-    reader.readAsDataURL(file)
-    e.target.value = ''
-  }, [])
-
-  async function onSubmit() {
-    setError('')
-    const name = displayName.trim()
-    if (!name) {
-      setError('お名前を入力してください。')
-      return
-    }
-    if (!municipality) {
-      setError('市区町村を選んでください。')
-      return
-    }
-
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      router.replace('/login')
-      return
-    }
-
-    const area = `${NAGANO_PREF} ${municipality}`
-    localStorage.setItem(LS_AREA_KEY, area)
-    localStorage.setItem(LS_DISTRICTS_KEY, JSON.stringify([]))
-
+  const handleSubmit = async () => {
+    if (!name.trim()) { setError('名前を入力してください'); return }
+    if (!municipality) { setError('お住まいのエリアを選択してください'); return }
     setSaving(true)
-    try {
-      const row: { id: string; name: string; area: string; avatar_url?: string | null } = {
-        id: user.id,
-        name,
-        area,
-      }
-      if (avatarDataUrl) row.avatar_url = avatarDataUrl
-      else row.avatar_url = null
-
-      const { error: upErr } = await supabase.from('profiles').upsert(row, { onConflict: 'id' })
-      if (upErr) {
-        setError(upErr.message || '保存に失敗しました。しばらくしてからお試しください。')
-        return
-      }
-      window.location.href = '/'
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (!gateDone) {
-    return (
-      <div className="setup-root setup-root--loading">
-        <p className="setup-loading-txt">読み込み中…</p>
-      </div>
-    )
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { router.replace('/login'); return }
+    const { error: err } = await supabase.from('profiles').upsert({
+      id: session.user.id,
+      name: name.trim(),
+      area: '長野県 ' + municipality,
+    }, { onConflict: 'id' })
+    if (err) { setError('保存に失敗しました'); setSaving(false); return }
+    window.location.href = '/'
   }
 
   return (
-    <div className="setup-root">
-      <div className="setup-card">
-        <h1 className="setup-ttl">はじめにプロフィールを設定</h1>
-        <p className="setup-lead">表示名とお住まいの市区町村を登録して、MEGURU を始めましょう。</p>
-
-        <div className="setup-field">
-          <label className="setup-lbl" htmlFor="setup-name">
-            お名前 <span className="setup-req">必須</span>
-          </label>
-          <input
-            id="setup-name"
-            className="setup-inp"
-            type="text"
-            autoComplete="name"
-            placeholder="例：山田 太郎"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-          />
-        </div>
-
-        <div className="setup-field">
-          <p className="setup-lbl">
-            お住まいのエリア <span className="setup-req">必須</span>
-          </p>
-          <p className="setup-pref-fixed">{NAGANO_PREF}</p>
-          <label className="setup-lbl setup-lbl--sub" htmlFor="setup-muni">
-            市区町村
-          </label>
-          <select
-            id="setup-muni"
-            className="setup-select"
-            value={municipality}
-            onChange={(e) => {
-              setMunicipality(e.target.value)
-              setError('')
-            }}
-          >
-            <option value="">選択してください</option>
-            {NAGANO_MUNICIPALITIES.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="setup-field">
-          <p className="setup-lbl">
-            アバター写真 <span className="setup-opt">任意</span>
-          </p>
-          <div className="setup-avt-row">
-            <div className="setup-avt-preview">{avatarDataUrl ? <img src={avatarDataUrl} alt="" /> : <span>🧑</span>}</div>
-            <label className="setup-avt-btn">
-              写真を選ぶ
-              <input type="file" accept="image/*" className="setup-avt-input" onChange={onAvatarChange} />
-            </label>
+    <div style={{ minHeight: '100dvh', background: '#2D5A27', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'Noto Sans JP', sans-serif" }}>
+      <div style={{ width: '100%', maxWidth: 400, background: '#F8F4EE', borderRadius: 16, padding: '32px 28px', boxShadow: '0 12px 40px rgba(0,0,0,.2)' }}>
+        <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#2D5A27', textAlign: 'center', marginBottom: 8 }}>MEGURU</h1>
+        <p style={{ fontSize: '.85rem', color: '#666', textAlign: 'center', marginBottom: 24 }}>プロフィールを設定しましょう</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '.8rem', fontWeight: 600, color: '#444', marginBottom: 6 }}>名前（必須）</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="例：田中 太郎" style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', fontSize: '1rem', border: '1px solid #ccc', borderRadius: 10, outline: 'none', fontFamily: "'Noto Sans JP', sans-serif" }} />
           </div>
-        </div>
-
-        {error ? (
-          <div className="setup-alert" role="alert">
-            {error}
+          <div>
+            <label style={{ display: 'block', fontSize: '.8rem', fontWeight: 600, color: '#444', marginBottom: 6 }}>お住まいのエリア（必須）</label>
+            <select value={municipality} onChange={e => setMunicipality(e.target.value)} style={{ width: '100%', padding: '12px 14px', fontSize: '1rem', border: '1px solid #ccc', borderRadius: 10, outline: 'none', background: '#fff', fontFamily: "'Noto Sans JP', sans-serif" }}>
+              <option value="">市区町村を選択</option>
+              {MUNICIPALITIES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
           </div>
-        ) : null}
-
-        <button type="button" className="setup-submit" disabled={saving} onClick={() => void onSubmit()}>
-          {saving ? '保存中…' : 'はじめる'}
-        </button>
+          {error && <div style={{ padding: '10px 12px', fontSize: '.8rem', color: '#b91c1c', background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>{error}</div>}
+          <button type="button" onClick={handleSubmit} disabled={saving} style={{ marginTop: 8, padding: '14px', fontSize: '1rem', fontWeight: 700, color: '#fff', background: '#C4581A', border: 'none', borderRadius: 12, cursor: 'pointer', fontFamily: "'Noto Sans JP', sans-serif" }}>
+            {saving ? '保存中...' : 'はじめる →'}
+          </button>
+        </div>
       </div>
     </div>
   )
