@@ -494,25 +494,41 @@ input, textarea, select { font-family:var(--ss); }
 /* Mobile scrollable（min-height:0 で flex 子が縮み、下の m-nav が常に表示される） */
 .m-body { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 .m-body::-webkit-scrollbar { display:none; }
-/* ホーム・さがす: ボトムナビ＋出品FABの下余白は .m-body のみ（.m-grid との二重付けを避ける） */
+/* 固定ボトムナビの下にスクロール領域が潜らないよう余白（.m-grid 下余白は別途 #ms-* .m-grid で0） */
 #ms-home > .m-body,
 #ms-search > .m-body {
-  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+/* m-nav 固定のため、同構成のタブでも下端が隠れないようにする */
+#ms-mypage > .m-body,
+#ms-chatlist > .m-body {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
 #ms-home .m-grid,
 #ms-search .m-grid {
   padding: 0 12px 0;
 }
 
-/* Mobile bottom nav */
-.m-nav { flex-shrink:0; display:flex; background:#fff; border-top:1px solid var(--bd); padding:6px 0 max(16px,env(safe-area-inset-bottom)); }
+/* Mobile bottom nav（ビューポート下端に固定。本文は上記 padding-bottom で被さない） */
+.m-nav {
+  display:flex;
+  background:#fff;
+  border-top:1px solid var(--bd);
+  padding:6px 0 max(16px,env(safe-area-inset-bottom));
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  z-index:1000;
+  box-sizing:border-box;
+}
 .m-nt  { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:5px 0; }
 .m-nt svg { width:21px; height:21px; stroke:var(--mu); fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; transition:stroke .15s; }
 .m-nt span { font-size:.58rem; font-weight:500; color:var(--mu); letter-spacing:.04em; transition:color .15s; }
 .m-nt.on svg  { stroke:var(--g); }
 .m-nt.on span { color:var(--g); font-weight:700; }
-.m-nt-post { flex:1; display:flex; flex-direction:column; align-items:center; gap:1px; padding:0 0 2px; }
-.m-nt-post .fab { width:47px; height:47px; border-radius:50%; background:var(--k); display:flex; align-items:center; justify-content:center; margin-top:-14px; box-shadow:0 4px 16px rgba(196,88,26,.4); transition:transform .15s,background .15s; }
+.m-nt-post { flex:1; display:flex; flex-direction:column; align-items:center; gap:1px; padding:0 0 2px; position:relative; }
+.m-nt-post .fab { width:47px; height:47px; border-radius:50%; background:var(--k); display:flex; align-items:center; justify-content:center; margin-top:-14px; box-shadow:0 4px 16px rgba(196,88,26,.4); transition:transform .15s,background .15s; position:relative; z-index:1; }
 .m-nt-post .fab svg { width:19px; height:19px; stroke:#fff; fill:none; stroke-width:2.4; stroke-linecap:round; }
 .m-nt-post:hover .fab { transform:scale(1.08); background:var(--k2); }
 .m-nt-post span { font-size:.58rem; font-weight:700; color:var(--k); margin-top:3px; }
