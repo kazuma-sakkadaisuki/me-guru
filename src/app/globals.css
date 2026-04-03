@@ -479,7 +479,7 @@ input, textarea, select { font-family:var(--ss); }
 .scn.back   { display:flex; animation:scnBack .2s ease both; }
 /* さがす: ホーム同様、FAB・ボトムナビと重ならないようスクロール余白 */
 #ms-search > .m-body {
-  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
 }
 #ms-search .m-grid {
   padding: 0 12px 12px;
@@ -503,7 +503,7 @@ input, textarea, select { font-family:var(--ss); }
 .m-body::-webkit-scrollbar { display:none; }
 /* ホーム: オレンジ出品FABが上にせり出すため、ボトムナビ分の余白をメインスクロール領域に確保 */
 #ms-home > .m-body {
-  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
 }
 /* .m-grid 既定の 90px と二重にならないようホームのグリッド下は控えめに */
 #ms-home .m-grid {
