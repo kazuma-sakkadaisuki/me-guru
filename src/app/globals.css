@@ -477,13 +477,6 @@ input, textarea, select { font-family:var(--ss); }
 .scn { display:none; flex-direction:column; position:absolute; inset:0; background:var(--cr); z-index:5; min-height:0; }
 .scn.active { display:flex; animation:scnIn .2s ease both; }
 .scn.back   { display:flex; animation:scnBack .2s ease both; }
-/* さがす: ホーム同様、FAB・ボトムナビと重ならないようスクロール余白 */
-#ms-search > .m-body {
-  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
-}
-#ms-search .m-grid {
-  padding: 0 12px 12px;
-}
 @keyframes scnIn   { from{opacity:0;transform:translateX(22px)} to{opacity:1;transform:translateX(0)} }
 @keyframes scnBack { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
 
@@ -501,13 +494,14 @@ input, textarea, select { font-family:var(--ss); }
 /* Mobile scrollable（min-height:0 で flex 子が縮み、下の m-nav が常に表示される） */
 .m-body { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 .m-body::-webkit-scrollbar { display:none; }
-/* ホーム: オレンジ出品FABが上にせり出すため、ボトムナビ分の余白をメインスクロール領域に確保 */
-#ms-home > .m-body {
-  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+/* ホーム・さがす: ボトムナビ＋出品FABの下余白は .m-body のみ（.m-grid との二重付けを避ける） */
+#ms-home > .m-body,
+#ms-search > .m-body {
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
 }
-/* .m-grid 既定の 90px と二重にならないようホームのグリッド下は控えめに */
-#ms-home .m-grid {
-  padding: 0 12px 12px;
+#ms-home .m-grid,
+#ms-search .m-grid {
+  padding: 0 12px 0;
 }
 
 /* Mobile bottom nav */
@@ -552,7 +546,7 @@ input, textarea, select { font-family:var(--ss); }
 
 .m-sec-title { padding:3px 12px 9px; font-family:var(--sf); font-size:.92rem; font-weight:600; color:var(--ink); }
 
-/* Mobile grid */
+/* Mobile grid（ホーム・さがすは #ms-home .m-grid / #ms-search .m-grid で下余白0にし、.m-body と二重にしない） */
 .m-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; padding:0 12px 90px; }
 .m-card { background:#fff; border-radius:12px; overflow:hidden; box-shadow:var(--sh); cursor:pointer; transition:transform .18s; border:1px solid rgba(0,0,0,.04); }
 .m-card:hover { transform:translateY(-3px); }
