@@ -1595,16 +1595,75 @@ async function loadItemsFromSupabase(userId: string | null): Promise<boolean> {
       .from('items')
       .select('*, profiles(name, area)')
       .order('created_at', { ascending: false })
-    if (error) { console.error('[meguru] Supabase load error:', error); return false }
-    if (!data || data.length === 0) { console.log('[meguru] Supabase: 0 items'); return false }
+    if (error) {
+      console.error('[meguru] loadItemsFromSupabase Supabase error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      })
+      return false
+    }
+    if (!data || data.length === 0) {
+      console.warn('[meguru] loadItemsFromSupabase: 0 rows returned from items')
+      return false
+    }
     const mapped = data.map((row) => mapSupabaseItem(row, userId))
     ITEMS.splice(0, ITEMS.length, ...mapped)
-    console.log('[meguru] Supabase: loaded', ITEMS.length, 'items')
+    console.log('[meguru] loadItemsFromSupabase OK:', ITEMS.length, 'items mapped into ITEMS')
     return true
   } catch (e) {
-    console.error('[meguru] loadItemsFromSupabase error:', e)
+    console.error('[meguru] loadItemsFromSupabase exception:', e)
     return false
   }
+}
+
+/** PC/モバイルの商品グリッドを ITEMS から再計算して描画し直す（renderGrid の明示実行） */
+function redrawAllItemGridsForce() {
+  const pcCatFiltered = pcCatFilter === 'all' ? ITEMS : ITEMS.filter((i) => i.cat === pcCatFilter)
+  const pcBase = applyAreaFilter(pcCatFiltered)
+  renderGrid(applySortFilter(pcBase, pcSortMode), 'pc-grid', 'pc')
+  _showFilterMsg('pc-grid')
+  const mobCatFiltered = mobCatFilter === 'all' ? ITEMS : ITEMS.filter((i) => i.cat === mobCatFilter)
+  const mobBase = applyAreaFilter(mobCatFiltered)
+  renderGrid(applySortFilter(mobBase, mobSortMode), 'm-home-grid', 'mob')
+  _showFilterMsg('m-home-grid')
+  mDoSearch()
+}
+
+/** 出品完了後など: Supabase から一覧を取り直して PC/モバイルのグリッドを更新してから遷移 */
+async function refreshItemGridsFromSupabaseThen(run: () => void) {
+  const loaded = await loadItemsFromSupabase(CURRENT_USER_ID)
+  if (!loaded) {
+    console.warn('[meguru] refreshItemGridsFromSupabaseThen: load failed or empty, initItemsFromStorage')
+    initItemsFromStorage()
+  }
+  initPcCats()
+  applyPcFilter()
+  applyMobFilter()
+  initPostLocSelects()
+  initMobCats()
+  redrawAllItemGridsForce()
+  run()
+}
+
+/** モバイル出品完了 → 一覧に戻る: 再取得 → グリッド再描画 → ホームへ（mNav でスタックを切り替え） */
+async function mobCompleteBackToHomeWithReload() {
+  const loaded = await loadItemsFromSupabase(CURRENT_USER_ID)
+  if (!loaded) {
+    console.warn('[meguru] mobCompleteBackToHomeWithReload: loadItemsFromSupabase failed or empty')
+    initItemsFromStorage()
+  }
+  initPcCats()
+  applyPcFilter()
+  applyMobFilter()
+  initPostLocSelects()
+  initMobCats()
+  redrawAllItemGridsForce()
+  mStk = []
+  document.querySelectorAll('#mob-root .m-nt').forEach((b) => b.classList.remove('on'))
+  document.querySelectorAll('[data-t="ms-home"]').forEach((b) => b.classList.add('on'))
+  mNav('ms-home')
 }
 
 function pickDate(el: HTMLElement) {
@@ -2008,6 +2067,16 @@ function submitPost(mode: string) {
         })
       } else {
         console.log('[meguru] Supabase: item saved successfully')
+        const { data: tableRows, error: verifyErr } = await supabase
+          .from('items')
+          .select('id, user_id, name, category, price, location, created_at')
+          .order('created_at', { ascending: false })
+          .limit(80)
+        if (verifyErr) {
+          console.error('[meguru] items table verify select error:', verifyErr.message, verifyErr.code)
+        } else {
+          console.log('[meguru] items table snapshot after insert (up to 80 rows):', tableRows)
+        }
       }
     })()
   } else {
@@ -2661,7 +2730,7 @@ export default function Page() {
                   <div className="cc-row"><span className="cc-e">✅</span><div className="cc-t">手数料：取引成立時のみ 12%</div></div>
                 </div>
                 <div className="pc-comp-btns">
-                  <button className="pc-comp-main" onClick={() => pcGo('listing')}>一覧に戻る</button>
+                  <button className="pc-comp-main" onClick={() => { void refreshItemGridsFromSupabaseThen(() => pcGo('listing')) }}>一覧に戻る</button>
                   <button className="pc-comp-sec" onClick={() => pcGo('post')}>続けて出品する</button>
                 </div>
               </div>
@@ -3064,7 +3133,7 @@ export default function Page() {
                 <div className="cc-row"><span className="cc-e">📍</span><div className="cc-t" id="m-cc-loc">—</div></div>
                 <div className="cc-row"><span className="cc-e">✅</span><div className="cc-t">手数料：取引成立時のみ 12%</div></div>
               </div>
-              <button className="btn-main" onClick={() => mTab(document.querySelector('[data-t="ms-home"]') as HTMLElement)}>一覧に戻る</button>
+              <button className="btn-main" onClick={() => { void mobCompleteBackToHomeWithReload() }}>一覧に戻る</button>
               <button className="btn-sec" onClick={() => mNav('ms-post')}>続けて出品する</button>
             </div>
           </div>
