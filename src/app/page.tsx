@@ -2810,7 +2810,6 @@ export default function Page() {
           <div className="m-tbar">
             <span className="m-logo">MEGURU</span>
             <div style={{marginLeft:'auto',display:'flex',gap:'7px'}}>
-              <button className="ibtn" onClick={() => mNav('ms-search')} title="検索"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg></button>
               <button className="ibtn" id="m-bell" onClick={() => mNav('ms-notif')} title="通知"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span className="ndot m-bell-ndot" style={{display:'none'}} aria-hidden /></button>
             </div>
           </div>
