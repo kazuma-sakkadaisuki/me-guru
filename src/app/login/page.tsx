@@ -38,9 +38,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [signupInfo, setSignupInfo] = useState('')
 
   async function handleAuthAction() {
     setError('')
+    setSignupInfo('')
     if (!email.trim() || !password) {
       setError('メールアドレスとパスワードを入力してください。')
       return
@@ -67,12 +69,17 @@ export default function LoginPage() {
         return
       }
 
-      const { error: err } = await supabase.auth.signUp({ email, password })
+      const { data, error: err } = await supabase.auth.signUp({ email, password })
       if (err) {
         setError(toJaMessage(err.message, false))
         return
       }
-      window.location.href = '/setup'
+      if (data.session) {
+        window.location.href = '/setup'
+        return
+      }
+      setIsLogin(true)
+      setSignupInfo('登録しました。確認メールのリンクを開いてからログインし、プロフィールを設定してください。')
     } catch {
       setError('通信エラーが発生しました。接続を確認してください。')
     }
@@ -131,6 +138,7 @@ export default function LoginPage() {
             onClick={() => {
               setIsLogin(true)
               setError('')
+              setSignupInfo('')
             }}
             style={{
               flex: 1,
@@ -151,6 +159,7 @@ export default function LoginPage() {
             onClick={() => {
               setIsLogin(false)
               setError('')
+              setSignupInfo('')
             }}
             style={{
               flex: 1,
@@ -223,6 +232,21 @@ export default function LoginPage() {
             />
           </div>
 
+          {signupInfo && (
+            <div
+              role="status"
+              style={{
+                padding: '10px 12px',
+                fontSize: '.8rem',
+                color: '#1e5a7a',
+                background: '#e8f4fc',
+                borderRadius: 8,
+                border: '1px solid #b8d9f0',
+              }}
+            >
+              {signupInfo}
+            </div>
+          )}
           {error && (
             <div
               role="alert"

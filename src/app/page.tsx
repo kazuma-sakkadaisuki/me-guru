@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { uploadUserAvatar } from '@/lib/upload-avatar'
 import { AREA_DATA, getDistrictsForCity, LS_AREA_KEY, LS_DISTRICTS_KEY } from '@/lib/area-data'
 import { NAGANO_MUNICIPALITIES, NAGANO_PREF } from '@/lib/nagano-municipalities'
 
@@ -48,9 +49,9 @@ const TXHISTORY = [
   {emoji:'🥒',name:'きゅうり 3袋',meta:'山田さん · 駒ヶ根市中沢',price:'¥600',status:'進行中',date:'本日'},
   {emoji:'🌰',name:'山栗 約2kg',meta:'小林さん · 駒ヶ根市東伊那',price:'無料',status:'完了',date:'2025/9/28'},
 ]
-const CATMAP: Record<string,string> = {fruit:'🍊 果物',veg:'🥒 野菜',wood:'🪵 薪・木材',herb:'🌿 山菜',other:'🧴 加工品',misc:'📦 その他'}
-const EMOJIMAP: Record<string,string> = {fruit:'🍊',veg:'🥒',wood:'🪵',herb:'🌿',other:'🧴',misc:'📦'}
-const BGMAP: Record<string,string> = {fruit:'bk',veg:'bg',wood:'bb',herb:'bg',other:'by',misc:'by'}
+const CATMAP: Record<string,string> = {fruit:'🍊 果物',veg:'🥒 野菜',rice:'🌾 米',wood:'🪵 薪・木材',herb:'🌿 山菜',other:'🧴 加工品',misc:'📦 その他'}
+const EMOJIMAP: Record<string,string> = {fruit:'🍊',veg:'🥒',rice:'🌾',wood:'🪵',herb:'🌿',other:'🧴',misc:'📦'}
+const BGMAP: Record<string,string> = {fruit:'bk',veg:'bg',rice:'by',wood:'bb',herb:'bg',other:'by',misc:'by'}
 
 const LS_CHAT_READ_PREFIX = 'meguru_chat_read_'
 
@@ -145,6 +146,7 @@ const CAT_CARD_ICONS: Record<string, string> = {
   herb: `<svg class="cat-icon" viewBox="0 0 48 48"><path d="M24 46 L24 32" stroke="#2D5A27" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M24 34 Q14 31 8 20 Q10 10 18 16 Q22 24 24 34z" fill="#2D5A27"/><path d="M24 34 Q34 31 40 20 Q38 10 30 16 Q26 24 24 34z" fill="#2D5A27"/><path d="M24 26 Q19 13 24 4 Q29 13 24 26z" fill="#3d7a34"/></svg>`,
   // 保存瓶: 緑の蓋＋首＋ガラス胴体
   other: `<svg class="cat-icon" viewBox="0 0 48 48"><rect x="14" y="3" width="20" height="7" rx="3.5" fill="#2D5A27"/><rect x="16" y="9" width="16" height="6" rx="2" fill="#6a8a6a"/><rect x="10" y="14" width="28" height="30" rx="5" fill="#8aaa8a"/><rect x="12" y="41" width="24" height="4" rx="2" fill="#6a8a6a"/><rect x="14" y="18" width="5" height="20" rx="2.5" fill="white" opacity="0.22"/></svg>`,
+  rice: `<svg class="cat-icon" viewBox="0 0 48 48"><ellipse cx="24" cy="28" rx="14" ry="10" fill="#C4581A" opacity="0.35"/><path d="M24 8 Q18 18 14 28 Q20 32 24 38 Q28 32 34 28 Q30 18 24 8z" fill="#2D5A27"/><path d="M24 14 L24 34 M18 20 Q24 22 30 20 M17 26 Q24 28 31 26" stroke="#F8F4EE" stroke-width="1.2" fill="none" opacity="0.5"/></svg>`,
   misc: `<svg class="cat-icon" viewBox="0 0 48 48"><path d="M6 18 L24 8 L42 18 L42 40 Q42 44 38 44 L10 44 Q6 44 6 40z" fill="#8a8478"/><path d="M6 18 L24 28 L42 18" stroke="#6a6468" stroke-width="2" fill="none"/><line x1="24" y1="28" x2="24" y2="44" stroke="#6a6468" stroke-width="2"/></svg>`,
 }
 /** メッセージ以外の固定お知らせ（チャットとは別・タップでチャットは開かない） */
@@ -239,6 +241,50 @@ function getMergedNotifs(): AppNotifRow[] {
 /* ── GLOBAL USER STATE ── */
 const USER = { name: '田中 拓也', area: '', bio: 'よろしくお願いします。', avt: '' }
 
+const PROF_NAME_MAX = 20
+const PROF_BIO_MAX = 200
+
+let pendingAvatarFile: File | null = null
+let pendingAvatarObjectUrl: string | null = null
+
+function revokePendingAvatarPreview() {
+  if (pendingAvatarObjectUrl) {
+    URL.revokeObjectURL(pendingAvatarObjectUrl)
+    pendingAvatarObjectUrl = null
+  }
+  pendingAvatarFile = null
+}
+
+function profileInitialChar(name: string): string {
+  const t = name.trim()
+  if (!t) return '?'
+  const cp = t.codePointAt(0)
+  return cp === undefined ? '?' : String.fromCodePoint(cp)
+}
+
+/** USER.area から市区町村部分のみ（長野県想定） */
+function municipalityFromArea(area: string): string {
+  const a = (area || '').trim()
+  if (!a.startsWith(NAGANO_PREF)) return ''
+  return a.slice(NAGANO_PREF.length).trim()
+}
+
+function applyAvatarFileToPreviews(file: File) {
+  if (!file.type.startsWith('image/')) return
+  revokePendingAvatarPreview()
+  pendingAvatarFile = file
+  pendingAvatarObjectUrl = URL.createObjectURL(file)
+  const safe = escAttrUrl(pendingAvatarObjectUrl)
+  const avHtml = `<img src="${safe}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
+  ;(['pc-avt-display', 'm-avt-display'] as const).forEach((id) => {
+    const el = document.getElementById(id) as HTMLElement | null
+    if (el) {
+      el.style.fontSize = '0'
+      el.innerHTML = avHtml
+    }
+  })
+}
+
 /* ── MODULE-LEVEL STATE ── */
 let curItem: Item = ITEMS[0]
 let curDetailImgIdx = 0
@@ -271,7 +317,12 @@ function showToast(msg: string) {
 
 /* ── PC NAV ── */
 const PC_PAGES = ['listing','post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','detail','userprofile']
+const PC_PAGES_NEED_AUTH = ['post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','userprofile']
 function pcGo(page: string) {
+  if (PC_PAGES_NEED_AUTH.includes(page) && !CURRENT_USER_ID) {
+    window.location.href = '/login'
+    return
+  }
   PC_PAGES.forEach(p => { const el = document.getElementById('pc-pg-'+p); if (el) el.style.display='none' })
   const el = document.getElementById('pc-pg-'+page); if (el) el.style.display=''
   if (!['listing','chatlist','mylistings'].includes(page)) document.getElementById('pc-panel')?.classList.add('hidden')
@@ -285,6 +336,7 @@ function pcGo(page: string) {
       all: 'sb-all',
       fruit: 'sb-fruit',
       veg: 'sb-veg',
+      rice: 'sb-rice',
       wood: 'sb-wood',
       herb: 'sb-herb',
       other: 'sb-other',
@@ -299,7 +351,10 @@ function pcGo(page: string) {
   if (page==='txhistory') renderTxHistory('pc')
   const main = document.getElementById('pc-main'); if (main) main.scrollTop=0
 }
-function pcSubPage(p: string) { pcGo(p) }
+function pcSubPage(p: string) {
+  pcGo(p)
+  if (p === 'profedit') updateAllUserRefs()
+}
 
 /* ── SORT & FILTER ── */
 /* ── AREA ── */
@@ -579,6 +634,7 @@ const CHIP_SVG_PATHS: Record<string,string> = {
   wood:  '<circle cx="7" cy="16" r="5.5"/><circle cx="7" cy="16" r="3"/><circle cx="17" cy="16" r="5.5"/><circle cx="17" cy="16" r="3"/><circle cx="12" cy="8" r="5.5"/><circle cx="12" cy="8" r="3"/>',
   herb:  '<line x1="12" y1="22" x2="12" y2="14"/><path d="M12 16 Q6 14 4 9 Q6 5 10 8 Q11 12 12 16z"/><path d="M12 16 Q18 14 20 9 Q18 5 14 8 Q13 12 12 16z"/><path d="M12 12 Q10 6 12 2 Q14 6 12 12z"/>',
   other: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/>',
+  rice: '<path d="M12 22 Q12 8 18 4 Q20 12 18 22 Q15 18 12 22z" fill="#2D5A27"/><path d="M12 22 Q12 8 6 4 Q4 12 6 22 Q9 18 12 22z" fill="#3d7a34"/><ellipse cx="12" cy="20" rx="3" ry="2" fill="#C4581A" opacity="0.4"/>',
   misc:  '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
 }
 function chipSvg(cat: string): string {
@@ -588,13 +644,18 @@ function chipSvg(cat: string): string {
 
 /* ── PC CATS ── */
 function initPcCats() {
-  const fcats = [{v:'fruit',l:'果物'},{v:'veg',l:'野菜'},{v:'wood',l:'薪・木材'},{v:'herb',l:'山菜・ハーブ'},{v:'other',l:'加工品'},{v:'misc',l:'その他'}]
+  const fcats = [{v:'veg',l:'野菜'},{v:'fruit',l:'果物'},{v:'rice',l:'米'},{v:'other',l:'加工品'},{v:'misc',l:'その他'}]
   const pcFormCats = document.getElementById('pc-form-cats')
   if (pcFormCats) pcFormCats.innerHTML = fcats.map(c=>`<button class="fchip${c.v==='veg'?' on':''}" data-v="${c.v}" onclick="selCat(this,'pc')">${chipSvg(c.v)}${c.l}</button>`).join('')
 }
 
 /* ── MOBILE NAV ── */
+const MOB_SCENES_NEED_AUTH = new Set(['ms-post','ms-mypage','ms-chatlist','ms-mylistings','ms-txhistory','ms-profedit','ms-notif'])
 function mNav(id: string) {
+  if (MOB_SCENES_NEED_AUTH.has(id) && !CURRENT_USER_ID) {
+    window.location.href = '/login'
+    return
+  }
   const cur = document.querySelector('#mob-root .scn.active')
   if (cur) cur.classList.remove('active')
   mStk.push(id)
@@ -615,6 +676,7 @@ function mNav(id: string) {
   if (id==='ms-mypage') updateMypage('mob')
   if (id==='ms-txhistory') renderTxHistory('mob')
   if (id==='ms-mylistings') { const t=document.getElementById('m-mylistings-title'); if(t)t.textContent='出品中のもの'; renderMyListings('mob','出品中のもの',ITEMS.filter(i=>i.mine)) }
+  if (id === 'ms-profedit') updateAllUserRefs()
 }
 function mBack() {
   if (mStk.length<=1) return
@@ -637,7 +699,7 @@ function mTab(btn: HTMLElement) {
 
 /* ── MOB CATS ── */
 function initMobCats() {
-  const cats = [{k:'all',l:'すべて'},{k:'fruit',l:'果物'},{k:'veg',l:'野菜'},{k:'wood',l:'薪・木材'},{k:'herb',l:'山菜'},{k:'other',l:'加工品'}]
+  const cats = [{k:'all',l:'すべて'},{k:'fruit',l:'果物'},{k:'veg',l:'野菜'},{k:'rice',l:'米'},{k:'wood',l:'薪・木材'},{k:'herb',l:'山菜'},{k:'other',l:'加工品'}]
   if (!cats.some((c) => c.k === mobCatFilter)) mobCatFilter = 'all'
   const homeCats = document.getElementById('m-home-cats')
   if (homeCats) {
@@ -645,7 +707,7 @@ function initMobCats() {
   }
   const searchCats = document.getElementById('m-search-cats')
   if (searchCats) searchCats.innerHTML = cats.map(c=>`<div class="m-chip${c.k===mSearchCatKey?' on':''}" onclick="mSearchCat(this,'${c.k}')">${chipSvg(c.k)}${c.l}</div>`).join('')
-  const fcats = [{v:'fruit',l:'果物'},{v:'veg',l:'野菜'},{v:'wood',l:'薪・木材'},{v:'herb',l:'山菜・ハーブ'},{v:'other',l:'加工品'},{v:'misc',l:'その他'}]
+  const fcats = [{v:'veg',l:'野菜'},{v:'fruit',l:'果物'},{v:'rice',l:'米'},{v:'other',l:'加工品'},{v:'misc',l:'その他'}]
   const mFormCats = document.getElementById('m-form-cats')
   if (mFormCats) mFormCats.innerHTML = fcats.map(c=>`<button class="fchip${c.v==='veg'?' on':''}" data-v="${c.v}" onclick="selCat(this,'mob')">${chipSvg(c.v)}${c.l}</button>`).join('')
 }
@@ -663,6 +725,7 @@ const M_SEARCH_CAT_LABELS: Record<string, string> = {
   all: 'すべて',
   fruit: '果物',
   veg: '野菜',
+  rice: '米',
   wood: '薪・木材',
   herb: '山菜',
   other: '加工品',
@@ -723,7 +786,7 @@ async function openPublicProfile(userId: string | null | undefined, mode: 'pc' |
     return
   }
   if (!CURRENT_USER_ID) {
-    showToast('プロフィールを見るにはログインしてください')
+    window.location.href = '/login'
     return
   }
   PROFILE_VIEW_USER_ID = userId
@@ -852,7 +915,10 @@ function openDetail(id: number, mode: string) {
     const main=document.getElementById('pc-main'); if(main) main.scrollTop=0
     // SOLD状態の反映
     const pcSoldBanner=document.getElementById('pc-det-sold-banner'); if(pcSoldBanner) pcSoldBanner.style.display=curItem.sold?'flex':'none'
-    const pcChatBtn=document.getElementById('pc-det-chat-btn'); if(pcChatBtn) pcChatBtn.style.display=curItem.sold?'none':'flex'
+    const showWantPc = !curItem.mine && !curItem.sold
+    const pcChatBtn=document.getElementById('pc-det-chat-btn'); if(pcChatBtn) pcChatBtn.style.display=showWantPc?'flex':'none'
+    const pcPanelWant = document.querySelector('#pc-panel .p-chat') as HTMLElement | null
+    if (pcPanelWant) pcPanelWant.style.display = showWantPc ? 'flex' : 'none'
     const rateUid = curItem.mine ? CURRENT_USER_ID : curItem.userId
     if (rateUid) {
       void fetchAggregateReviewsForUser(rateUid).then(({ avg, count }) => applySellerRatingToDetail(avg, count, 'pc'))
@@ -876,7 +942,8 @@ function openDetail(id: number, mode: string) {
     const fb=document.getElementById('m-fav-btn'); if(fb){ fb.textContent=favSet.has(curItem.id)?'❤️':'🤍'; fb.classList.toggle('on',favSet.has(curItem.id)) }
     // SOLD状態の反映
     const mSoldBanner=document.getElementById('m-det-sold-banner'); if(mSoldBanner) mSoldBanner.style.display=curItem.sold?'flex':'none'
-    const mChatBtn=document.getElementById('m-det-chat-btn'); if(mChatBtn) mChatBtn.style.display=curItem.sold?'none':'flex'
+    const showWantMob = !curItem.mine && !curItem.sold
+    const mChatBtn=document.getElementById('m-det-chat-btn'); if(mChatBtn) mChatBtn.style.display=showWantMob?'flex':'none'
     const rateUid = curItem.mine ? CURRENT_USER_ID : curItem.userId
     if (rateUid) {
       void fetchAggregateReviewsForUser(rateUid).then(({ avg, count }) => applySellerRatingToDetail(avg, count, 'mob'))
@@ -1054,6 +1121,10 @@ let reviewModalCtx: ReviewModalCtx | null = null
 function openTradeModal(mode: string) {
   const chat = CHATS[curChatId]
   if (!chat) return
+  if (!chat.sellerId || CURRENT_USER_ID !== chat.sellerId) {
+    showToast('出品者のみ取引を完了できます')
+    return
+  }
   const item = ITEMS.find(x => x.id === chat.itemId)
   if (!item || item.sold) return
   tradeModalMode = mode
@@ -1130,8 +1201,10 @@ async function syncUserProfileFromSupabase(userId: string) {
       }
     }
     if (typeof (data as { bio?: string }).bio === 'string') USER.bio = (data as { bio: string }).bio
+    else USER.bio = ''
     const av = (data as { avatar_url?: string }).avatar_url
     if (typeof av === 'string' && av) USER.avt = av
+    else USER.avt = ''
     updateAllUserRefs()
   } catch (e) {
     console.warn('[meguru] syncUserProfileFromSupabase', e)
@@ -1205,6 +1278,11 @@ async function submitReviewRating(rating: number) {
 function confirmCompleteTrade() {
   const chat = CHATS[curChatId]
   if (!chat) { closeTradeModal(); return }
+  if (!chat.sellerId || CURRENT_USER_ID !== chat.sellerId) {
+    showToast('出品者のみ取引を完了できます')
+    closeTradeModal()
+    return
+  }
   const found = ITEMS.find(x => x.id === chat.itemId)
   if (!found) { closeTradeModal(); return }
   const item = found as Item
@@ -1244,6 +1322,12 @@ function updateCompleteBtn(mode: string) {
   const isSold = item?.sold ?? false
   const btn = document.getElementById(mode==='pc'?'pc-complete-btn':'m-complete-btn') as HTMLButtonElement|null
   if (!btn) return
+  const isSeller = !!(chat?.sellerId && CURRENT_USER_ID === chat.sellerId)
+  if (!isSeller) {
+    btn.style.display = 'none'
+    return
+  }
+  btn.style.display = ''
   if (isSold) {
     btn.textContent = '取引済み'
     btn.className = 'trade-bar-btn done'
@@ -1530,9 +1614,12 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
 
 async function openChatWithSupabase(mode: string) {
   if (curItem.mine) { showToast('自分の出品にはチャットできません'); return }
-  if (!CURRENT_USER_ID || !curItem.supabaseId || !curItem.userId) {
-    // 未ログインまたはデモアイテムはモック動作
-    if (mode === 'pc') pcOpenChatFromDetail(); else mOpenChatFromDetail()
+  if (!CURRENT_USER_ID) {
+    window.location.href = '/login'
+    return
+  }
+  if (!curItem.supabaseId || !curItem.userId) {
+    showToast('この商品からはチャットを始められません')
     return
   }
   const supabase = createClient()
@@ -1847,8 +1934,8 @@ function renderPhotoGrid(mode: string) {
       <button class="pf-img-del" onclick="event.stopPropagation();removePhoto('${mode}',${i})">×</button>
     </div>`
   ).join('')
-  const add = imgs.length<10
-    ? `<button class="pf-img-add" onclick="document.getElementById('${fileInputId}').click()"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>${imgs.length}/10</span></button>`
+  const add = imgs.length < POST_PHOTO_MAX
+    ? `<button class="pf-img-add" onclick="document.getElementById('${fileInputId}').click()"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>${imgs.length}/${POST_PHOTO_MAX}</span></button>`
     : ''
   el.innerHTML = items + add
 }
@@ -1870,9 +1957,10 @@ function compressImage(src: string, maxW = 800, quality = 0.7): Promise<string> 
     img.src = src
   })
 }
+const POST_PHOTO_MAX = 5
 function addPhotos(input: HTMLInputElement, mode: string) {
   const imgs = mode==='pc' ? pcImages : mobImages
-  const files = Array.from(input.files||[]).slice(0, 10-imgs.length)
+  const files = Array.from(input.files||[]).slice(0, POST_PHOTO_MAX - imgs.length)
   input.value = ''
   files.forEach(file => {
     const r = new FileReader()
@@ -2011,129 +2099,170 @@ function onPostLocCityChange(sel: HTMLSelectElement) {
   }
 }
 
-function submitPost(mode: string) {
-  const isPC=mode==='pc'
-  const name=(document.getElementById(isPC?'pc-post-name':'m-post-name') as HTMLInputElement)?.value.trim()
-  const price=(document.getElementById(isPC?'pc-post-price':'m-post-price') as HTMLInputElement)?.value.trim()
-  const unit=(document.getElementById(isPC?'pc-post-unit':'m-post-unit') as HTMLInputElement)?.value.trim()
+async function submitPost(mode: string) {
+  if (!CURRENT_USER_ID) {
+    window.location.href = '/login'
+    return
+  }
+  const isPC = mode === 'pc'
+  const name = (document.getElementById(isPC ? 'pc-post-name' : 'm-post-name') as HTMLInputElement)?.value.trim()
+  const price = (document.getElementById(isPC ? 'pc-post-price' : 'm-post-price') as HTMLInputElement)?.value.trim()
+  const unit = (document.getElementById(isPC ? 'pc-post-unit' : 'm-post-unit') as HTMLInputElement)?.value.trim()
   const pre = isPC ? 'pc' : 'm'
-  const locCity=(document.getElementById(`${pre}-post-loc-city`) as HTMLSelectElement)?.value||''
-  const locDist=(document.getElementById(`${pre}-post-loc-dist`) as HTMLSelectElement)?.value||''
-  const loc=[locCity, locDist].filter(Boolean).join(' ')  
-  const isFree=isPC?pcFreeTog:mobFreeTog
-  const cat=isPC?pcPostCat:mobPostCat
-  if (!name) { showToast('余りものの名前を入力してください'); return }
-  if (!isFree&&!price) { showToast('価格を入力するか、無料に設定してください'); return }
+  const locCity = (document.getElementById(`${pre}-post-loc-city`) as HTMLSelectElement)?.value || ''
+  const locDist = (document.getElementById(`${pre}-post-loc-dist`) as HTMLSelectElement)?.value || ''
+  const loc = [locCity, locDist].filter(Boolean).join(' ')
+  const isFree = isPC ? pcFreeTog : mobFreeTog
+  const cat = isPC ? pcPostCat : mobPostCat
+  if (!name) {
+    showToast('余りものの名前を入力してください')
+    return
+  }
+  if (!isFree && !price) {
+    showToast('価格を入力するか、無料に設定してください')
+    return
+  }
   const allImgs = isPC ? [...pcImages] : [...mobImages]
-  const expiry = (document.getElementById(isPC?'pc-post-expiry':'m-post-expiry') as HTMLInputElement)?.value || ''
-  const newItem: Item = {id:Date.now(),name,cat,price:isFree?'無料':`¥${Number(price).toLocaleString()}`,unit:unit?`/ ${unit}`:'',emoji:EMOJIMAP[cat]||'📦',bg:BGMAP[cat]||'by',loc:loc||(getUserCity()||'駒ヶ根市'),badge:isFree?'free':'new',seller:USER.name,sloc:USER.area,savt:'🧑',desc:(document.getElementById(isPC?'pc-post-desc':'m-post-desc') as HTMLTextAreaElement)?.value||'詳細は出品者にお問い合わせください。',mine:true,chatKey:'',imgSrc:allImgs[0]||'',images:allImgs,expiry:expiry||undefined}
-  ITEMS.unshift(newItem)
-  saveItems()
-
-  // Supabase に保存（ログイン済みの場合）
-  console.log('[meguru] CURRENT_USER_ID at submitPost:', CURRENT_USER_ID)
-  if (CURRENT_USER_ID) {
-    const pre2 = isPC ? 'pc' : 'm'
-    const getCheckedVals = (ids: string[], labels: string[]) =>
-      ids.reduce<string[]>((acc, id, i) => {
-        if ((document.getElementById(id) as HTMLInputElement|null)?.checked) acc.push(labels[i])
-        return acc
-      }, [])
-    const availDays = getCheckedVals(
-      [`${pre2}-day-wd`,`${pre2}-day-sat`,`${pre2}-day-sun`],
-      ['平日','土曜','日曜']
-    )
-    const availTimes = getCheckedVals(
-      [`${pre2}-time-am`,`${pre2}-time-pm`,`${pre2}-time-ev`],
-      ['午前','午後','夜']
-    )
-    ;(async () => {
-      const supabase = createClient()
-
-      // セッション確認
-      const { data: { user }, error: userErr } = await supabase.auth.getUser()
-      console.log('[meguru] auth.getUser:', user?.id, '| error:', userErr?.message)
-      if (!user) {
-        console.error('[meguru] not authenticated – skipping Supabase insert')
-        return
-      }
-
-      // profiles 行を確認・なければ作成（外部キー対策）
-      const { error: profErr } = await supabase
-        .from('profiles')
-        .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true })
-      if (profErr) console.warn('[meguru] profiles upsert warn:', profErr.message, profErr.code)
-
-      const payload = {
-        user_id: user.id,
-        name: newItem.name,
-        category: newItem.cat,
-        price: newItem.price,
-        unit: unit || '',
-        is_free: isFree,
-        description: newItem.desc,
-        location: newItem.loc,
-        images: allImgs,
-        condition: isPC ? pcCondition : mobCondition,
-        pesticide: isPC ? pcPesticide : mobPesticide,
-        available_days: availDays,
-        available_times: availTimes,
-        deadline: expiry || null,
-        is_sold: false,
-      }
-      console.log('[meguru] inserting to items:', {
-        ...payload,
-        images: `[${payload.images.length} images]`,
-      })
-
-      const { error } = await supabase.from('items').insert(payload)
-      if (error) {
-        console.error('[meguru] Supabase save failed:', {
-          message: error.message,
-          code:    error.code,
-          details: error.details,
-          hint:    error.hint,
-        })
-      } else {
-        console.log('[meguru] Supabase: item saved successfully')
-        const { data: tableRows, error: verifyErr } = await supabase
-          .from('items')
-          .select('id, user_id, name, category, price, location, created_at')
-          .order('created_at', { ascending: false })
-          .limit(80)
-        if (verifyErr) {
-          console.error('[meguru] items table verify select error:', verifyErr.message, verifyErr.code)
-        } else {
-          console.log('[meguru] items table snapshot after insert (up to 80 rows):', tableRows)
-        }
-      }
-    })()
-  } else {
-    console.warn('[meguru] CURRENT_USER_ID is null – item saved to localStorage only')
+  const expiry = (document.getElementById(isPC ? 'pc-post-expiry' : 'm-post-expiry') as HTMLInputElement)?.value || ''
+  const desc =
+    (document.getElementById(isPC ? 'pc-post-desc' : 'm-post-desc') as HTMLTextAreaElement)?.value?.trim() ||
+    '詳細は出品者にお問い合わせください。'
+  const newItem: Item = {
+    id: Date.now(),
+    name,
+    cat,
+    price: isFree ? '無料' : `¥${Number(price).toLocaleString()}`,
+    unit: unit ? `/ ${unit}` : '',
+    emoji: EMOJIMAP[cat] || '📦',
+    bg: BGMAP[cat] || 'by',
+    loc: loc || getUserCity() || '駒ヶ根市',
+    badge: isFree ? 'free' : 'new',
+    seller: USER.name,
+    sloc: USER.area,
+    savt: '🧑',
+    desc,
+    mine: true,
+    chatKey: '',
+    imgSrc: allImgs[0] || '',
+    images: allImgs,
+    expiry: expiry || undefined,
   }
 
-  const cce=document.getElementById(`${pre}-cc-emoji`); if(cce) cce.textContent=newItem.emoji
-  const ccn=document.getElementById(`${pre}-cc-name`); if(ccn) ccn.textContent=name
-  const ccp=document.getElementById(`${pre}-cc-price`); if(ccp) ccp.textContent=isFree?'無料':`¥${Number(price).toLocaleString()} / ${unit}`
-  const ccl=document.getElementById(`${pre}-cc-loc`); if(ccl) ccl.textContent=loc||'駒ヶ根市内';
-  (['name','desc','price','unit','loc'] as const).forEach(f=>{const el=document.getElementById(`${isPC?'pc':'m'}-post-${f}`) as HTMLInputElement; if(el){el.value='';el.disabled=false}})
+  const pre2 = isPC ? 'pc' : 'm'
+  const getCheckedVals = (ids: string[], labels: string[]) =>
+    ids.reduce<string[]>((acc, id, i) => {
+      if ((document.getElementById(id) as HTMLInputElement | null)?.checked) acc.push(labels[i])
+      return acc
+    }, [])
+  const availDays = getCheckedVals(
+    [`${pre2}-day-wd`, `${pre2}-day-sat`, `${pre2}-day-sun`],
+    ['平日', '土曜', '日曜']
+  )
+  const availTimes = getCheckedVals(
+    [`${pre2}-time-am`, `${pre2}-time-pm`, `${pre2}-time-ev`],
+    ['午前', '午後', '夜']
+  )
+
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    window.location.href = '/login'
+    return
+  }
+
+  const { error: profErr } = await supabase
+    .from('profiles')
+    .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true })
+  if (profErr) console.warn('[meguru] profiles upsert warn:', profErr.message, profErr.code)
+
+  const payload = {
+    user_id: user.id,
+    name: newItem.name,
+    category: newItem.cat,
+    price: newItem.price,
+    unit: unit || '',
+    is_free: isFree,
+    description: newItem.desc,
+    location: newItem.loc,
+    images: allImgs,
+    condition: isPC ? pcCondition : mobCondition,
+    pesticide: isPC ? pcPesticide : mobPesticide,
+    available_days: availDays,
+    available_times: availTimes,
+    deadline: expiry || null,
+    is_sold: false,
+  }
+
+  const { error: insErr } = await supabase.from('items').insert(payload)
+  if (insErr) {
+    console.error('[meguru] Supabase save failed:', insErr.message, insErr.code)
+    showToast('出品の保存に失敗しました')
+    return
+  }
+
+  const loaded = await loadItemsFromSupabase(CURRENT_USER_ID)
+  if (!loaded) {
+    ITEMS.unshift(newItem)
+    saveItems()
+  } else {
+    saveItems()
+  }
+
+  ;(['name', 'desc', 'price', 'unit'] as const).forEach((f) => {
+    const el = document.getElementById(`${isPC ? 'pc' : 'm'}-post-${f}`) as HTMLInputElement | HTMLTextAreaElement | null
+    if (el) {
+      el.value = ''
+      ;(el as HTMLInputElement).disabled = false
+    }
+  })
   if (isPC) {
-    pcFreeTog=false; pcImages=[]; pcCondition=''; pcPesticide=''
+    pcFreeTog = false
+    pcImages = []
+    pcCondition = ''
+    pcPesticide = ''
     document.getElementById('pc-free-row')?.classList.remove('on')
     renderPhotoGrid('pc')
-    document.querySelectorAll('#pc-pg-post .sel-opt').forEach(o=>o.classList.remove('on'));
-    (['pc-post-qty','pc-post-expiry'] as const).forEach(id=>{const el=document.getElementById(id) as HTMLInputElement|null;if(el)el.value=''})
-    ;(['pc-day-wd','pc-day-sat','pc-day-sun','pc-time-am','pc-time-pm','pc-time-ev'] as const).forEach(id=>{const el=document.getElementById(id) as HTMLInputElement|null;if(el)el.checked=false})
+    document.querySelectorAll('#pc-pg-post .sel-opt').forEach((o) => o.classList.remove('on'))
+    ;(['pc-post-qty', 'pc-post-expiry'] as const).forEach((id) => {
+      const el = document.getElementById(id) as HTMLInputElement | null
+      if (el) el.value = ''
+    })
+    ;(['pc-day-wd', 'pc-day-sat', 'pc-day-sun', 'pc-time-am', 'pc-time-pm', 'pc-time-ev'] as const).forEach((id) => {
+      const el = document.getElementById(id) as HTMLInputElement | null
+      if (el) el.checked = false
+    })
   } else {
-    mobFreeTog=false; mobImages=[]; mobCondition=''; mobPesticide=''
+    mobFreeTog = false
+    mobImages = []
+    mobCondition = ''
+    mobPesticide = ''
     document.getElementById('m-free-row')?.classList.remove('on')
     renderPhotoGrid('mob')
-    document.querySelectorAll('#ms-post .sel-opt').forEach(o=>o.classList.remove('on'));
-    (['m-post-qty','m-post-expiry'] as const).forEach(id=>{const el=document.getElementById(id) as HTMLInputElement|null;if(el)el.value=''})
-    ;(['m-day-wd','m-day-sat','m-day-sun','m-time-am','m-time-pm','m-time-ev'] as const).forEach(id=>{const el=document.getElementById(id) as HTMLInputElement|null;if(el)el.checked=false})
+    document.querySelectorAll('#ms-post .sel-opt').forEach((o) => o.classList.remove('on'))
+    ;(['m-post-qty', 'm-post-expiry'] as const).forEach((id) => {
+      const el = document.getElementById(id) as HTMLInputElement | null
+      if (el) el.value = ''
+    })
+    ;(['m-day-wd', 'm-day-sat', 'm-day-sun', 'm-time-am', 'm-time-pm', 'm-time-ev'] as const).forEach((id) => {
+      const el = document.getElementById(id) as HTMLInputElement | null
+      if (el) el.checked = false
+    })
   }
-  applyPcFilter(); applyMobFilter()
-  if (isPC) { pcGo('complete') } else { mStk=['ms-home']; mNav('ms-complete') }
+
+  initPcCats()
+  initMobCats()
+  redrawAllItemGridsForce()
+  showToast('出品が完了しました')
+  if (isPC) {
+    pcGo('listing')
+  } else {
+    document.querySelectorAll('#mob-root .m-nt').forEach((b) => b.classList.remove('on'))
+    document.querySelectorAll('[data-t="ms-home"]').forEach((b) => b.classList.add('on'))
+    mStk = []
+    mNav('ms-home')
+  }
 }
 
 /* ── DETAIL GALLERY ── */
@@ -2216,23 +2345,91 @@ function detImgNav(dir: number, mode: string) {
   setDetailImg((curDetailImgIdx + dir + imgs.length) % imgs.length, mode)
 }
 
+function profAvatarImgHtml(url: string): string {
+  return `<img src="${escAttrUrl(url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
+}
+
+function profAvatarInitialHtml(): string {
+  return `<span class="prof-avt-initial">${escChatHtml(profileInitialChar(USER.name))}</span>`
+}
+
 /* ── GLOBAL USER UPDATE ── */
 function updateAllUserRefs() {
-  const avHtml = USER.avt
-    ? `<img src="${USER.avt}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
-    : null
+  const mpAv =
+    USER.avt && !USER.avt.startsWith('blob:')
+      ? profAvatarImgHtml(USER.avt)
+      : profAvatarInitialHtml()
   // Mypage headers
   ;(['pc-mp-name-el', 'm-mp-name-el'] as const).forEach((id) => {
     const el = document.getElementById(id)
     if (el) el.textContent = mypageHeaderName()
   })
-  ;(['pc-mp-area-el','m-mp-area-el'] as const).forEach(id => { const el=document.getElementById(id); if(el) el.textContent=`${USER.area} · 2025年から利用中` })
-  if (avHtml) {
-    ;(['pc-mp-avt-el','m-mp-avt-el'] as const).forEach(id => { const el=document.getElementById(id) as HTMLElement|null; if(el){el.style.fontSize='0';el.innerHTML=avHtml} })
+  ;(['pc-mp-area-el', 'm-mp-area-el'] as const).forEach((id) => {
+    const el = document.getElementById(id)
+    if (el) el.textContent = `${USER.area} · 2025年から利用中`
+  })
+  ;(['pc-mp-avt-el', 'm-mp-avt-el'] as const).forEach((id) => {
+    const el = document.getElementById(id) as HTMLElement | null
+    if (el) {
+      if (mpAv.startsWith('<img')) {
+        el.style.fontSize = '0'
+        el.innerHTML = mpAv
+      } else {
+        el.style.fontSize = ''
+        el.innerHTML = mpAv
+      }
+    }
+  })
+  // Profile form
+  ;(['pc-prof-name', 'm-prof-name'] as const).forEach((id) => {
+    const el = document.getElementById(id) as HTMLInputElement | null
+    if (el) el.value = USER.name
+  })
+  const syncNameCnt = (inpId: string, cntId: string) => {
+    const inp = document.getElementById(inpId) as HTMLInputElement | null
+    const cnt = document.getElementById(cntId)
+    if (inp && cnt) cnt.textContent = `${inp.value.length}/${PROF_NAME_MAX}`
   }
-  // Profile form previews
-  ;(['pc-prof-name','m-prof-name'] as const).forEach(id => { const el=document.getElementById(id) as HTMLInputElement|null; if(el) el.value=USER.name })
-  ;(['pc-prof-area','m-prof-area'] as const).forEach(id => { const el=document.getElementById(id) as HTMLInputElement|null; if(el) el.value=USER.area })
+  syncNameCnt('pc-prof-name', 'pc-prof-name-cnt')
+  syncNameCnt('m-prof-name', 'm-prof-name-cnt')
+  const muniVal = municipalityFromArea(USER.area)
+  ;(['pc-prof-muni', 'm-prof-muni'] as const).forEach((id) => {
+    const el = document.getElementById(id) as HTMLSelectElement | null
+    if (el) {
+      const list = AREA_DATA['長野県'] || []
+      el.value = muniVal && list.includes(muniVal) ? muniVal : ''
+    }
+  })
+  ;(['pc-prof-bio', 'm-prof-bio'] as const).forEach((id) => {
+    const el = document.getElementById(id) as HTMLTextAreaElement | null
+    if (el) el.value = USER.bio || ''
+  })
+  const syncBioCnt = (taId: string, cntId: string) => {
+    const ta = document.getElementById(taId) as HTMLTextAreaElement | null
+    const cnt = document.getElementById(cntId)
+    if (ta && cnt) cnt.textContent = `${ta.value.length}/${PROF_BIO_MAX}`
+  }
+  syncBioCnt('pc-prof-bio', 'pc-prof-bio-cnt')
+  syncBioCnt('m-prof-bio', 'm-prof-bio-cnt')
+
+  if (!pendingAvatarFile) {
+    const profAv =
+      USER.avt && !USER.avt.startsWith('blob:')
+        ? profAvatarImgHtml(USER.avt)
+        : profAvatarInitialHtml()
+    ;(['pc-avt-display', 'm-avt-display'] as const).forEach((id) => {
+      const el = document.getElementById(id) as HTMLElement | null
+      if (el) {
+        if (profAv.startsWith('<img')) {
+          el.style.fontSize = '0'
+          el.innerHTML = profAv
+        } else {
+          el.style.fontSize = ''
+          el.innerHTML = profAv
+        }
+      }
+    })
+  }
   const pcPN = document.querySelector('.pc-prof-name') as HTMLElement | null
   if (pcPN) pcPN.textContent = mypageHeaderName()
   const mPN = document.getElementById('m-prof-preview-name') as HTMLElement | null
@@ -2244,54 +2441,116 @@ function updateAllUserRefs() {
   })
   // Re-render grids so mine cards reflect updated name
   updateAreaDisplay()
-  applyPcFilter(); applyMobFilter()
+  applyPcFilter()
+  applyMobFilter()
   // If detail page is showing a mine item, re-populate seller section
   if (curItem.mine) {
-    const avtEl=document.getElementById('pc-det-avt') as HTMLElement|null
-    if (avtEl) { if(avHtml){avtEl.style.fontSize='0';avtEl.innerHTML=avHtml}else{avtEl.style.fontSize='';avtEl.textContent='🧑'} }
+    const avtEl = document.getElementById('pc-det-avt') as HTMLElement | null
+    if (avtEl) {
+      if (mpAv.startsWith('<img')) {
+        avtEl.style.fontSize = '0'
+        avtEl.innerHTML = mpAv
+      } else {
+        avtEl.style.fontSize = ''
+        avtEl.innerHTML = mpAv
+      }
+    }
     const snEl = document.getElementById('pc-det-sname')
     if (snEl) snEl.textContent = mypageHeaderName()
-    const slEl=document.getElementById('pc-det-sloc'); if(slEl) slEl.textContent=USER.area
-    const mAvt=document.getElementById('m-d-avt') as HTMLElement|null
-    if (mAvt) { if(avHtml){mAvt.style.fontSize='0';mAvt.innerHTML=avHtml}else{mAvt.style.fontSize='';mAvt.textContent='🧑'} }
+    const slEl = document.getElementById('pc-det-sloc')
+    if (slEl) slEl.textContent = USER.area
+    const mAvt = document.getElementById('m-d-avt') as HTMLElement | null
+    if (mAvt) {
+      if (mpAv.startsWith('<img')) {
+        mAvt.style.fontSize = '0'
+        mAvt.innerHTML = mpAv
+      } else {
+        mAvt.style.fontSize = ''
+        mAvt.innerHTML = mpAv
+      }
+    }
     const mSn = document.getElementById('m-d-sname')
     if (mSn) mSn.textContent = mypageHeaderName()
-    const mSl=document.getElementById('m-d-sloc'); if(mSl) mSl.textContent=USER.area
+    const mSl = document.getElementById('m-d-sloc')
+    if (mSl) mSl.textContent = USER.area
   }
 }
 
 /* ── PROFILE ── */
-function saveProfile() {
+async function saveProfile() {
   const isPC = window.innerWidth >= 768
-  const name = ((document.getElementById(isPC ? 'pc-prof-name' : 'm-prof-name') as HTMLInputElement)?.value || USER.name).trim()
-  const area = ((document.getElementById(isPC ? 'pc-prof-area' : 'm-prof-area') as HTMLInputElement)?.value || USER.area).trim()
-  const bio  = ((document.getElementById(isPC ? 'pc-prof-bio'  : 'm-prof-bio')  as HTMLTextAreaElement)?.value || '').trim()
+  const name = ((document.getElementById(isPC ? 'pc-prof-name' : 'm-prof-name') as HTMLInputElement)?.value || '').trim()
+  const muniEl = document.getElementById(isPC ? 'pc-prof-muni' : 'm-prof-muni') as HTMLSelectElement | null
+  const municipality = (muniEl?.value || '').trim()
+  const bio = ((document.getElementById(isPC ? 'pc-prof-bio' : 'm-prof-bio') as HTMLTextAreaElement)?.value || '').trim()
 
-  // アバター画像
-  const pcImg = document.querySelector('#pc-avt-display img') as HTMLImageElement|null
-  const mImg  = document.querySelector('#m-avt-display img')  as HTMLImageElement|null
-  const newAvt = pcImg?.src || mImg?.src || USER.avt
-
-  // グローバルステートを更新
-  USER.name = name
-  USER.area = area
-  USER.bio  = bio
-  USER.avt  = newAvt
-
-  // アバター表示を両フォームに同期
-  if (newAvt) {
-    const avHtml = `<img src="${newAvt}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
-    ;(['pc-avt-display','m-avt-display'] as const).forEach(id => {
-      const el = document.getElementById(id) as HTMLElement|null
-      if (el && !el.querySelector('img')) { el.style.fontSize='0'; el.innerHTML=avHtml }
-    })
+  if (!name) {
+    showToast('名前を入力してください')
+    return
+  }
+  if (name.length > PROF_NAME_MAX) {
+    showToast(`名前は${PROF_NAME_MAX}文字以内で入力してください`)
+    return
+  }
+  if (!municipality) {
+    showToast('市区町村を選択してください')
+    return
+  }
+  if (bio.length > PROF_BIO_MAX) {
+    showToast(`自己紹介は${PROF_BIO_MAX}文字以内で入力してください`)
+    return
   }
 
-  // 全箇所に即時反映
-  updateAllUserRefs()
+  const area = `${NAGANO_PREF} ${municipality}`
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user?.id) {
+    showToast('ログインしてください')
+    return
+  }
 
-  showToast('プロフィールを保存しました')
-  if (isPC) pcGo('mypage'); else mBack()
+  let nextAvatarUrl = USER.avt && !USER.avt.startsWith('blob:') ? USER.avt : ''
+  if (pendingAvatarFile) {
+    const up = await uploadUserAvatar(supabase, user.id, pendingAvatarFile)
+    if ('error' in up) {
+      showToast('画像のアップロードに失敗しました')
+      return
+    }
+    nextAvatarUrl = up.publicUrl
+    revokePendingAvatarPreview()
+  }
+
+  const { error } = await supabase.from('profiles').upsert(
+    {
+      id: user.id,
+      name,
+      area,
+      bio: bio || null,
+      avatar_url: nextAvatarUrl || null,
+    },
+    { onConflict: 'id' }
+  )
+  if (error) {
+    showToast('保存に失敗しました')
+    return
+  }
+
+  USER.name = name
+  USER.area = area
+  USER.bio = bio
+  USER.avt = nextAvatarUrl
+  try {
+    localStorage.setItem(LS_AREA_KEY, USER.area)
+  } catch {
+    /* ignore */
+  }
+
+  updateAllUserRefs()
+  showToast('保存しました')
+  if (isPC) pcGo('mypage')
+  else mBack()
 }
 
 /* ══════════════════ COMPONENT ══════════════════ */
@@ -2337,16 +2596,30 @@ export default function Page() {
     w.onPostLocPrefChange = onPostLocPrefChange
     w.onPostLocCityChange = onPostLocCityChange
     w.toggleAreaFilter= toggleAreaFilter
+    w.saveProfile = saveProfile
 
     // ── 認証状態変化の監視
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const prevId = CURRENT_USER_ID
       CURRENT_USER_ID = session?.user?.id ?? null
       setUserEmail(session?.user?.email ?? null)
       if (!session?.user) {
         unsubscribeMessageRealtime()
-        Object.keys(CHATS).forEach((k) => { if (k.startsWith('sb_')) delete CHATS[k] })
+        Object.keys(CHATS).forEach((k) => {
+          if (k.startsWith('sb_')) delete CHATS[k]
+        })
         updateSbChatUnreadBadge()
         refreshNotifListsIfOpen()
+        const ok = await loadItemsFromSupabase(null)
+        if (!ok) initItemsFromStorage()
+        initPcCats()
+        initMobCats()
+        applyPcFilter()
+        applyMobFilter()
+        mDoSearch()
+      } else if (!prevId && session.user) {
+        window.location.reload()
+        return
       }
       loadChatsFromSupabase().then(() => {
         renderChatList('pc')
@@ -2356,14 +2629,37 @@ export default function Page() {
       })
     })
 
-    // ── 非同期初期化
+    // ── 非同期初期化（未ログインでも一覧は閲覧可）
     async function init() {
-      // 初期セッション取得（未ログインはログインへ）
+      renderSkeletonGrid('pc-grid')
+      renderSkeletonGrid('m-home-grid')
+
+      initAreaFromStorage()
+      updateAreaDisplay()
+
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        window.location.href = '/login'
+
+      if (!session?.user) {
+        CURRENT_USER_ID = null
+        setUserEmail(null)
+        const loaded = await loadItemsFromSupabase(null)
+        if (!loaded) initItemsFromStorage()
+        initPcCats()
+        applyPcFilter()
+        applyMobFilter()
+        initPostLocSelects()
+        initMobCats()
+        renderChatList('pc')
+        renderChatList('mob')
+        renderTxHistory('pc')
+        renderTxHistory('mob')
+        updateSbChatUnreadBadge()
+        updateMypage('pc')
+        updateMypage('mob')
+        mDoSearch()
         return
       }
+
       const userId = session.user.id
       CURRENT_USER_ID = userId
       setUserEmail(session.user.email ?? null)
@@ -2379,27 +2675,15 @@ export default function Page() {
         return
       }
 
-      // スケルトン表示
-      renderSkeletonGrid('pc-grid')
-      renderSkeletonGrid('m-home-grid')
-
-      // エリア設定を復元
-      initAreaFromStorage()
-      updateAreaDisplay()
-
-      // Supabase からアイテムを読み込み（失敗時は localStorage にフォールバック）
       const loaded = await loadItemsFromSupabase(userId)
       if (!loaded) initItemsFromStorage()
 
-      // グリッド・各UIを初期化
       initPcCats()
       applyPcFilter()
       applyMobFilter()
       initPostLocSelects()
-
       initMobCats()
 
-      // Supabase チャット一覧を読み込み（非同期 - UIブロックなし）
       loadChatsFromSupabase().then(() => {
         renderChatList('pc')
         renderChatList('mob')
@@ -2492,6 +2776,9 @@ export default function Page() {
             <button className="sb-item"    id="sb-veg"   onClick={(e) => pcSbCat(e.currentTarget, 'veg')}>
               <span className="sbi"><svg viewBox="0 0 24 24"><path d="M8 9 Q12 7 16 9 Q15 17 12 23 Q9 17 8 9z"/><path d="M9 13 Q12 12 15 13"/><path d="M10 17 Q12 16 14 17"/><path d="M12 9 Q11 4 9 2 Q11 5 12 9"/><path d="M12 9 Q13 4 15 2 Q13 5 12 9"/><path d="M12 9 Q8 5 7 3 Q9 6 12 9"/><path d="M12 9 Q16 5 17 3 Q15 6 12 9"/></svg></span>野菜
             </button>
+            <button className="sb-item"    id="sb-rice"  onClick={(e) => pcSbCat(e.currentTarget, 'rice')}>
+              <span className="sbi"><svg viewBox="0 0 24 24"><path d="M12 22 Q12 8 18 4 Q20 12 18 22 Q15 18 12 22z" fill="currentColor"/><path d="M12 22 Q12 8 6 4 Q4 12 6 22 Q9 18 12 22z" fill="currentColor" opacity="0.65"/></svg></span>米
+            </button>
             <button className="sb-item"    id="sb-wood"  onClick={(e) => pcSbCat(e.currentTarget, 'wood')}>
               <span className="sbi"><svg viewBox="0 0 24 24"><circle cx="7" cy="16" r="5.5"/><circle cx="7" cy="16" r="3"/><circle cx="17" cy="16" r="5.5"/><circle cx="17" cy="16" r="3"/><circle cx="12" cy="8" r="5.5"/><circle cx="12" cy="8" r="3"/></svg></span>薪・木材
             </button>
@@ -2579,12 +2866,12 @@ export default function Page() {
               <div style={{maxWidth:'680px',display:'flex',flexDirection:'column',gap:'18px'}}>
                 {/* 写真 */}
                 <div className="fg">
-                  <label className="lbl">写真 <small>最大10枚・1枚目がメイン画像</small></label>
+                  <label className="lbl">写真 <small>最大5枚・1枚目がメイン画像</small></label>
                   <input type="file" id="pc-photo-file" accept="image/*" multiple style={{display:'none'}} onChange={(e)=>addPhotos(e.currentTarget,'pc')} />
                   <div id="pc-photo-grid" className="pf-imgs">
                     <button className="pf-img-add" onClick={()=>(document.getElementById('pc-photo-file') as HTMLInputElement)?.click()}>
                       <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                      <span>0/10</span>
+                      <span>0/5</span>
                     </button>
                   </div>
                 </div>
@@ -2598,8 +2885,8 @@ export default function Page() {
                 <div className="fg">
                   <label className="lbl">商品の状態</label>
                   <div className="sel-opts">
-                    {(['未使用','良好','やや傷あり','傷あり'] as const).map(c=>(
-                      <button key={c} className="sel-opt" data-v={c} onClick={(e)=>selectCondition(e.currentTarget,'pc')}>{c}</button>
+                    {(['良好','普通','傷あり'] as const).map(c=>(
+                      <button key={c} type="button" className="sel-opt" data-v={c} onClick={(e)=>selectCondition(e.currentTarget,'pc')}>{c}</button>
                     ))}
                   </div>
                 </div>
@@ -2648,8 +2935,8 @@ export default function Page() {
                 <div className="fg">
                   <label className="lbl">農薬の使用</label>
                   <div className="sel-opts">
-                    {(['使用なし','使用あり','不明'] as const).map(p=>(
-                      <button key={p} className="sel-opt" data-v={p} onClick={(e)=>selectPesticide(e.currentTarget,'pc')}>{p}</button>
+                    {(['なし','あり','不明'] as const).map(p=>(
+                      <button key={p} type="button" className="sel-opt" data-v={p} onClick={(e)=>selectPesticide(e.currentTarget,'pc')}>{p}</button>
                     ))}
                   </div>
                 </div>
@@ -2658,7 +2945,7 @@ export default function Page() {
                 <div className="hint"><span style={{fontSize:'.95rem',flexShrink:0}}>💡</span><p>詳しい住所はチャットで直接決めてOKです。掲示板には住所は出ません。</p></div>
                 <div className="pc-post-actions">
                   <button className="pc-cancel" onClick={()=>pcGo('listing')}>キャンセル</button>
-                  <button className="pc-submit" onClick={()=>submitPost('pc')}>出品する →</button>
+                  <button type="button" className="pc-submit" onClick={() => void submitPost('pc')}>出品する →</button>
                 </div>
               </div>
             </div>
@@ -2716,9 +3003,9 @@ export default function Page() {
                     {/* アクション */}
                     <div className="pc-det-actions">
                       <button className="pc-det-fav" id="pc-det-fav-btn" onClick={() => toggleFav('pc')}>🤍</button>
-                      <button className="pc-det-chat" id="pc-det-chat-btn" onClick={() => openChatWithSupabase('pc')}>
+                      <button type="button" className="pc-det-chat pc-det-want" id="pc-det-chat-btn" onClick={() => void openChatWithSupabase('pc')}>
                         <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                        チャットで相談する
+                        受け取りたい
                       </button>
                     </div>
                     <hr className="pc-det-divider" />
@@ -2819,30 +3106,45 @@ export default function Page() {
             {/* PROF EDIT */}
             <div id="pc-pg-profedit" style={{display:'none'}}>
               <div className="pc-ph">
-                <div><h1 className="pc-ph-title">プロフィール編集</h1></div>
-                <button style={{padding:'9px 22px',background:'var(--g)',color:'#fff',border:'none',borderRadius:'8px',fontSize:'.84rem',fontWeight:700,letterSpacing:'.06em'}} onClick={saveProfile}>保存する</button>
+                <div><h1 className="pc-ph-title" style={{fontFamily:'var(--sf)'}}>プロフィール編集</h1></div>
+                <button type="button" style={{padding:'9px 22px',background:'#C4581A',color:'#fff',border:'none',borderRadius:'8px',fontSize:'.84rem',fontWeight:700,letterSpacing:'.06em'}} onClick={() => void saveProfile()}>保存する</button>
               </div>
               <div className="pc-prof-head">
                 <div className="pc-prof-avt" style={{cursor:'pointer'}} onClick={() => (document.getElementById('pc-avatar-file') as HTMLInputElement)?.click()}>
-                  <span id="pc-avt-display" style={{display:'flex',alignItems:'center',justifyContent:'center',width:'100%',height:'100%',fontSize:'2rem',borderRadius:'50%',overflow:'hidden'}}>🧑</span>
+                  <span id="pc-avt-display" style={{display:'flex',alignItems:'center',justifyContent:'center',width:'100%',height:'100%',fontSize:'2rem',borderRadius:'50%',overflow:'hidden',background:'#F8F4EE'}} />
                   <div className="pc-prof-edit">
                     <svg viewBox="0 0 24 24" width="12" height="12" stroke="#fff" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                   </div>
                   <input type="file" id="pc-avatar-file" accept="image/*" style={{display:'none'}} onChange={(e) => {
                     const file = e.currentTarget.files?.[0]
                     if (!file) return
-                    const url = URL.createObjectURL(file)
-                    const el = document.getElementById('pc-avt-display') as HTMLElement | null
-                    if (el) { el.style.fontSize = '0'; el.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;" />` }
+                    applyAvatarFileToPreviews(file)
                   }} />
                 </div>
-                <p className="pc-prof-name">田中 拓也</p>
+                <p className="pc-prof-name" style={{fontFamily:'var(--sf)'}}>—</p>
                 <p id="pc-prof-rev-summary" style={{display:'none',fontSize:'.78rem',color:'var(--k)',fontWeight:600,marginTop:'6px',letterSpacing:'.02em'}} />
               </div>
               <div className="pc-form-full">
-                <div className="fg"><label className="lbl">名前</label><input className="inp" id="pc-prof-name" defaultValue="田中 拓也" style={{maxWidth:'360px'}} /></div>
-                <div className="fg"><label className="lbl">お住まいのエリア</label><input className="inp" id="pc-prof-area" defaultValue="長野県駒ヶ根市" style={{maxWidth:'360px'}} /></div>
-                <div className="fg"><label className="lbl">自己紹介 <small>任意</small></label><textarea className="txta" id="pc-prof-bio" style={{maxWidth:'560px',height:'80px'}} defaultValue="駒ヶ根で農業をしています。余ったものを気軽に分けられたら嬉しいです。"></textarea></div>
+                <div className="fg">
+                  <label className="lbl">名前（必須）</label>
+                  <input className="inp" id="pc-prof-name" maxLength={PROF_NAME_MAX} style={{maxWidth:'360px'}} onInput={(e) => { const c = document.getElementById('pc-prof-name-cnt'); if (c) c.textContent = `${e.currentTarget.value.length}/${PROF_NAME_MAX}` }} />
+                  <p className="prof-fg-hint" id="pc-prof-name-cnt">0/{PROF_NAME_MAX}</p>
+                </div>
+                <div className="fg">
+                  <label className="lbl">お住まいのエリア（必須）</label>
+                  <div className="prof-pref-fixed" style={{marginBottom:'8px'}}>{NAGANO_PREF}</div>
+                  <select className="inp prof-muni-sel" id="pc-prof-muni" defaultValue="">
+                    <option value="">市区町村を選択</option>
+                    {(AREA_DATA['長野県'] || []).map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="fg">
+                  <label className="lbl">自己紹介 <small>任意</small></label>
+                  <textarea className="txta" id="pc-prof-bio" maxLength={PROF_BIO_MAX} style={{maxWidth:'560px',minHeight:'88px'}} onInput={(e) => { const c = document.getElementById('pc-prof-bio-cnt'); if (c) c.textContent = `${e.currentTarget.value.length}/${PROF_BIO_MAX}` }} />
+                  <p className="prof-fg-hint" id="pc-prof-bio-cnt">0/{PROF_BIO_MAX}</p>
+                </div>
               </div>
             </div>
 
@@ -2870,7 +3172,7 @@ export default function Page() {
               </div>
               <div className="panel-actions">
                 <button className="p-fav" id="pc-fav-btn" onClick={() => toggleFav('pc')}>🤍</button>
-                <button className="p-chat" onClick={() => openChatWithSupabase('pc')}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>チャットで相談する</button>
+                <button type="button" className="p-chat p-want" onClick={() => void openChatWithSupabase('pc')}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>受け取りたい</button>
               </div>
             </div>
             {/* Chat Panel */}
@@ -3066,11 +3368,11 @@ export default function Page() {
               <input type="file" id="m-photo-file" accept="image/*" multiple style={{display:'none'}} onChange={(e)=>addPhotos(e.currentTarget,'mob')} />
               {/* 写真 */}
               <div className="fg" style={{marginBottom:'16px'}}>
-                <label className="lbl">写真 <small>最大10枚・1枚目がメイン</small></label>
+                <label className="lbl">写真 <small>最大5枚・1枚目がメイン</small></label>
                 <div id="m-photo-grid" className="pf-imgs">
                   <button className="pf-img-add" onClick={()=>(document.getElementById('m-photo-file') as HTMLInputElement)?.click()}>
                     <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    <span>0/10</span>
+                    <span>0/5</span>
                   </button>
                 </div>
               </div>
@@ -3084,8 +3386,8 @@ export default function Page() {
               <div className="fg" style={{marginBottom:'16px'}}>
                 <label className="lbl">商品の状態</label>
                 <div className="sel-opts">
-                  {(['未使用','良好','やや傷あり','傷あり'] as const).map(c=>(
-                    <button key={c} className="sel-opt" data-v={c} onClick={(e)=>selectCondition(e.currentTarget,'mob')}>{c}</button>
+                  {(['良好','普通','傷あり'] as const).map(c=>(
+                    <button key={c} type="button" className="sel-opt" data-v={c} onClick={(e)=>selectCondition(e.currentTarget,'mob')}>{c}</button>
                   ))}
                 </div>
               </div>
@@ -3134,15 +3436,15 @@ export default function Page() {
               <div className="fg" style={{marginBottom:'16px'}}>
                 <label className="lbl">農薬の使用</label>
                 <div className="sel-opts">
-                  {(['使用なし','使用あり','不明'] as const).map(p=>(
-                    <button key={p} className="sel-opt" data-v={p} onClick={(e)=>selectPesticide(e.currentTarget,'mob')}>{p}</button>
+                  {(['なし','あり','不明'] as const).map(p=>(
+                    <button key={p} type="button" className="sel-opt" data-v={p} onClick={(e)=>selectPesticide(e.currentTarget,'mob')}>{p}</button>
                   ))}
                 </div>
               </div>
               {/* 受け取り期限 */}
               <div className="fg" style={{marginBottom:'16px'}}><label className="lbl">受け取り期限 <small>任意</small></label><input className="inp" type="date" id="m-post-expiry" /></div>
               <div className="hint" style={{marginBottom:'20px'}}><span style={{fontSize:'.95rem',flexShrink:0}}>💡</span><p>詳しい住所はチャットで直接決めてOKです。掲示板には住所は出ません。</p></div>
-              <button style={{width:'100%',padding:'16px',background:'var(--k)',color:'#fff',border:'none',borderRadius:'13px',fontSize:'.92rem',fontWeight:700,letterSpacing:'.08em',boxShadow:'0 5px 17px rgba(196,88,26,.34)',transition:'all .18s'}} onClick={()=>submitPost('mob')}>出品する →</button>
+              <button type="button" style={{width:'100%',padding:'16px',background:'var(--k)',color:'#fff',border:'none',borderRadius:'13px',fontSize:'.92rem',fontWeight:700,letterSpacing:'.08em',boxShadow:'0 5px 17px rgba(196,88,26,.34)',transition:'all .18s'}} onClick={() => void submitPost('mob')}>出品する →</button>
             </div>
           </div>
         </div>
@@ -3207,7 +3509,7 @@ export default function Page() {
           </div>
           <div className="m-det-actions">
             <button className="m-fav" id="m-fav-btn" onClick={() => toggleFav('mob')}>🤍</button>
-            <button className="m-chat" id="m-det-chat-btn" onClick={() => openChatWithSupabase('mob')}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>チャットで相談する</button>
+            <button type="button" className="m-chat m-det-want" id="m-det-chat-btn" onClick={() => void openChatWithSupabase('mob')}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>受け取りたい</button>
           </div>
         </div>
 
@@ -3294,33 +3596,48 @@ export default function Page() {
         {/* PROF EDIT */}
         <div className="scn" id="ms-profedit">
           <div className="m-sbar drk"><span>9:41</span><span aria-hidden>●●●</span></div>
-          <div className="m-tbar" style={{background:'var(--g)'}}>
-            <button className="m-back" style={{background:'rgba(255,255,255,.2)'}} onClick={mBack}><svg viewBox="0 0 24 24" style={{stroke:'#fff'}}><polyline points="15 18 9 12 15 6"/></svg></button>
-            <span className="m-title" style={{color:'#fff'}}>プロフィール編集</span>
-            <button style={{fontSize:'.78rem',fontWeight:700,color:'#fff',padding:'6px 13px',background:'rgba(255,255,255,.2)',borderRadius:'8px',marginLeft:'auto',border:'none'}} onClick={saveProfile}>保存</button>
+          <div className="m-tbar" style={{background:'#2D5A27'}}>
+            <button type="button" className="m-back" style={{background:'rgba(255,255,255,.2)'}} onClick={mBack}><svg viewBox="0 0 24 24" style={{stroke:'#fff'}}><polyline points="15 18 9 12 15 6"/></svg></button>
+            <span className="m-title" style={{color:'#fff',fontFamily:'var(--sf)'}}>プロフィール編集</span>
+            <button type="button" style={{fontSize:'.78rem',fontWeight:700,color:'#fff',padding:'6px 13px',background:'#C4581A',borderRadius:'8px',marginLeft:'auto',border:'none'}} onClick={() => void saveProfile()}>保存</button>
           </div>
-          <div className="m-body">
-            <div style={{background:'linear-gradient(135deg,var(--g),#3d7a34)',padding:'22px 16px 18px',display:'flex',flexDirection:'column',alignItems:'center',gap:'9px'}}>
-              <div style={{width:'64px',height:'64px',borderRadius:'50%',background:'rgba(255,255,255,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.9rem',border:'3px solid rgba(255,255,255,.3)',cursor:'pointer',position:'relative',overflow:'hidden'}} onClick={() => (document.getElementById('m-avatar-file') as HTMLInputElement)?.click()}>
-                <span id="m-avt-display" style={{display:'flex',alignItems:'center',justifyContent:'center',width:'100%',height:'100%',fontSize:'1.9rem',borderRadius:'50%',overflow:'hidden'}}>🧑</span>
-                <div style={{position:'absolute',bottom:'0',right:'0',width:'20px',height:'20px',borderRadius:'50%',background:'var(--k)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          <div className="m-body" style={{background:'#F8F4EE'}}>
+            <div style={{background:'linear-gradient(135deg,#2D5A27,#3d7a34)',padding:'22px 16px 18px',display:'flex',flexDirection:'column',alignItems:'center',gap:'9px'}}>
+              <div style={{width:'64px',height:'64px',borderRadius:'50%',background:'#F8F4EE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.9rem',border:'3px solid rgba(255,255,255,.35)',cursor:'pointer',position:'relative',overflow:'hidden'}} onClick={() => (document.getElementById('m-avatar-file') as HTMLInputElement)?.click()}>
+                <span id="m-avt-display" style={{display:'flex',alignItems:'center',justifyContent:'center',width:'100%',height:'100%',fontSize:'1.9rem',borderRadius:'50%',overflow:'hidden'}} />
+                <div style={{position:'absolute',bottom:'0',right:'0',width:'20px',height:'20px',borderRadius:'50%',background:'#C4581A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                   <svg viewBox="0 0 24 24" width="11" height="11" stroke="#fff" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                 </div>
                 <input type="file" id="m-avatar-file" accept="image/*" style={{display:'none'}} onChange={(e) => {
                   const file = e.currentTarget.files?.[0]
                   if (!file) return
-                  const url = URL.createObjectURL(file)
-                  const el = document.getElementById('m-avt-display') as HTMLElement | null
-                  if (el) { el.style.fontSize = '0'; el.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;" />` }
+                  applyAvatarFileToPreviews(file)
                 }} />
               </div>
-              <p id="m-prof-preview-name" style={{fontFamily:'var(--sf)',fontSize:'1rem',fontWeight:700,color:'#fff'}}>田中 拓也</p>
+              <p id="m-prof-preview-name" style={{fontFamily:'var(--sf)',fontSize:'1rem',fontWeight:700,color:'#fff'}}>—</p>
               <p id="m-prof-preview-rating" style={{display:'none',fontSize:'.72rem',color:'rgba(255,255,255,.88)',fontWeight:500,marginTop:'4px'}} />
             </div>
             <div style={{padding:'18px 14px',display:'flex',flexDirection:'column',gap:'15px'}}>
-              <div><label className="lbl">名前</label><input className="inp" id="m-prof-name" defaultValue="田中 拓也" /></div>
-              <div><label className="lbl">お住まいのエリア</label><input className="inp" id="m-prof-area" defaultValue="長野県駒ヶ根市" /></div>
-              <div><label className="lbl">自己紹介 <small>任意</small></label><textarea className="txta" id="m-prof-bio" style={{height:'72px'}} defaultValue="駒ヶ根で農業をしています。余ったものを気軽に分けられたら嬉しいです。"></textarea></div>
+              <div>
+                <label className="lbl">名前（必須）</label>
+                <input className="inp" id="m-prof-name" maxLength={PROF_NAME_MAX} onInput={(e) => { const c = document.getElementById('m-prof-name-cnt'); if (c) c.textContent = `${e.currentTarget.value.length}/${PROF_NAME_MAX}` }} />
+                <p className="prof-fg-hint" id="m-prof-name-cnt">0/{PROF_NAME_MAX}</p>
+              </div>
+              <div>
+                <label className="lbl">お住まいのエリア（必須）</label>
+                <div className="prof-pref-fixed" style={{marginBottom:'8px'}}>{NAGANO_PREF}</div>
+                <select className="inp prof-muni-sel" id="m-prof-muni" defaultValue="">
+                  <option value="">市区町村を選択</option>
+                  {(AREA_DATA['長野県'] || []).map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="lbl">自己紹介 <small>任意</small></label>
+                <textarea className="txta" id="m-prof-bio" maxLength={PROF_BIO_MAX} style={{minHeight:'72px'}} onInput={(e) => { const c = document.getElementById('m-prof-bio-cnt'); if (c) c.textContent = `${e.currentTarget.value.length}/${PROF_BIO_MAX}` }} />
+                <p className="prof-fg-hint" id="m-prof-bio-cnt">0/{PROF_BIO_MAX}</p>
+              </div>
             </div>
           </div>
         </div>
