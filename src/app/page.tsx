@@ -2664,19 +2664,6 @@ export default function Page() {
       CURRENT_USER_ID = userId
       setUserEmail(session.user.email ?? null)
 
-      const { data: profGate } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('id', userId)
-        .maybeSingle()
-      const gateName = profGate?.name
-      const isSetupDone = sessionStorage.getItem('setup_done')
-      if (!isSetupDone && (gateName == null || String(gateName).trim() === '')) {
-        window.location.href = '/setup'
-        return
-      }
-      sessionStorage.removeItem('setup_done')
-
       const loaded = await loadItemsFromSupabase(userId)
       if (!loaded) initItemsFromStorage()
 
