@@ -2670,10 +2670,12 @@ export default function Page() {
         .eq('id', userId)
         .maybeSingle()
       const gateName = profGate?.name
-      if (gateName == null || String(gateName).trim() === '') {
+      const isSetupDone = sessionStorage.getItem('setup_done')
+      if (!isSetupDone && (gateName == null || String(gateName).trim() === '')) {
         window.location.href = '/setup'
         return
       }
+      sessionStorage.removeItem('setup_done')
 
       const loaded = await loadItemsFromSupabase(userId)
       if (!loaded) initItemsFromStorage()

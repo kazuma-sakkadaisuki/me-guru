@@ -1,7 +1,6 @@
 'use client'
 
 import { type ChangeEvent, useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { AREA_DATA, LS_AREA_KEY, LS_DISTRICTS_KEY } from '@/lib/area-data'
 import { NAGANO_PREF } from '@/lib/nagano-municipalities'
@@ -37,7 +36,6 @@ function SetupCameraIcon() {
 }
 
 export default function SetupPage() {
-  const router = useRouter()
   const [name, setName] = useState('')
   const [municipality, setMunicipality] = useState('')
   const [bio, setBio] = useState('')
@@ -53,12 +51,11 @@ export default function SetupPage() {
         data: { session },
       } = await supabase.auth.getSession()
       if (!session) {
-        router.replace('/login')
-        return
+        window.location.href = '/login'
       }
     }
     void check()
-  }, [router])
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -105,7 +102,7 @@ export default function SetupPage() {
       data: { session },
     } = await supabase.auth.getSession()
     if (!session) {
-      router.replace('/login')
+      window.location.href = '/login'
       setSaving(false)
       return
     }
@@ -149,6 +146,7 @@ export default function SetupPage() {
     }
 
     // 3. ホームへ
+    sessionStorage.setItem('setup_done', '1')
     window.location.href = '/'
   }
 
