@@ -280,6 +280,18 @@ function pcGo(page: string) {
     const tab = document.getElementById('pct-'+page); if (tab) tab.classList.add('on')
   }
   document.querySelectorAll('.sb-item').forEach(t => t.classList.remove('on'))
+  if (page === 'listing') {
+    const PC_CAT_SB: Record<string, string> = {
+      all: 'sb-all',
+      fruit: 'sb-fruit',
+      veg: 'sb-veg',
+      wood: 'sb-wood',
+      herb: 'sb-herb',
+      other: 'sb-other',
+    }
+    const sid = PC_CAT_SB[pcCatFilter]
+    ;(sid ? document.getElementById(sid) : document.getElementById('sb-all'))?.classList.add('on')
+  }
   if (page==='notif') renderPcNotifs()
   if (page==='mypage') { updateMypage('pc'); (document.getElementById('pc-pg-mypage') as HTMLElement).style.display='' }
   if (page==='chatlist') renderChatList('pc')
@@ -626,8 +638,11 @@ function mTab(btn: HTMLElement) {
 /* ── MOB CATS ── */
 function initMobCats() {
   const cats = [{k:'all',l:'すべて'},{k:'fruit',l:'果物'},{k:'veg',l:'野菜'},{k:'wood',l:'薪・木材'},{k:'herb',l:'山菜'},{k:'other',l:'加工品'}]
+  if (!cats.some((c) => c.k === mobCatFilter)) mobCatFilter = 'all'
   const homeCats = document.getElementById('m-home-cats')
-  if (homeCats) homeCats.innerHTML = cats.map(c=>`<div class="m-chip${c.k==='all'?' on':''}" onclick="mHomeCat(this,'${c.k}','${c.l}')">${chipSvg(c.k)}${c.l}</div>`).join('')
+  if (homeCats) {
+    homeCats.innerHTML = cats.map(c=>`<div class="m-chip${c.k===mobCatFilter?' on':''}" onclick="mHomeCat(this,'${c.k}','${c.l}')">${chipSvg(c.k)}${c.l}</div>`).join('')
+  }
   const searchCats = document.getElementById('m-search-cats')
   if (searchCats) searchCats.innerHTML = cats.map(c=>`<div class="m-chip${c.k===mSearchCatKey?' on':''}" onclick="mSearchCat(this,'${c.k}')">${chipSvg(c.k)}${c.l}</div>`).join('')
   const fcats = [{v:'fruit',l:'果物'},{v:'veg',l:'野菜'},{v:'wood',l:'薪・木材'},{v:'herb',l:'山菜・ハーブ'},{v:'other',l:'加工品'},{v:'misc',l:'その他'}]
@@ -1591,6 +1606,7 @@ async function openChatWithSupabase(mode: string) {
 async function loadItemsFromSupabase(userId: string | null): Promise<boolean> {
   try {
     const supabase = createClient()
+    /* is_sold は WHERE に含めない（一覧はクライアントで sold 表示のみ。RLS で読めない行は data に入らない） */
     const { data, error } = await supabase
       .from('items')
       .select('*, profiles(name, area)')
@@ -1631,16 +1647,29 @@ function redrawAllItemGridsForce() {
   mDoSearch()
 }
 
+/** 出品完了後など: 内部フィルターと DOM（並び・チップ）を「すべて / 新着」に揃える */
+function resetListingFiltersAfterPost() {
+  mobCatFilter = 'all'
+  mobSortMode = 'new'
+  pcCatFilter = 'all'
+  pcSortMode = 'new'
+  const mSel = document.querySelector('#ms-home select.sort-sel-mob') as HTMLSelectElement | null
+  if (mSel) mSel.value = 'new'
+  const pSel = document.querySelector('#pc-pg-listing select.sort-sel') as HTMLSelectElement | null
+  if (pSel) pSel.value = 'new'
+  const ht = document.getElementById('m-home-title')
+  if (ht) ht.textContent = 'あたらしい余りもの'
+}
+
 /** 出品完了後など: Supabase から一覧を取り直して PC/モバイルのグリッドを更新してから遷移 */
 async function refreshItemGridsFromSupabaseThen(run: () => void) {
+  resetListingFiltersAfterPost()
   const loaded = await loadItemsFromSupabase(CURRENT_USER_ID)
   if (!loaded) {
     console.warn('[meguru] refreshItemGridsFromSupabaseThen: load failed or empty, initItemsFromStorage')
     initItemsFromStorage()
   }
   initPcCats()
-  applyPcFilter()
-  applyMobFilter()
   initPostLocSelects()
   initMobCats()
   redrawAllItemGridsForce()
@@ -1649,14 +1678,14 @@ async function refreshItemGridsFromSupabaseThen(run: () => void) {
 
 /** モバイル出品完了 → 一覧に戻る: 再取得 → グリッド再描画 → ホームへ（mNav でスタックを切り替え） */
 async function mobCompleteBackToHomeWithReload() {
+  resetListingFiltersAfterPost()
+
   const loaded = await loadItemsFromSupabase(CURRENT_USER_ID)
   if (!loaded) {
     console.warn('[meguru] mobCompleteBackToHomeWithReload: loadItemsFromSupabase failed or empty')
     initItemsFromStorage()
   }
   initPcCats()
-  applyPcFilter()
-  applyMobFilter()
   initPostLocSelects()
   initMobCats()
   redrawAllItemGridsForce()
