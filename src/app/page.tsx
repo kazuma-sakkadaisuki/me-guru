@@ -2557,6 +2557,8 @@ async function saveProfile() {
 export default function Page() {
   const router = useRouter()
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  /** init() で一覧の取得・描画が終わるまで true にしない（マウント直後の userEmail 用 effect がダミー ITEMS でグリッドを上書きしないため） */
+  const [homeListReady, setHomeListReady] = useState(false)
 
   async function handleLogout() {
     const supabase = createClient()
@@ -2627,6 +2629,7 @@ export default function Page() {
 
     // ── 非同期初期化（未ログインでも一覧は閲覧可）
     async function init() {
+      setHomeListReady(false)
       renderSkeletonGrid('pc-grid')
       renderSkeletonGrid('m-home-grid')
 
@@ -2653,12 +2656,14 @@ export default function Page() {
         updateMypage('pc')
         updateMypage('mob')
         mDoSearch()
+        setHomeListReady(true)
         return
       }
 
       const userId = session.user.id
       CURRENT_USER_ID = userId
       setUserEmail(session.user.email ?? null)
+      ITEMS.splice(0, ITEMS.length)
 
       const loaded = await loadItemsFromSupabase(userId)
       if (!loaded) initItemsFromStorage()
@@ -2668,6 +2673,7 @@ export default function Page() {
       applyMobFilter()
       initPostLocSelects()
       initMobCats()
+      setHomeListReady(true)
 
       loadChatsFromSupabase().then(() => {
         renderChatList('pc')
@@ -2697,6 +2703,7 @@ export default function Page() {
 
   /* React の再レンダーで innerHTML が消えるため、認証表示のたびにモバイルチップ・グリッドを再生成 */
   useEffect(() => {
+    if (!homeListReady) return
     const id = window.setTimeout(() => {
       initPcCats()
       initMobCats()
@@ -2706,7 +2713,7 @@ export default function Page() {
       mDoSearch()
     }, 0)
     return () => clearTimeout(id)
-  }, [userEmail])
+  }, [userEmail, homeListReady])
 
   return (
     <>
