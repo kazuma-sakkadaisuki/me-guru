@@ -33,16 +33,20 @@ function toJaMessage(message: string, isLogin: boolean): string {
   return '登録に失敗しました。入力内容を確認してください。'
 }
 
+const FF = "'Noto Sans JP', sans-serif"
+const GREEN = '#2D5A27'
+const CREAM = '#F8F4EE'
+const KAKI = '#C4581A'
+
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [signupInfo, setSignupInfo] = useState('')
+  const [postSignupEmailSent, setPostSignupEmailSent] = useState(false)
 
   async function handleAuthAction() {
     setError('')
-    setSignupInfo('')
     if (!email.trim() || !password) {
       setError('メールアドレスとパスワードを入力してください。')
       return
@@ -69,17 +73,12 @@ export default function LoginPage() {
         return
       }
 
-      const { data, error: err } = await supabase.auth.signUp({ email, password })
+      const { error: err } = await supabase.auth.signUp({ email, password })
       if (err) {
         setError(toJaMessage(err.message, false))
         return
       }
-      if (data.session) {
-        window.location.href = '/setup'
-        return
-      }
-      setIsLogin(true)
-      setSignupInfo('登録しました。確認メールのリンクを開いてからログインし、プロフィールを設定してください。')
+      setPostSignupEmailSent(true)
     } catch {
       setError('通信エラーが発生しました。接続を確認してください。')
     }
@@ -89,199 +88,253 @@ export default function LoginPage() {
     <div
       style={{
         minHeight: '100dvh',
-        background: '#2D5A27',
+        background: GREEN,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
-        fontFamily: "'Noto Sans JP', sans-serif",
+        fontFamily: FF,
       }}
     >
       <div
         style={{
           width: '100%',
           maxWidth: 400,
-          background: '#fff',
+          background: CREAM,
           borderRadius: 16,
           padding: '32px 28px',
           boxShadow: '0 12px 40px rgba(0,0,0,.2)',
+          fontFamily: FF,
         }}
       >
-        <h1
-          style={{
-            fontSize: '1.35rem',
-            fontWeight: 700,
-            color: '#2D5A27',
-            textAlign: 'center',
-            marginBottom: 8,
-            letterSpacing: '0.06em',
-            fontFamily: "'Noto Serif JP', serif",
-          }}
-        >
-          MEGURU
-        </h1>
-        <p style={{ fontSize: '.8rem', color: '#666', textAlign: 'center', marginBottom: 24 }}>
-          {isLogin ? 'ログイン' : '新規登録'}
-        </p>
-
-        <div
-          style={{
-            display: 'flex',
-            marginBottom: 24,
-            borderRadius: 10,
-            overflow: 'hidden',
-            border: '1px solid #e0e0e0',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setIsLogin(true)
-              setError('')
-              setSignupInfo('')
-            }}
-            style={{
-              flex: 1,
-              padding: '10px 12px',
-              fontSize: '.85rem',
-              fontWeight: 600,
-              fontFamily: "'Noto Sans JP', sans-serif",
-              border: 'none',
-              cursor: 'pointer',
-              background: isLogin ? '#2D5A27' : '#f5f5f5',
-              color: isLogin ? '#fff' : '#555',
-            }}
-          >
-            ログイン
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIsLogin(false)
-              setError('')
-              setSignupInfo('')
-            }}
-            style={{
-              flex: 1,
-              padding: '10px 12px',
-              fontSize: '.85rem',
-              fontWeight: 600,
-              fontFamily: "'Noto Sans JP', sans-serif",
-              border: 'none',
-              cursor: 'pointer',
-              background: !isLogin ? '#2D5A27' : '#f5f5f5',
-              color: !isLogin ? '#fff' : '#555',
-            }}
-          >
-            新規登録
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label
-              htmlFor="email"
-              style={{ display: 'block', fontSize: '.78rem', fontWeight: 600, color: '#444', marginBottom: 6 }}
-            >
-              メールアドレス
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              placeholder="example@mail.com"
+        {postSignupEmailSent ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, fontFamily: FF }}>
+            <h1
               style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '12px 14px',
+                fontSize: '1.2rem',
+                fontWeight: 700,
+                color: GREEN,
+                textAlign: 'center',
+                margin: 0,
+                fontFamily: FF,
+              }}
+            >
+              メールを確認してください
+            </h1>
+            <p
+              style={{
                 fontSize: '.9rem',
-                fontFamily: "'Noto Sans JP', sans-serif",
-                border: '1px solid #ccc',
-                borderRadius: 10,
-                outline: 'none',
+                color: '#444',
+                lineHeight: 1.65,
+                margin: 0,
+                textAlign: 'left',
+                fontFamily: FF,
               }}
-            />
+            >
+              ご登録のメールアドレスに確認メールを送りました。メール内のリンクをクリックしてから、ログインしてください。
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setPostSignupEmailSent(false)
+                setIsLogin(true)
+                setError('')
+              }}
+              style={{
+                marginTop: 8,
+                padding: '14px',
+                fontSize: '.95rem',
+                fontWeight: 700,
+                fontFamily: FF,
+                color: '#fff',
+                background: KAKI,
+                border: 'none',
+                borderRadius: 12,
+                cursor: 'pointer',
+              }}
+            >
+              ログイン画面に戻る
+            </button>
           </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              style={{ display: 'block', fontSize: '.78rem', fontWeight: 600, color: '#444', marginBottom: 6 }}
-            >
-              パスワード
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={isLogin ? 'current-password' : 'new-password'}
-              placeholder={isLogin ? 'パスワード' : '8文字以上'}
+        ) : (
+          <>
+            <h1
               style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '12px 14px',
-                fontSize: '.9rem',
-                fontFamily: "'Noto Sans JP', sans-serif",
-                border: '1px solid #ccc',
+                fontSize: '1.35rem',
+                fontWeight: 700,
+                color: GREEN,
+                textAlign: 'center',
+                marginBottom: 8,
+                letterSpacing: '0.06em',
+                fontFamily: FF,
+              }}
+            >
+              MEGURU
+            </h1>
+            <p style={{ fontSize: '.8rem', color: '#666', textAlign: 'center', marginBottom: 24, fontFamily: FF }}>
+              {isLogin ? 'ログイン' : '新規登録'}
+            </p>
+
+            <div
+              style={{
+                display: 'flex',
+                marginBottom: 24,
                 borderRadius: 10,
-                outline: 'none',
-              }}
-            />
-          </div>
-
-          {signupInfo && (
-            <div
-              role="status"
-              style={{
-                padding: '10px 12px',
-                fontSize: '.8rem',
-                color: '#1e5a7a',
-                background: '#e8f4fc',
-                borderRadius: 8,
-                border: '1px solid #b8d9f0',
+                overflow: 'hidden',
+                border: '1px solid #e0e0e0',
               }}
             >
-              {signupInfo}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(true)
+                  setError('')
+                  setPostSignupEmailSent(false)
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  fontSize: '.85rem',
+                  fontWeight: 600,
+                  fontFamily: FF,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: isLogin ? GREEN : '#f5f5f5',
+                  color: isLogin ? '#fff' : '#555',
+                }}
+              >
+                ログイン
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(false)
+                  setError('')
+                  setPostSignupEmailSent(false)
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  fontSize: '.85rem',
+                  fontWeight: 600,
+                  fontFamily: FF,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: !isLogin ? GREEN : '#f5f5f5',
+                  color: !isLogin ? '#fff' : '#555',
+                }}
+              >
+                新規登録
+              </button>
             </div>
-          )}
-          {error && (
-            <div
-              role="alert"
-              style={{
-                padding: '10px 12px',
-                fontSize: '.8rem',
-                color: '#b91c1c',
-                background: '#fef2f2',
-                borderRadius: 8,
-                border: '1px solid #fecaca',
-              }}
-            >
-              {error}
-            </div>
-          )}
 
-          <button
-            type="button"
-            onClick={handleAuthAction}
-            style={{
-              marginTop: 8,
-              padding: '14px',
-              fontSize: '.95rem',
-              fontWeight: 700,
-              fontFamily: "'Noto Sans JP', sans-serif",
-              color: '#fff',
-              background: '#2D5A27',
-              border: 'none',
-              borderRadius: 12,
-              cursor: 'pointer',
-            }}
-          >
-            {isLogin ? 'ログイン' : '登録する'}
-          </button>
-        </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label
+                  htmlFor="email"
+                  style={{
+                    display: 'block',
+                    fontSize: '.78rem',
+                    fontWeight: 600,
+                    color: '#444',
+                    marginBottom: 6,
+                    fontFamily: FF,
+                  }}
+                >
+                  メールアドレス
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  placeholder="example@mail.com"
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '12px 14px',
+                    fontSize: '.9rem',
+                    fontFamily: FF,
+                    border: '1px solid #ccc',
+                    borderRadius: 10,
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  style={{
+                    display: 'block',
+                    fontSize: '.78rem',
+                    fontWeight: 600,
+                    color: '#444',
+                    marginBottom: 6,
+                    fontFamily: FF,
+                  }}
+                >
+                  パスワード
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={isLogin ? 'current-password' : 'new-password'}
+                  placeholder={isLogin ? 'パスワード' : '8文字以上'}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '12px 14px',
+                    fontSize: '.9rem',
+                    fontFamily: FF,
+                    border: '1px solid #ccc',
+                    borderRadius: 10,
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              {error && (
+                <div
+                  role="alert"
+                  style={{
+                    padding: '10px 12px',
+                    fontSize: '.8rem',
+                    color: '#b91c1c',
+                    background: '#fef2f2',
+                    borderRadius: 8,
+                    border: '1px solid #fecaca',
+                    fontFamily: FF,
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleAuthAction}
+                style={{
+                  marginTop: 8,
+                  padding: '14px',
+                  fontSize: '.95rem',
+                  fontWeight: 700,
+                  fontFamily: FF,
+                  color: '#fff',
+                  background: GREEN,
+                  border: 'none',
+                  borderRadius: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                {isLogin ? 'ログイン' : '登録する'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
