@@ -117,6 +117,8 @@ input, textarea, select { font-family:var(--ss); }
 }
 .pc-nav-tab:hover { background:var(--gp); color:var(--g); }
 .pc-nav-tab.on    { background:var(--gp); color:var(--g); font-weight:600; }
+a.pc-nav-tab { text-decoration: none; cursor: pointer; }
+a.pc-nav-tab:visited { color: var(--mu); }
 .pc-nav-right { margin-left:auto; display:flex; gap:10px; align-items:center; }
 .pc-btn-o {
   padding:8px 20px; border:1.5px solid var(--g); background:none;
