@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
 function toJaMessage(message: string, isLogin: boolean): string {
@@ -44,6 +45,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [postSignupEmailSent, setPostSignupEmailSent] = useState(false)
+  const [agreeTerms, setAgreeTerms] = useState(false)
 
   async function handleAuthAction() {
     setError('')
@@ -53,6 +55,10 @@ export default function LoginPage() {
     }
     if (!isLogin && password.length < 8) {
       setError('パスワードは8文字以上で設定してください。')
+      return
+    }
+    if (!isLogin && !agreeTerms) {
+      setError('利用規約・プライバシーポリシーへの同意が必要です。')
       return
     }
 
@@ -190,6 +196,7 @@ export default function LoginPage() {
                   setIsLogin(true)
                   setError('')
                   setPostSignupEmailSent(false)
+                  setAgreeTerms(false)
                 }}
                 style={{
                   flex: 1,
@@ -211,6 +218,7 @@ export default function LoginPage() {
                   setIsLogin(false)
                   setError('')
                   setPostSignupEmailSent(false)
+                  setAgreeTerms(false)
                 }}
                 style={{
                   flex: 1,
@@ -296,6 +304,43 @@ export default function LoginPage() {
                   }}
                 />
               </div>
+
+              {!isLogin && (
+                <label
+                  htmlFor="agree-terms"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                    cursor: 'pointer',
+                    fontSize: '.82rem',
+                    color: '#444',
+                    lineHeight: 1.5,
+                    fontFamily: FF,
+                  }}
+                >
+                  <input
+                    id="agree-terms"
+                    type="checkbox"
+                    checked={agreeTerms}
+                    onChange={(e) => {
+                      setAgreeTerms(e.target.checked)
+                      setError('')
+                    }}
+                    style={{ marginTop: 3, width: 16, height: 16, flexShrink: 0, accentColor: GREEN }}
+                  />
+                  <span>
+                    <Link
+                      href="/terms"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ color: KAKI, textDecoration: 'underline', fontWeight: 600 }}
+                    >
+                      利用規約・プライバシーポリシー
+                    </Link>
+                    に同意する
+                  </span>
+                </label>
+              )}
 
               {error && (
                 <div
