@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { uploadUserAvatar } from '@/lib/upload-avatar'
@@ -2743,19 +2742,9 @@ export default function Page() {
             </button>
           </div>
           <div className="pc-nav-right">
-            <Link
-              href="/contact"
-              style={{
-                fontSize: '0.78rem',
-                fontFamily: "'Noto Sans JP', sans-serif",
-                color: '#2D5A27',
-                textDecoration: 'underline',
-                textUnderlineOffset: 3,
-                whiteSpace: 'nowrap',
-              }}
-            >
+            <a href="/contact" style={{ fontSize: '.78rem', color: '#2D5A27', textDecoration: 'underline', marginRight: '12px' }}>
               お問い合わせ
-            </Link>
+            </a>
             {userEmail
               ? <button className="pc-btn-o" onClick={handleLogout} style={{display:'flex',alignItems:'center',gap:'6px'}}>
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -3247,20 +3236,6 @@ export default function Page() {
             </div>
             <div className="filter-msg" id="m-filter-msg" style={{display:'none'}}></div>
             <div className="m-grid" id="m-home-grid"></div>
-            <footer style={{ padding: '16px 12px 8px', textAlign: 'center' }}>
-              <Link
-                href="/contact"
-                style={{
-                  fontSize: '.78rem',
-                  fontFamily: "'Noto Sans JP', sans-serif",
-                  color: '#C4581A',
-                  textDecoration: 'underline',
-                  textUnderlineOffset: 3,
-                }}
-              >
-                お問い合わせ
-              </Link>
-            </footer>
           </div>
           <div className="m-nav" id="mn-home">
             <button className="m-nt on" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
