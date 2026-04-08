@@ -2743,6 +2743,19 @@ export default function Page() {
             </button>
           </div>
           <div className="pc-nav-right">
+            <Link
+              href="/contact"
+              style={{
+                fontSize: '0.78rem',
+                fontFamily: "'Noto Sans JP', sans-serif",
+                color: '#2D5A27',
+                textDecoration: 'underline',
+                textUnderlineOffset: 3,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              お問い合わせ
+            </Link>
             {userEmail
               ? <button className="pc-btn-o" onClick={handleLogout} style={{display:'flex',alignItems:'center',gap:'6px'}}>
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -2830,20 +2843,6 @@ export default function Page() {
               </div>
               <div className="filter-msg" id="pc-filter-msg" style={{display:'none'}}></div>
               <div className="pc-grid" id="pc-grid"></div>
-              <footer style={{ marginTop: 28, paddingBottom: 24, textAlign: 'center' }}>
-                <Link
-                  href="/contact"
-                  style={{
-                    fontSize: '.8rem',
-                    fontFamily: "'Noto Sans JP', sans-serif",
-                    color: '#C4581A',
-                    textDecoration: 'underline',
-                    textUnderlineOffset: 3,
-                  }}
-                >
-                  お問い合わせ
-                </Link>
-              </footer>
             </div>
 
             {/* USER PROFILE（出品者・自分） */}
