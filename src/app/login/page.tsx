@@ -79,9 +79,13 @@ export default function LoginPage() {
         return
       }
 
-      const { error: err } = await supabase.auth.signUp({ email, password })
+      const { data, error: err } = await supabase.auth.signUp({ email, password })
       if (err) {
         setError(toJaMessage(err.message, false))
+        return
+      }
+      if (data.session) {
+        window.location.href = '/setup'
         return
       }
       setPostSignupEmailSent(true)
