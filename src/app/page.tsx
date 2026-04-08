@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { uploadUserAvatar } from '@/lib/upload-avatar'
@@ -2829,6 +2830,20 @@ export default function Page() {
               </div>
               <div className="filter-msg" id="pc-filter-msg" style={{display:'none'}}></div>
               <div className="pc-grid" id="pc-grid"></div>
+              <footer style={{ marginTop: 28, paddingBottom: 24, textAlign: 'center' }}>
+                <Link
+                  href="/contact"
+                  style={{
+                    fontSize: '.8rem',
+                    fontFamily: "'Noto Sans JP', sans-serif",
+                    color: '#C4581A',
+                    textDecoration: 'underline',
+                    textUnderlineOffset: 3,
+                  }}
+                >
+                  お問い合わせ
+                </Link>
+              </footer>
             </div>
 
             {/* USER PROFILE（出品者・自分） */}
@@ -3233,6 +3248,20 @@ export default function Page() {
             </div>
             <div className="filter-msg" id="m-filter-msg" style={{display:'none'}}></div>
             <div className="m-grid" id="m-home-grid"></div>
+            <footer style={{ padding: '16px 12px 8px', textAlign: 'center' }}>
+              <Link
+                href="/contact"
+                style={{
+                  fontSize: '.78rem',
+                  fontFamily: "'Noto Sans JP', sans-serif",
+                  color: '#C4581A',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: 3,
+                }}
+              >
+                お問い合わせ
+              </Link>
+            </footer>
           </div>
           <div className="m-nav" id="mn-home">
             <button className="m-nt on" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>

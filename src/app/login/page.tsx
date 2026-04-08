@@ -384,6 +384,19 @@ export default function LoginPage() {
             </div>
           </>
         )}
+        <p
+          style={{
+            textAlign: 'center',
+            marginTop: 22,
+            marginBottom: 0,
+            fontSize: '.82rem',
+            fontFamily: FF,
+          }}
+        >
+          <Link href="/contact" style={{ color: KAKI, textDecoration: 'underline', fontWeight: 500 }}>
+            お問い合わせ
+          </Link>
+        </p>
       </div>
     </div>
   )
