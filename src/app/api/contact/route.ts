@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
-const TO_EMAIL = 'meguru.contact@gmail.com'
+const TO_EMAIL = 'sakkadaisukiningen@gmail.com'
+const FROM_EMAIL = 'onboarding@resend.dev'
 const MAX_MESSAGE = 500
 const MAX_NAME = 200
 
@@ -49,11 +50,10 @@ export async function POST(req: Request) {
       )
     }
 
-    const from = process.env.RESEND_FROM_EMAIL ?? 'MEGURU <onboarding@resend.dev>'
     const resend = new Resend(apiKey)
 
     const { error } = await resend.emails.send({
-      from,
+      from: FROM_EMAIL,
       to: TO_EMAIL,
       replyTo: email,
       subject: `【MEGURUお問い合わせ】${name || '（お名前なし）'}様より`,
