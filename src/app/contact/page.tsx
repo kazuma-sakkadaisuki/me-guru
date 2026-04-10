@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { ContactForm } from './contact-form'
 
 export const metadata: Metadata = {
   title: 'お問い合わせ | MEGURU',
@@ -8,10 +9,7 @@ export const metadata: Metadata = {
 
 const FF = "'Noto Sans JP', sans-serif"
 const GREEN = '#2D5A27'
-const KAKI = '#C4581A'
 const CREAM = '#F8F4EE'
-
-const CONTACT_EMAIL = 'meguru.contact@gmail.com'
 
 export default function ContactPage() {
   return (
@@ -34,7 +32,7 @@ export default function ContactPage() {
       >
         <div
           style={{
-            maxWidth: 720,
+            maxWidth: 560,
             margin: '0 auto',
             display: 'flex',
             alignItems: 'center',
@@ -61,7 +59,7 @@ export default function ContactPage() {
 
       <main
         style={{
-          maxWidth: 720,
+          maxWidth: 560,
           margin: '0 auto',
           padding: '28px 20px 48px',
           fontFamily: FF,
@@ -72,32 +70,16 @@ export default function ContactPage() {
             fontSize: '1.35rem',
             fontWeight: 700,
             color: GREEN,
-            margin: '0 0 20px',
+            margin: '0 0 12px',
             fontFamily: FF,
           }}
         >
           お問い合わせ
         </h1>
-        <p style={{ fontSize: '.95rem', margin: '0 0 20px', color: '#444', fontFamily: FF }}>
-          ご不明な点やトラブルがございましたら、以下のメールアドレスまでご連絡ください。
+        <p style={{ fontSize: '.9rem', margin: '0 0 24px', color: '#444', fontFamily: FF }}>
+          ご不明な点やトラブルがございましたら、下記フォームよりお送りください。
         </p>
-        <p style={{ margin: '0 0 24px', fontFamily: FF }}>
-          <a
-            href={`mailto:${CONTACT_EMAIL}`}
-            style={{
-              fontSize: '1rem',
-              fontWeight: 600,
-              color: KAKI,
-              textDecoration: 'underline',
-              wordBreak: 'break-all',
-            }}
-          >
-            {CONTACT_EMAIL}
-          </a>
-        </p>
-        <p style={{ fontSize: '.9rem', color: '#555', margin: 0, fontFamily: FF }}>
-          返信について：2〜3営業日以内にご返信いたします。
-        </p>
+        <ContactForm />
       </main>
     </div>
   )
