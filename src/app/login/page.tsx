@@ -307,6 +307,20 @@ export default function LoginPage() {
                     outline: 'none',
                   }}
                 />
+                {isLogin && (
+                  <p style={{ margin: '8px 0 0', textAlign: 'right', fontFamily: FF }}>
+                    <Link
+                      href="/reset-password"
+                      style={{
+                        fontSize: '0.78rem',
+                        color: '#2D5A27',
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      パスワードをお忘れの方はこちら
+                    </Link>
+                  </p>
+                )}
               </div>
 
               {!isLogin && (
