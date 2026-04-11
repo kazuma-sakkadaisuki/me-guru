@@ -55,6 +55,7 @@ const BGMAP: Record<string,string> = {fruit:'bk',veg:'bg',rice:'by',wood:'bb',he
 
 const LS_CHAT_READ_PREFIX = 'meguru_chat_read_'
 const LS_FAVORITES_KEY = 'favorites'
+const LS_CHAT_NOTIF_KEY = 'meguru_chat_notif_on'
 
 function markSupabaseChatRead(supabaseChatId: string) {
   localStorage.setItem(LS_CHAT_READ_PREFIX + supabaseChatId, new Date().toISOString())
@@ -72,9 +73,51 @@ function totalUnreadSupabaseChats(): number {
   return getChatListEntries().reduce((sum, [, c]) => sum + (c.unread > 0 ? c.unread : 0), 0)
 }
 
+function isChatNotifEnabled(): boolean {
+  try {
+    const v = localStorage.getItem(LS_CHAT_NOTIF_KEY)
+    if (v === null || v === '') return true
+    return v === '1' || v === 'true'
+  } catch {
+    return true
+  }
+}
+
+function syncSettingsChatNotifCheckboxes() {
+  const on = isChatNotifEnabled()
+  ;(['pc-settings-chat-notif', 'm-settings-chat-notif'] as const).forEach((id) => {
+    const el = document.getElementById(id) as HTMLInputElement | null
+    if (el) el.checked = on
+  })
+  ;(['pc-settings-chat-notif-lbl', 'm-settings-chat-notif-lbl'] as const).forEach((id) => {
+    const el = document.getElementById(id)
+    if (el) el.textContent = on ? 'オン' : 'オフ'
+  })
+}
+
+function onSettingsChatNotifUserToggle(checked: boolean) {
+  try {
+    localStorage.setItem(LS_CHAT_NOTIF_KEY, checked ? '1' : '0')
+  } catch {
+    /* ignore */
+  }
+  syncSettingsChatNotifCheckboxes()
+  updateSbChatUnreadBadge()
+}
+
+function hydrateSettingsScreen() {
+  updateAreaDisplay()
+  const email = CACHED_USER_EMAIL ?? ''
+  ;(['pc-settings-email', 'm-settings-email'] as const).forEach((id) => {
+    const el = document.getElementById(id)
+    if (el) el.textContent = email || '—'
+  })
+  syncSettingsChatNotifCheckboxes()
+}
+
 function updateSbChatUnreadBadge() {
   const n = totalUnreadSupabaseChats()
-  const show = n > 0 && !!CURRENT_USER_ID
+  const show = n > 0 && !!CURRENT_USER_ID && isChatNotifEnabled()
   const pc = document.getElementById('pc-sb-chat-unread')
   if (pc) pc.style.display = show ? 'block' : 'none'
   document.querySelectorAll<HTMLElement>('.m-nav-chat-unread-dot').forEach((el) => {
@@ -317,6 +360,7 @@ let mobSortMode = 'new', mobCatFilter = 'all'
 let pcImages: string[] = [], mobImages: string[] = []
 let pcCondition = '', mobCondition = '', pcPesticide = '', mobPesticide = ''
 let CURRENT_USER_ID: string | null = null
+let CACHED_USER_EMAIL: string | null = null
 let pcDragIdx = -1, mobDragIdx = -1
 let mStk: string[] = ['ms-home']
 let mSearchCatKey = 'all'
@@ -337,8 +381,8 @@ function showToast(msg: string) {
 }
 
 /* ── PC NAV ── */
-const PC_PAGES = ['listing','post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','detail','userprofile']
-const PC_PAGES_NEED_AUTH = ['post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','userprofile']
+const PC_PAGES = ['listing','post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','settings','detail','userprofile']
+const PC_PAGES_NEED_AUTH = ['post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','settings','userprofile']
 function pcGo(page: string) {
   if (PC_PAGES_NEED_AUTH.includes(page) && !CURRENT_USER_ID) {
     window.location.href = '/login'
@@ -371,6 +415,7 @@ function pcGo(page: string) {
   if (page==='mypage') { updateMypage('pc'); (document.getElementById('pc-pg-mypage') as HTMLElement).style.display='' }
   if (page==='chatlist') renderChatList('pc')
   if (page==='txhistory') renderTxHistory('pc')
+  if (page === 'settings') hydrateSettingsScreen()
   const main = document.getElementById('pc-main'); if (main) main.scrollTop=0
 }
 function pcSubPage(p: string) {
@@ -415,7 +460,7 @@ function updateAreaDisplay() {
     const distLabel = activeDistricts.length > 0 ? `（${activeDistricts.join('・')}）` : ''
     label = city + distLabel
   }
-  ;(['pc-area-display', 'm-area-display'] as const).forEach((id) => {
+  ;(['pc-area-display', 'm-area-display', 'pc-settings-area-val', 'm-settings-area-val'] as const).forEach((id) => {
     const el = document.getElementById(id)
     if (el) el.textContent = label
   })
@@ -673,7 +718,7 @@ function initPcCats() {
 }
 
 /* ── MOBILE NAV ── */
-const MOB_SCENES_NEED_AUTH = new Set(['ms-post','ms-complete','ms-mypage','ms-chatlist','ms-mylistings','ms-txhistory','ms-profedit','ms-notif'])
+const MOB_SCENES_NEED_AUTH = new Set(['ms-post','ms-complete','ms-mypage','ms-chatlist','ms-mylistings','ms-txhistory','ms-profedit','ms-settings','ms-notif'])
 function mNav(id: string) {
   if (MOB_SCENES_NEED_AUTH.has(id) && !CURRENT_USER_ID) {
     window.location.href = '/login'
@@ -699,6 +744,7 @@ function mNav(id: string) {
   if (id==='ms-mypage') updateMypage('mob')
   if (id==='ms-txhistory') renderTxHistory('mob')
   if (id === 'ms-profedit') updateAllUserRefs()
+  if (id === 'ms-settings') hydrateSettingsScreen()
 }
 function mBack() {
   if (mStk.length<=1) return
@@ -2949,6 +2995,14 @@ export default function Page() {
     router.refresh()
   }
 
+  async function handleWithdraw() {
+    if (!confirm('本当に退会しますか？この操作は取り消せません')) return
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
   useEffect(() => {
     const supabase = createClient()
 
@@ -2986,7 +3040,8 @@ export default function Page() {
     // ── 認証状態変化の監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       CURRENT_USER_ID = session?.user?.id ?? null
-      setUserEmail(session?.user?.email ?? null)
+      CACHED_USER_EMAIL = session?.user?.email ?? null
+      setUserEmail(CACHED_USER_EMAIL)
       if (!session?.user) {
         unsubscribeMessageRealtime()
         Object.keys(CHATS).forEach((k) => {
@@ -3019,11 +3074,13 @@ export default function Page() {
       initAreaFromStorage()
       loadFavoritesFromStorage()
       updateAreaDisplay()
+      syncSettingsChatNotifCheckboxes()
 
       const { data: { session } } = await supabase.auth.getSession()
 
       if (!session?.user) {
         CURRENT_USER_ID = null
+        CACHED_USER_EMAIL = null
         setUserEmail(null)
         const loaded = await loadItemsFromSupabase(null)
         if (!loaded) initItemsFromStorage()
@@ -3046,7 +3103,8 @@ export default function Page() {
 
       const userId = session.user.id
       CURRENT_USER_ID = userId
-      setUserEmail(session.user.email ?? null)
+      CACHED_USER_EMAIL = session.user.email ?? null
+      setUserEmail(CACHED_USER_EMAIL)
       ITEMS.splice(0, ITEMS.length)
 
       const loaded = await loadItemsFromSupabase(userId)
@@ -3491,7 +3549,7 @@ export default function Page() {
                 <div className="pc-mp-row" onClick={() => void showFavs('pc')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24" className="mp-ico-fill"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div><div className="pc-mp-row-label">お気に入り</div><div className="pc-mp-row-sub" id="pc-fav-sub">0件</div></div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => { if (!CURRENT_USER_ID) { showToast('ログインしてください'); return } void openPublicProfile(CURRENT_USER_ID, 'pc') }}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div><div className="pc-mp-row-label">プロフィールを表示</div><div className="pc-mp-row-sub">公開ページ（出品・評価）</div></div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => pcSubPage('profedit')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div className="pc-mp-row-label">プロフィール編集</div><span className="pc-mp-arrow">›</span></div>
-                <div className="pc-mp-row" onClick={() => showToast('設定は準備中です')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div><div className="pc-mp-row-label">設定</div><span className="pc-mp-arrow">›</span></div>
+                <div className="pc-mp-row" onClick={() => pcSubPage('settings')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div><div className="pc-mp-row-label">設定</div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => showToast('MEGURUについて')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><div className="pc-mp-row-label">MEGURUについて</div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={handleLogout} style={{color:'#c0392b'}}><div className="pc-mp-row-icon" style={{background:'#fef2f2',borderRadius:'10px',padding:'8px',display:'flex',alignItems:'center',justifyContent:'center'}}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div className="pc-mp-row-label" style={{color:'#c0392b'}}>ログアウト</div><span className="pc-mp-arrow" style={{color:'#c0392b'}}>›</span></div>
               </div>
@@ -3594,6 +3652,48 @@ export default function Page() {
                   />
                   <p className="prof-fg-hint" id="pc-prof-tagline-cnt">0/{PROF_TAGLINE_MAX}</p>
                 </div>
+              </div>
+            </div>
+
+            {/* SETTINGS */}
+            <div id="pc-pg-settings" style={{ display: 'none' }}>
+              <div className="pc-ph">
+                <div><h1 className="pc-ph-title" style={{ fontFamily: 'var(--sf)' }}>設定</h1></div>
+              </div>
+              <div style={{ maxWidth: '560px', padding: '0 4px 28px' }}>
+                <p className="pc-mp-sec" style={{ marginTop: 0 }}>エリア設定</p>
+                <div style={{ background: '#fff', border: '1px solid var(--bd)', borderRadius: '12px', padding: '14px 16px', marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '.8rem', fontWeight: 600, color: 'var(--ink)' }}>現在のエリア（市区町村）</div>
+                    <div id="pc-settings-area-val" style={{ fontSize: '.9rem', marginTop: '6px', color: '#2D5A27', fontWeight: 600, fontFamily: 'var(--sf)' }}>—</div>
+                  </div>
+                  <button type="button" onClick={showAreaModal} style={{ padding: '9px 18px', background: '#C4581A', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '.82rem', fontWeight: 700, whiteSpace: 'nowrap', fontFamily: 'var(--sf)' }}>エリアを変更</button>
+                </div>
+
+                <p className="pc-mp-sec">アカウント</p>
+                <div style={{ background: '#fff', border: '1px solid var(--bd)', borderRadius: '12px', overflow: 'hidden', marginBottom: '18px' }}>
+                  <button type="button" onClick={() => router.push('/reset-password')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', border: 'none', background: '#fff', cursor: 'pointer', textAlign: 'left', fontSize: '.88rem', fontWeight: 600, color: '#2D5A27', fontFamily: 'var(--sf)' }}>
+                    パスワードを変更する
+                    <span style={{ color: 'var(--mu)', fontWeight: 400 }}>›</span>
+                  </button>
+                  <div style={{ borderTop: '1px solid var(--bd)', padding: '14px 16px' }}>
+                    <div style={{ fontSize: '.72rem', fontWeight: 600, color: 'var(--mu)', marginBottom: '6px' }}>登録中のメールアドレス</div>
+                    <div id="pc-settings-email" style={{ fontSize: '.86rem', color: 'var(--ink)', wordBreak: 'break-all', fontFamily: 'var(--sf)' }}>—</div>
+                  </div>
+                </div>
+
+                <p className="pc-mp-sec">通知設定</p>
+                <div style={{ background: '#fff', border: '1px solid var(--bd)', borderRadius: '12px', padding: '14px 16px', marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                  <span style={{ fontSize: '.88rem', fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--sf)' }}>チャットの通知</span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '.78rem', color: 'var(--mu)', fontFamily: 'var(--sf)' }}>
+                    <span id="pc-settings-chat-notif-lbl">オン</span>
+                    <input id="pc-settings-chat-notif" type="checkbox" onChange={(e) => onSettingsChatNotifUserToggle(e.target.checked)} style={{ width: '18px', height: '18px', accentColor: '#2D5A27' }} />
+                  </label>
+                </div>
+
+                <p className="pc-mp-sec">退会</p>
+                <p style={{ fontSize: '.76rem', color: 'var(--mu)', margin: '0 0 10px', lineHeight: 1.5, fontFamily: 'var(--sf)' }}>アカウントの削除は管理者が対応します。ここではログアウトのみ行い、データは保持されます。</p>
+                <button type="button" onClick={() => void handleWithdraw()} style={{ width: '100%', padding: '12px 16px', background: '#b91c1c', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '.88rem', fontWeight: 700, fontFamily: 'var(--sf)' }}>退会する</button>
               </div>
             </div>
 
@@ -3787,7 +3887,7 @@ export default function Page() {
             <p className="m-mp-sec">アカウント</p>
             <div style={{background:'#fff'}}>
               <div className="m-mp-row" onClick={() => mNav('ms-profedit')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div className="m-mp-row-label">プロフィール編集</div><span className="m-mp-arrow">›</span></div>
-              <div className="m-mp-row" onClick={() => showToast('設定は準備中です')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div><div className="m-mp-row-label">設定</div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => mNav('ms-settings')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div><div className="m-mp-row-label">設定</div><span className="m-mp-arrow">›</span></div>
               <div className="m-mp-row" onClick={() => showToast('MEGURUについて')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><div className="m-mp-row-label">MEGURUについて</div><span className="m-mp-arrow">›</span></div>
               <div className="m-mp-row" onClick={handleLogout} style={{color:'#c0392b'}}><div className="m-mp-row-icon" style={{background:'#fef2f2',borderRadius:'10px',padding:'8px',display:'flex',alignItems:'center',justifyContent:'center'}}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div className="m-mp-row-label" style={{color:'#c0392b'}}>ログアウト</div><span className="m-mp-arrow" style={{color:'#c0392b'}}>›</span></div>
             </div>
@@ -4073,7 +4173,6 @@ export default function Page() {
 
         {/* PROF EDIT */}
         <div className="scn" id="ms-profedit">
-          <div className="m-sbar drk"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-tbar" style={{background:'#2D5A27'}}>
             <button type="button" className="m-back" style={{background:'rgba(255,255,255,.2)'}} onClick={mBack}><svg viewBox="0 0 24 24" style={{stroke:'#fff'}}><polyline points="15 18 9 12 15 6"/></svg></button>
             <span className="m-title" style={{color:'#fff',fontFamily:'var(--sf)'}}>プロフィール編集</span>
@@ -4152,6 +4251,49 @@ export default function Page() {
                 />
                 <p className="prof-fg-hint" id="m-prof-tagline-cnt">0/{PROF_TAGLINE_MAX}</p>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SETTINGS */}
+        <div className="scn" id="ms-settings">
+          <div className="m-tbar" style={{ background: '#2D5A27' }}>
+            <button type="button" className="m-back" style={{ background: 'rgba(255,255,255,.2)' }} onClick={mBack}><svg viewBox="0 0 24 24" style={{ stroke: '#fff' }}><polyline points="15 18 9 12 15 6" /></svg></button>
+            <span className="m-title" style={{ color: '#fff', fontFamily: 'var(--sf)' }}>設定</span>
+          </div>
+          <div className="m-body" style={{ background: '#F8F4EE', paddingBottom: '28px' }}>
+            <p className="m-mp-sec" style={{ padding: '14px 14px 8px', margin: 0 }}>エリア設定</p>
+            <div style={{ margin: '0 14px 16px', background: '#fff', borderRadius: '12px', padding: '14px 14px', border: '1px solid var(--bd)' }}>
+              <div style={{ fontSize: '.75rem', fontWeight: 600, color: 'var(--mu)' }}>現在のエリア（市区町村）</div>
+              <div id="m-settings-area-val" style={{ fontSize: '.9rem', marginTop: '8px', color: '#2D5A27', fontWeight: 700, fontFamily: 'var(--sf)' }}>—</div>
+              <button type="button" onClick={showAreaModal} style={{ marginTop: '12px', width: '100%', padding: '10px 14px', background: '#C4581A', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '.82rem', fontWeight: 700, fontFamily: 'var(--sf)' }}>エリアを変更</button>
+            </div>
+
+            <p className="m-mp-sec" style={{ padding: '0 14px 8px', margin: 0 }}>アカウント</p>
+            <div style={{ margin: '0 14px 16px', background: '#fff', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--bd)' }}>
+              <button type="button" onClick={() => router.push('/reset-password')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px', border: 'none', background: '#fff', cursor: 'pointer', textAlign: 'left', fontSize: '.86rem', fontWeight: 600, color: '#2D5A27', fontFamily: 'var(--sf)' }}>
+                パスワードを変更する
+                <span className="m-mp-arrow" style={{ margin: 0 }}>›</span>
+              </button>
+              <div style={{ borderTop: '1px solid var(--bd)', padding: '14px 14px' }}>
+                <div style={{ fontSize: '.7rem', fontWeight: 600, color: 'var(--mu)', marginBottom: '6px' }}>登録中のメールアドレス</div>
+                <div id="m-settings-email" style={{ fontSize: '.84rem', color: 'var(--ink)', wordBreak: 'break-all', fontFamily: 'var(--sf)' }}>—</div>
+              </div>
+            </div>
+
+            <p className="m-mp-sec" style={{ padding: '0 14px 8px', margin: 0 }}>通知設定</p>
+            <div style={{ margin: '0 14px 16px', background: '#fff', borderRadius: '12px', padding: '14px 14px', border: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <span style={{ fontSize: '.86rem', fontWeight: 600, color: 'var(--ink)', fontFamily: 'var(--sf)' }}>チャットの通知</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '.74rem', color: 'var(--mu)', fontFamily: 'var(--sf)', flexShrink: 0 }}>
+                <span id="m-settings-chat-notif-lbl">オン</span>
+                <input id="m-settings-chat-notif" type="checkbox" onChange={(e) => onSettingsChatNotifUserToggle(e.target.checked)} style={{ width: '18px', height: '18px', accentColor: '#2D5A27' }} />
+              </label>
+            </div>
+
+            <p className="m-mp-sec" style={{ padding: '0 14px 8px', margin: 0 }}>退会</p>
+            <p style={{ fontSize: '.72rem', color: 'var(--mu)', margin: '0 14px 10px', lineHeight: 1.5, fontFamily: 'var(--sf)' }}>アカウントの削除は管理者が対応します。ここではログアウトのみ行い、データは保持されます。</p>
+            <div style={{ padding: '0 14px' }}>
+              <button type="button" onClick={() => void handleWithdraw()} style={{ width: '100%', padding: '12px 14px', background: '#b91c1c', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '.86rem', fontWeight: 700, fontFamily: 'var(--sf)' }}>退会する</button>
             </div>
           </div>
         </div>
