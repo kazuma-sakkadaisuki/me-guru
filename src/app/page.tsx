@@ -171,6 +171,13 @@ function isEmailLike(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())
 }
 
+/** チャット相手表示名（profiles.name を優先。空・メール形式はプレースホルダ） */
+function chatPartnerNameFromProfile(name: string | null | undefined): string {
+  const t = (name || '').trim()
+  if (!t || isEmailLike(t)) return '出品者'
+  return t
+}
+
 /** マイページヘッダー表示用（空・メール形式は出さない） */
 function mypageHeaderName(): string {
   const t = (USER.name || '').trim()
@@ -1831,8 +1838,6 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
     const { data: chatsData, error } = await supabase
       .from('chats')
       .select(`id, created_at, buyer_id, seller_id, item_id,
-        buyer:buyer_id(id, name, area),
-        seller:seller_id(id, name, area),
         item:item_id(id, name, price, unit, category, images)`)
       .or(`buyer_id.eq.${CURRENT_USER_ID},seller_id.eq.${CURRENT_USER_ID}`)
       .order('created_at', { ascending: false })
@@ -1852,6 +1857,28 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
       return []
     }
 
+    const otherIds = [
+      ...new Set(
+        (chatsData as { buyer_id: string; seller_id: string }[]).map((c) =>
+          c.buyer_id === CURRENT_USER_ID ? c.seller_id : c.buyer_id
+        ).filter(Boolean)
+      ),
+    ]
+    const profById = new Map<string, { name: string | null; area: string | null }>()
+    if (otherIds.length > 0) {
+      const { data: profRows, error: profErr } = await supabase
+        .from('profiles')
+        .select('id, name, area')
+        .in('id', otherIds)
+      if (profErr) {
+        console.error('[meguru] loadChats profiles:', profErr.message, profErr.code)
+      }
+      for (const p of profRows || []) {
+        const row = p as { id: string; name: string | null; area: string | null }
+        profById.set(row.id, { name: row.name, area: row.area })
+      }
+    }
+
     // 全チャットのメッセージを一括取得
     const chatIds = (chatsData as any[]).map((c) => c.id)
     const { data: allMsgs, error: msgsError } = await supabase
@@ -1867,7 +1894,8 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
 
     for (const chat of chatsData as any[]) {
       const key = `sb_${chat.id}`
-      const other = chat.buyer_id === CURRENT_USER_ID ? chat.seller : chat.buyer
+      const otherId = chat.buyer_id === CURRENT_USER_ID ? chat.seller_id : chat.buyer_id
+      const prof = otherId ? profById.get(otherId) : undefined
       const item = chat.item
       const myMsgs = (allMsgs || []).filter((m: any) => m.chat_id === chat.id)
       const lastMsg = myMsgs[myMsgs.length - 1]
@@ -1876,9 +1904,10 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
         (m: any) => m.sender_id !== CURRENT_USER_ID && new Date(m.created_at).getTime() > readMs
       ).length
       const inMemItem = ITEMS.find(i => (i as Item).supabaseId === item?.id)
+      const areaStr = (prof?.area && String(prof.area).trim()) || ''
       CHATS[key] = {
-        name: other?.name || '出品者',
-        sub: other?.area || '駒ヶ根市',
+        name: chatPartnerNameFromProfile(prof?.name ?? null),
+        sub: areaStr || '駒ヶ根市',
         avt: '🧑',
         ie: EMOJIMAP[item?.category] || '📦',
         in_: item?.name || '商品',
@@ -3919,7 +3948,6 @@ export default function Page() {
 
         {/* MYPAGE */}
         <div className="scn" id="ms-mypage">
-          <div className="m-sbar drk"><span>9:41</span><span aria-hidden>●●●</span></div>
           <div className="m-body">
             <div className="m-mp-head">
               <div className="m-mp-avt" id="m-mp-avt-el" style={{overflow:'hidden'}}>🧑</div>
