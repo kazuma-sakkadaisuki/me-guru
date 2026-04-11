@@ -381,8 +381,8 @@ function showToast(msg: string) {
 }
 
 /* ── PC NAV ── */
-const PC_PAGES = ['listing','post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','settings','detail','userprofile']
-const PC_PAGES_NEED_AUTH = ['post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','settings','userprofile']
+const PC_PAGES = ['listing','post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','settings','about','detail','userprofile']
+const PC_PAGES_NEED_AUTH = ['post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','settings','about','userprofile']
 function pcGo(page: string) {
   if (PC_PAGES_NEED_AUTH.includes(page) && !CURRENT_USER_ID) {
     window.location.href = '/login'
@@ -718,7 +718,7 @@ function initPcCats() {
 }
 
 /* ── MOBILE NAV ── */
-const MOB_SCENES_NEED_AUTH = new Set(['ms-post','ms-complete','ms-mypage','ms-chatlist','ms-mylistings','ms-txhistory','ms-profedit','ms-settings','ms-notif'])
+const MOB_SCENES_NEED_AUTH = new Set(['ms-post','ms-complete','ms-mypage','ms-chatlist','ms-mylistings','ms-txhistory','ms-profedit','ms-settings','ms-about','ms-notif'])
 function mNav(id: string) {
   if (MOB_SCENES_NEED_AUTH.has(id) && !CURRENT_USER_ID) {
     window.location.href = '/login'
@@ -3550,7 +3550,7 @@ export default function Page() {
                 <div className="pc-mp-row" onClick={() => { if (!CURRENT_USER_ID) { showToast('ログインしてください'); return } void openPublicProfile(CURRENT_USER_ID, 'pc') }}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div><div className="pc-mp-row-label">プロフィールを表示</div><div className="pc-mp-row-sub">公開ページ（出品・評価）</div></div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => pcSubPage('profedit')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div className="pc-mp-row-label">プロフィール編集</div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => pcSubPage('settings')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div><div className="pc-mp-row-label">設定</div><span className="pc-mp-arrow">›</span></div>
-                <div className="pc-mp-row" onClick={() => showToast('MEGURUについて')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><div className="pc-mp-row-label">MEGURUについて</div><span className="pc-mp-arrow">›</span></div>
+                <div className="pc-mp-row" onClick={() => pcSubPage('about')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><div className="pc-mp-row-label">MEGURUについて</div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={handleLogout} style={{color:'#c0392b'}}><div className="pc-mp-row-icon" style={{background:'#fef2f2',borderRadius:'10px',padding:'8px',display:'flex',alignItems:'center',justifyContent:'center'}}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div className="pc-mp-row-label" style={{color:'#c0392b'}}>ログアウト</div><span className="pc-mp-arrow" style={{color:'#c0392b'}}>›</span></div>
               </div>
             </div>
@@ -3694,6 +3694,60 @@ export default function Page() {
                 <p className="pc-mp-sec">退会</p>
                 <p style={{ fontSize: '.76rem', color: 'var(--mu)', margin: '0 0 10px', lineHeight: 1.5, fontFamily: 'var(--sf)' }}>アカウントの削除は管理者が対応します。ここではログアウトのみ行い、データは保持されます。</p>
                 <button type="button" onClick={() => void handleWithdraw()} style={{ width: '100%', padding: '12px 16px', background: '#b91c1c', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '.88rem', fontWeight: 700, fontFamily: 'var(--sf)' }}>退会する</button>
+              </div>
+            </div>
+
+            {/* MEGURUについて */}
+            <div id="pc-pg-about" style={{ display: 'none', background: '#F8F4EE', minHeight: '100%' }}>
+              <div className="pc-ph">
+                <div><h1 className="pc-ph-title" style={{ fontFamily: 'var(--sf)' }}>MEGURUについて</h1></div>
+              </div>
+              <div style={{ maxWidth: '600px', padding: '0 4px 36px' }}>
+                <p className="pc-mp-sec" style={{ marginTop: 0 }}>MEGURUとは</p>
+                <div style={{ background: '#fff', border: '1px solid var(--bd)', borderRadius: '12px', padding: '16px 18px', marginBottom: '20px', fontSize: '.88rem', lineHeight: 1.75, color: 'var(--ink)', fontFamily: 'var(--sf)' }}>
+                  <p style={{ margin: 0 }}>農村の余りものを、地域の人と人がつなぐプラットフォームです。</p>
+                  <p style={{ margin: '12px 0 0' }}>規格外野菜・庭の柿・採りきれない山菜・作りすぎた加工品を、</p>
+                  <p style={{ margin: '4px 0 0' }}>捨てずに地域の誰かに届ける仕組みです。</p>
+                </div>
+
+                <p className="pc-mp-sec">使い方</p>
+                <div style={{ background: '#fff', border: '1px solid var(--bd)', borderRadius: '12px', padding: '16px 18px', marginBottom: '20px', fontSize: '.88rem', lineHeight: 1.7, color: 'var(--ink)', fontFamily: 'var(--sf)' }}>
+                  <ul style={{ margin: 0, paddingLeft: '1.15em' }}>
+                    <li style={{ marginBottom: '10px' }}><strong style={{ color: '#2D5A27' }}>出品する</strong>：写真と説明を入れて余りものを登録</li>
+                    <li style={{ marginBottom: '10px' }}><strong style={{ color: '#2D5A27' }}>受け取る</strong>：欲しいものを見つけてチャットで連絡</li>
+                    <li style={{ marginBottom: 0 }}><strong style={{ color: '#2D5A27' }}>受け渡し</strong>：直接会って手渡し、または都合のいい方法で</li>
+                  </ul>
+                </div>
+
+                <p className="pc-mp-sec">手数料について</p>
+                <div style={{ background: '#fff', border: '1px solid var(--bd)', borderRadius: '12px', padding: '16px 18px', marginBottom: '20px', fontSize: '.88rem', lineHeight: 1.75, color: 'var(--ink)', fontFamily: 'var(--sf)' }}>
+                  <p style={{ margin: 0 }}>現在は無料期間中です。将来的に取引成立時のみ12%の手数料が発生します。</p>
+                </div>
+
+                <p className="pc-mp-sec">運営情報</p>
+                <div style={{ background: '#fff', border: '1px solid var(--bd)', borderRadius: '12px', padding: '16px 18px', marginBottom: '20px', fontSize: '.88rem', lineHeight: 1.65, color: 'var(--ink)', fontFamily: 'var(--sf)' }}>
+                  <p style={{ margin: '0 0 8px' }}>サービス名：MEGURU（めぐる）</p>
+                  <p style={{ margin: '0 0 8px' }}>運営：片桐和真</p>
+                  <p style={{ margin: '0 0 8px' }}>所在地：長野県駒ヶ根市</p>
+                  <p style={{ margin: 0 }}>
+                    お問い合わせ：
+                    <a href="/contact" style={{ color: '#C4581A', fontWeight: 600, marginLeft: '4px' }}>お問い合わせフォーム</a>
+                  </p>
+                </div>
+
+                <p className="pc-mp-sec">リンク</p>
+                <div style={{ background: '#fff', border: '1px solid var(--bd)', borderRadius: '12px', overflow: 'hidden', marginBottom: '8px' }}>
+                  <button type="button" onClick={() => router.push('/terms')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', border: 'none', background: '#fff', cursor: 'pointer', textAlign: 'left', fontSize: '.88rem', fontWeight: 600, color: '#2D5A27', fontFamily: 'var(--sf)' }}>
+                    利用規約・プライバシーポリシー
+                    <span style={{ color: 'var(--mu)', fontWeight: 400 }}>›</span>
+                  </button>
+                  <div style={{ borderTop: '1px solid var(--bd)' }}>
+                    <button type="button" onClick={() => router.push('/contact')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', border: 'none', background: '#fff', cursor: 'pointer', textAlign: 'left', fontSize: '.88rem', fontWeight: 600, color: '#2D5A27', fontFamily: 'var(--sf)' }}>
+                      お問い合わせ
+                      <span style={{ color: 'var(--mu)', fontWeight: 400 }}>›</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -3888,7 +3942,7 @@ export default function Page() {
             <div style={{background:'#fff'}}>
               <div className="m-mp-row" onClick={() => mNav('ms-profedit')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div className="m-mp-row-label">プロフィール編集</div><span className="m-mp-arrow">›</span></div>
               <div className="m-mp-row" onClick={() => mNav('ms-settings')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div><div className="m-mp-row-label">設定</div><span className="m-mp-arrow">›</span></div>
-              <div className="m-mp-row" onClick={() => showToast('MEGURUについて')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><div className="m-mp-row-label">MEGURUについて</div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => mNav('ms-about')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><div className="m-mp-row-label">MEGURUについて</div><span className="m-mp-arrow">›</span></div>
               <div className="m-mp-row" onClick={handleLogout} style={{color:'#c0392b'}}><div className="m-mp-row-icon" style={{background:'#fef2f2',borderRadius:'10px',padding:'8px',display:'flex',alignItems:'center',justifyContent:'center'}}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><div className="m-mp-row-label" style={{color:'#c0392b'}}>ログアウト</div><span className="m-mp-arrow" style={{color:'#c0392b'}}>›</span></div>
             </div>
             <div style={{padding:'24px 14px',textAlign:'center'}}><p style={{fontSize:'.69rem',color:'var(--mu)',fontWeight:300,lineHeight:2.2}}>MEGURU v1.0.0 · 長野県駒ヶ根市 · 2025<br /><span style={{color:'var(--g)',fontWeight:500}}>農村の余りものを、誰かの暮らしへ。</span></p></div>
@@ -4294,6 +4348,61 @@ export default function Page() {
             <p style={{ fontSize: '.72rem', color: 'var(--mu)', margin: '0 14px 10px', lineHeight: 1.5, fontFamily: 'var(--sf)' }}>アカウントの削除は管理者が対応します。ここではログアウトのみ行い、データは保持されます。</p>
             <div style={{ padding: '0 14px' }}>
               <button type="button" onClick={() => void handleWithdraw()} style={{ width: '100%', padding: '12px 14px', background: '#b91c1c', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '.86rem', fontWeight: 700, fontFamily: 'var(--sf)' }}>退会する</button>
+            </div>
+          </div>
+        </div>
+
+        {/* MEGURUについて */}
+        <div className="scn" id="ms-about">
+          <div className="m-tbar" style={{ background: '#2D5A27' }}>
+            <button type="button" className="m-back" style={{ background: 'rgba(255,255,255,.2)' }} onClick={mBack}><svg viewBox="0 0 24 24" style={{ stroke: '#fff' }}><polyline points="15 18 9 12 15 6" /></svg></button>
+            <span className="m-title" style={{ color: '#fff', fontFamily: 'var(--sf)' }}>MEGURUについて</span>
+          </div>
+          <div className="m-body" style={{ background: '#F8F4EE', paddingBottom: '28px' }}>
+            <p className="m-mp-sec" style={{ padding: '14px 14px 8px', margin: 0 }}>MEGURUとは</p>
+            <div style={{ margin: '0 14px 16px', background: '#fff', borderRadius: '12px', padding: '14px 14px', border: '1px solid var(--bd)', fontSize: '.84rem', lineHeight: 1.75, color: 'var(--ink)', fontFamily: 'var(--sf)' }}>
+              <p style={{ margin: 0 }}>農村の余りものを、地域の人と人がつなぐプラットフォームです。</p>
+              <p style={{ margin: '10px 0 0' }}>規格外野菜・庭の柿・採りきれない山菜・作りすぎた加工品を、</p>
+              <p style={{ margin: '4px 0 0' }}>捨てずに地域の誰かに届ける仕組みです。</p>
+            </div>
+
+            <p className="m-mp-sec" style={{ padding: '0 14px 8px', margin: 0 }}>使い方</p>
+            <div style={{ margin: '0 14px 16px', background: '#fff', borderRadius: '12px', padding: '14px 14px', border: '1px solid var(--bd)', fontSize: '.84rem', lineHeight: 1.65, color: 'var(--ink)', fontFamily: 'var(--sf)' }}>
+              <ul style={{ margin: 0, paddingLeft: '1.1em' }}>
+                <li style={{ marginBottom: '8px' }}><strong style={{ color: '#2D5A27' }}>出品する</strong>：写真と説明を入れて余りものを登録</li>
+                <li style={{ marginBottom: '8px' }}><strong style={{ color: '#2D5A27' }}>受け取る</strong>：欲しいものを見つけてチャットで連絡</li>
+                <li style={{ marginBottom: 0 }}><strong style={{ color: '#2D5A27' }}>受け渡し</strong>：直接会って手渡し、または都合のいい方法で</li>
+              </ul>
+            </div>
+
+            <p className="m-mp-sec" style={{ padding: '0 14px 8px', margin: 0 }}>手数料について</p>
+            <div style={{ margin: '0 14px 16px', background: '#fff', borderRadius: '12px', padding: '14px 14px', border: '1px solid var(--bd)', fontSize: '.84rem', lineHeight: 1.75, color: 'var(--ink)', fontFamily: 'var(--sf)' }}>
+              <p style={{ margin: 0 }}>現在は無料期間中です。将来的に取引成立時のみ12%の手数料が発生します。</p>
+            </div>
+
+            <p className="m-mp-sec" style={{ padding: '0 14px 8px', margin: 0 }}>運営情報</p>
+            <div style={{ margin: '0 14px 16px', background: '#fff', borderRadius: '12px', padding: '14px 14px', border: '1px solid var(--bd)', fontSize: '.84rem', lineHeight: 1.6, color: 'var(--ink)', fontFamily: 'var(--sf)' }}>
+              <p style={{ margin: '0 0 6px' }}>サービス名：MEGURU（めぐる）</p>
+              <p style={{ margin: '0 0 6px' }}>運営：片桐和真</p>
+              <p style={{ margin: '0 0 6px' }}>所在地：長野県駒ヶ根市</p>
+              <p style={{ margin: 0 }}>
+                お問い合わせ：
+                <a href="/contact" style={{ color: '#C4581A', fontWeight: 600 }}>お問い合わせフォーム</a>
+              </p>
+            </div>
+
+            <p className="m-mp-sec" style={{ padding: '0 14px 8px', margin: 0 }}>リンク</p>
+            <div style={{ margin: '0 14px', background: '#fff', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--bd)' }}>
+              <button type="button" onClick={() => router.push('/terms')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px', border: 'none', background: '#fff', cursor: 'pointer', textAlign: 'left', fontSize: '.86rem', fontWeight: 600, color: '#2D5A27', fontFamily: 'var(--sf)' }}>
+                利用規約・プライバシーポリシー
+                <span className="m-mp-arrow" style={{ margin: 0 }}>›</span>
+              </button>
+              <div style={{ borderTop: '1px solid var(--bd)' }}>
+                <button type="button" onClick={() => router.push('/contact')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px', border: 'none', background: '#fff', cursor: 'pointer', textAlign: 'left', fontSize: '.86rem', fontWeight: 600, color: '#2D5A27', fontFamily: 'var(--sf)' }}>
+                  お問い合わせ
+                  <span className="m-mp-arrow" style={{ margin: 0 }}>›</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
