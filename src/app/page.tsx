@@ -240,10 +240,30 @@ function getMergedNotifs(): AppNotifRow[] {
 }
 
 /* ── GLOBAL USER STATE ── */
-const USER = { name: '田中 拓也', area: '', bio: 'よろしくお願いします。', avt: '' }
+const USER = {
+  name: '田中 拓也',
+  area: '',
+  bio: 'よろしくお願いします。',
+  avt: '',
+  categories: [] as string[],
+  availableTimes: [] as string[],
+  tagline: '',
+}
 
 const PROF_NAME_MAX = 20
-const PROF_BIO_MAX = 200
+/** 自己紹介の最大文字数 */
+const PROF_BIO_MAX = 500
+/** 一言メッセージの最大文字数 */
+const PROF_TAGLINE_MAX = 30
+
+/*
+ * Supabase public.profiles 拡張（未適用の場合は SQL エディタで実行）
+ * -- alter table public.profiles add column categories text[] default '{}';
+ * -- alter table public.profiles add column available_times text[] default '{}';
+ * -- alter table public.profiles add column tagline text default '';
+ */
+const PROFILE_CATEGORY_OPTIONS = ['野菜', '果物', '米', '加工品', '薪', '木材', '山菜', 'その他'] as const
+const PROFILE_HANDOFF_TIME_OPTIONS = ['平日午前', '平日午後', '平日夜', '土日午前', '土日午後', '土日夜', '応相談'] as const
 
 let pendingAvatarFile: File | null = null
 let pendingAvatarObjectUrl: string | null = null
@@ -801,12 +821,77 @@ async function openPublicProfile(userId: string | null | undefined, mode: 'pc' |
   }
 }
 
+function renderPublicProfileExtraFields(mode: 'pc' | 'mob', tagline: string, categories: string[], times: string[]) {
+  const tl = tagline.trim()
+  if (mode === 'pc') {
+    const tlEl = document.getElementById('pc-up-tagline')
+    if (tlEl) {
+      tlEl.textContent = tl
+      ;(tlEl as HTMLElement).style.display = tl ? 'block' : 'none'
+    }
+    const wrap = document.getElementById('pc-up-cat-wrap')
+    const badges = document.getElementById('pc-up-cat-badges')
+    if (wrap && badges) {
+      if (categories.length) {
+        wrap.style.display = 'block'
+        badges.innerHTML = categories.map((c) => `<span class="prof-cat-pill">${escChatHtml(c)}</span>`).join('')
+      } else {
+        wrap.style.display = 'none'
+        badges.innerHTML = ''
+      }
+    }
+    const hw = document.getElementById('pc-up-handoff-wrap')
+    const ht = document.getElementById('pc-up-handoff-text')
+    if (hw && ht) {
+      if (times.length) {
+        hw.style.display = 'block'
+        ht.textContent = times.join('、')
+      } else {
+        hw.style.display = 'none'
+        ht.textContent = ''
+      }
+    }
+  } else {
+    const tlEl = document.getElementById('m-up-tagline')
+    if (tlEl) {
+      tlEl.textContent = tl
+      ;(tlEl as HTMLElement).style.display = tl ? 'block' : 'none'
+    }
+    const wrap = document.getElementById('m-up-cat-wrap')
+    const badges = document.getElementById('m-up-cat-badges')
+    if (wrap && badges) {
+      if (categories.length) {
+        wrap.style.display = 'block'
+        badges.innerHTML = categories.map((c) => `<span class="prof-cat-pill">${escChatHtml(c)}</span>`).join('')
+      } else {
+        wrap.style.display = 'none'
+        badges.innerHTML = ''
+      }
+    }
+    const hw = document.getElementById('m-up-handoff-wrap')
+    const ht = document.getElementById('m-up-handoff-text')
+    if (hw && ht) {
+      if (times.length) {
+        hw.style.display = 'block'
+        ht.textContent = times.join('、')
+      } else {
+        hw.style.display = 'none'
+        ht.textContent = ''
+      }
+    }
+  }
+}
+
 async function hydrateUserProfilePage(mode: 'pc' | 'mob') {
   const uid = PROFILE_VIEW_USER_ID
   if (!uid) return
   const supabase = createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: prof } = await supabase.from('profiles').select('id,name,area,bio,avatar_url').eq('id', uid).maybeSingle()
+  const { data: prof } = await supabase
+    .from('profiles')
+    .select('id,name,area,bio,avatar_url,categories,available_times,tagline')
+    .eq('id', uid)
+    .maybeSingle()
   const { avg, count } = await fetchAggregateReviewsForUser(uid)
   const { data: rows } = await supabase
     .from('items')
@@ -828,6 +913,9 @@ async function hydrateUserProfilePage(mode: 'pc' | 'mob') {
   const area = (p?.area as string) || fallback?.sloc || '—'
   const bio = (typeof p?.bio === 'string' && p.bio.trim()) ? p.bio : '自己紹介はまだありません。'
   const av = (p?.avatar_url as string) || ''
+  const profTagline = typeof p?.tagline === 'string' ? p.tagline : ''
+  const profCats = parseProfileTextArray(p?.categories)
+  const profHandoff = parseProfileTextArray(p?.available_times)
 
   const ratingHtml =
     count > 0
@@ -849,6 +937,7 @@ async function hydrateUserProfilePage(mode: 'pc' | 'mob') {
     const ar = document.getElementById('pc-up-area'); if (ar) ar.textContent = area
     const rt = document.getElementById('pc-up-rating'); if (rt) rt.innerHTML = ratingHtml
     const bi = document.getElementById('pc-up-bio'); if (bi) bi.textContent = bio
+    renderPublicProfileExtraFields('pc', profTagline, profCats, profHandoff)
     renderGrid(listings, 'pc-up-grid', 'pc')
   } else {
     const avEl = document.getElementById('m-up-avt')
@@ -865,6 +954,7 @@ async function hydrateUserProfilePage(mode: 'pc' | 'mob') {
     const ar = document.getElementById('m-up-area'); if (ar) ar.textContent = area
     const rt = document.getElementById('m-up-rating'); if (rt) rt.innerHTML = ratingHtml
     const bi = document.getElementById('m-up-bio'); if (bi) bi.textContent = bio
+    renderPublicProfileExtraFields('mob', profTagline, profCats, profHandoff)
     renderGrid(listings, 'm-up-grid', 'mob')
   }
 }
@@ -1317,11 +1407,28 @@ async function refreshMyReviewStatsUI(userId: string) {
   }
 }
 
+function parseProfileTextArray(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+}
+
+function collectProfileCheckboxList(
+  prefix: 'pc' | 'm',
+  kind: 'cat' | 'time',
+  options: readonly string[]
+): string[] {
+  const mid = kind === 'cat' ? 'prof-cat' : 'prof-time'
+  return options.filter((_, i) => {
+    const el = document.getElementById(`${prefix}-${mid}-${i}`) as HTMLInputElement | null
+    return !!el?.checked
+  })
+}
+
 async function syncUserProfileFromSupabase(userId: string) {
   try {
     const { data, error } = await createClient()
       .from('profiles')
-      .select('name, area, bio, avatar_url')
+      .select('name, area, bio, avatar_url, categories, available_times, tagline')
       .eq('id', userId)
       .maybeSingle()
     if (error || !data) return
@@ -1350,6 +1457,10 @@ async function syncUserProfileFromSupabase(userId: string) {
     const av = (data as { avatar_url?: string }).avatar_url
     if (typeof av === 'string' && av) USER.avt = av
     else USER.avt = ''
+    USER.categories = parseProfileTextArray((data as { categories?: unknown }).categories)
+    USER.availableTimes = parseProfileTextArray((data as { available_times?: unknown }).available_times)
+    const tg = (data as { tagline?: string | null }).tagline
+    USER.tagline = typeof tg === 'string' ? tg : ''
     updateAllUserRefs()
   } catch (e) {
     console.warn('[meguru] syncUserProfileFromSupabase', e)
@@ -2645,6 +2756,30 @@ function updateAllUserRefs() {
   syncBioCnt('pc-prof-bio', 'pc-prof-bio-cnt')
   syncBioCnt('m-prof-bio', 'm-prof-bio-cnt')
 
+  PROFILE_CATEGORY_OPTIONS.forEach((label, i) => {
+    ;([`pc-prof-cat-${i}`, `m-prof-cat-${i}`] as const).forEach((cid) => {
+      const el = document.getElementById(cid) as HTMLInputElement | null
+      if (el) el.checked = USER.categories.includes(label)
+    })
+  })
+  PROFILE_HANDOFF_TIME_OPTIONS.forEach((label, i) => {
+    ;([`pc-prof-time-${i}`, `m-prof-time-${i}`] as const).forEach((tid) => {
+      const el = document.getElementById(tid) as HTMLInputElement | null
+      if (el) el.checked = USER.availableTimes.includes(label)
+    })
+  })
+  ;(['pc-prof-tagline', 'm-prof-tagline'] as const).forEach((id) => {
+    const el = document.getElementById(id) as HTMLInputElement | null
+    if (el) el.value = USER.tagline || ''
+  })
+  const syncTaglineCnt = (inpId: string, cntId: string) => {
+    const inp = document.getElementById(inpId) as HTMLInputElement | null
+    const cnt = document.getElementById(cntId)
+    if (inp && cnt) cnt.textContent = `${inp.value.length}/${PROF_TAGLINE_MAX}`
+  }
+  syncTaglineCnt('pc-prof-tagline', 'pc-prof-tagline-cnt')
+  syncTaglineCnt('m-prof-tagline', 'm-prof-tagline-cnt')
+
   if (!pendingAvatarFile) {
     const profAv =
       USER.avt && !USER.avt.startsWith('blob:')
@@ -2712,10 +2847,14 @@ function updateAllUserRefs() {
 /* ── PROFILE ── */
 async function saveProfile() {
   const isPC = window.innerWidth >= 768
+  const pf = isPC ? 'pc' : 'm'
   const name = ((document.getElementById(isPC ? 'pc-prof-name' : 'm-prof-name') as HTMLInputElement)?.value || '').trim()
   const muniEl = document.getElementById(isPC ? 'pc-prof-muni' : 'm-prof-muni') as HTMLSelectElement | null
   const municipality = (muniEl?.value || '').trim()
   const bio = ((document.getElementById(isPC ? 'pc-prof-bio' : 'm-prof-bio') as HTMLTextAreaElement)?.value || '').trim()
+  const tagline = ((document.getElementById(`${pf}-prof-tagline`) as HTMLInputElement)?.value || '').trim()
+  const categories = collectProfileCheckboxList(pf, 'cat', PROFILE_CATEGORY_OPTIONS)
+  const handoffTimes = collectProfileCheckboxList(pf, 'time', PROFILE_HANDOFF_TIME_OPTIONS)
 
   if (!name) {
     showToast('名前を入力してください')
@@ -2731,6 +2870,10 @@ async function saveProfile() {
   }
   if (bio.length > PROF_BIO_MAX) {
     showToast(`自己紹介は${PROF_BIO_MAX}文字以内で入力してください`)
+    return
+  }
+  if (tagline.length > PROF_TAGLINE_MAX) {
+    showToast(`一言メッセージは${PROF_TAGLINE_MAX}文字以内で入力してください`)
     return
   }
 
@@ -2762,6 +2905,9 @@ async function saveProfile() {
       area,
       bio: bio || null,
       avatar_url: nextAvatarUrl || null,
+      categories: categories.length ? categories : [],
+      available_times: handoffTimes.length ? handoffTimes : [],
+      tagline: tagline || null,
     },
     { onConflict: 'id' }
   )
@@ -2774,6 +2920,9 @@ async function saveProfile() {
   USER.area = area
   USER.bio = bio
   USER.avt = nextAvatarUrl
+  USER.categories = [...categories]
+  USER.availableTimes = [...handoffTimes]
+  USER.tagline = tagline
   try {
     localStorage.setItem(LS_AREA_KEY, USER.area)
   } catch {
@@ -3085,8 +3234,19 @@ export default function Page() {
                 <div className="pc-up-avt" id="pc-up-avt">🧑</div>
                 <div className="pc-up-meta">
                   <p className="pc-up-name" id="pc-up-name">—</p>
+                  <p className="pc-up-tagline" id="pc-up-tagline" style={{ display: 'none', fontSize: '.84rem', color: '#C4581A', fontWeight: 600, marginTop: '5px', lineHeight: 1.5 }}>
+                    —
+                  </p>
                   <p className="pc-up-area" id="pc-up-area">—</p>
                   <div className="pc-up-rating" id="pc-up-rating" />
+                  <div id="pc-up-cat-wrap" style={{ display: 'none', marginTop: '12px', maxWidth: '560px' }}>
+                    <p style={{ fontSize: '.7rem', fontWeight: 700, color: '#2D5A27', letterSpacing: '.08em', marginBottom: '8px' }}>主に出品するもの</p>
+                    <div id="pc-up-cat-badges" className="prof-cat-badge-row" />
+                  </div>
+                  <div id="pc-up-handoff-wrap" style={{ display: 'none', marginTop: '12px', maxWidth: '560px', fontSize: '.84rem', color: 'var(--ink2)', lineHeight: 1.65 }}>
+                    <span style={{ fontWeight: 700, color: '#2D5A27', display: 'block', fontSize: '.7rem', letterSpacing: '.08em', marginBottom: '6px' }}>受け渡し可能な時間帯</span>
+                    <span id="pc-up-handoff-text" />
+                  </div>
                   <p className="pc-up-bio" id="pc-up-bio">—</p>
                 </div>
               </div>
@@ -3396,6 +3556,43 @@ export default function Page() {
                   <label className="lbl">自己紹介 <small>任意</small></label>
                   <textarea className="txta" id="pc-prof-bio" maxLength={PROF_BIO_MAX} style={{maxWidth:'560px',minHeight:'88px'}} onInput={(e) => { const c = document.getElementById('pc-prof-bio-cnt'); if (c) c.textContent = `${e.currentTarget.value.length}/${PROF_BIO_MAX}` }} />
                   <p className="prof-fg-hint" id="pc-prof-bio-cnt">0/{PROF_BIO_MAX}</p>
+                </div>
+                <div className="fg">
+                  <label className="lbl">主に出品するもの <small>任意</small></label>
+                  <div className="pickup-row" style={{ flexWrap: 'wrap', maxWidth: '560px' }}>
+                    {PROFILE_CATEGORY_OPTIONS.map((label, i) => (
+                      <label key={label} className="chk-lbl">
+                        <input type="checkbox" id={`pc-prof-cat-${i}`} />
+                        <span>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="lbl">受け渡し可能な時間帯 <small>任意</small></label>
+                  <div className="pickup-row" style={{ flexWrap: 'wrap', maxWidth: '560px' }}>
+                    {PROFILE_HANDOFF_TIME_OPTIONS.map((label, i) => (
+                      <label key={label} className="chk-lbl">
+                        <input type="checkbox" id={`pc-prof-time-${i}`} />
+                        <span>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="lbl">一言メッセージ <small>任意・{PROF_TAGLINE_MAX}文字まで</small></label>
+                  <input
+                    className="inp"
+                    id="pc-prof-tagline"
+                    maxLength={PROF_TAGLINE_MAX}
+                    style={{ maxWidth: '560px' }}
+                    placeholder="例：駒ヶ根の柿が自慢です！"
+                    onInput={(e) => {
+                      const c = document.getElementById('pc-prof-tagline-cnt')
+                      if (c) c.textContent = `${e.currentTarget.value.length}/${PROF_TAGLINE_MAX}`
+                    }}
+                  />
+                  <p className="prof-fg-hint" id="pc-prof-tagline-cnt">0/{PROF_TAGLINE_MAX}</p>
                 </div>
               </div>
             </div>
@@ -3794,8 +3991,19 @@ export default function Page() {
             <div className="m-up-head">
               <div className="m-up-avt" id="m-up-avt">🧑</div>
               <p className="m-up-name" id="m-up-name">—</p>
+              <p id="m-up-tagline" style={{ display: 'none', fontSize: '.8rem', color: '#C4581A', fontWeight: 600, marginTop: '6px', textAlign: 'center', lineHeight: 1.45, padding: '0 14px' }}>
+                —
+              </p>
               <p className="m-up-area" id="m-up-area">—</p>
               <div className="m-up-rating" id="m-up-rating" />
+              <div id="m-up-cat-wrap" style={{ display: 'none', marginTop: '12px', padding: '0 14px' }}>
+                <p style={{ fontSize: '.68rem', fontWeight: 700, color: '#2D5A27', letterSpacing: '.08em', marginBottom: '8px' }}>主に出品するもの</p>
+                <div id="m-up-cat-badges" className="prof-cat-badge-row" style={{ justifyContent: 'center' }} />
+              </div>
+              <div id="m-up-handoff-wrap" style={{ display: 'none', marginTop: '10px', padding: '0 14px', fontSize: '.78rem', color: 'var(--ink2)', lineHeight: 1.65, textAlign: 'left' }}>
+                <span style={{ fontWeight: 700, color: '#2D5A27', display: 'block', fontSize: '.68rem', letterSpacing: '.08em', marginBottom: '4px' }}>受け渡し可能な時間帯</span>
+                <span id="m-up-handoff-text" />
+              </div>
               <p className="m-up-bio" id="m-up-bio">—</p>
             </div>
             <p className="m-up-sec">出品中の商品</p>
@@ -3907,6 +4115,42 @@ export default function Page() {
                 <label className="lbl">自己紹介 <small>任意</small></label>
                 <textarea className="txta" id="m-prof-bio" maxLength={PROF_BIO_MAX} style={{minHeight:'72px'}} onInput={(e) => { const c = document.getElementById('m-prof-bio-cnt'); if (c) c.textContent = `${e.currentTarget.value.length}/${PROF_BIO_MAX}` }} />
                 <p className="prof-fg-hint" id="m-prof-bio-cnt">0/{PROF_BIO_MAX}</p>
+              </div>
+              <div>
+                <label className="lbl">主に出品するもの <small>任意</small></label>
+                <div className="pickup-row" style={{ flexWrap: 'wrap' }}>
+                  {PROFILE_CATEGORY_OPTIONS.map((label, i) => (
+                    <label key={label} className="chk-lbl">
+                      <input type="checkbox" id={`m-prof-cat-${i}`} />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="lbl">受け渡し可能な時間帯 <small>任意</small></label>
+                <div className="pickup-row" style={{ flexWrap: 'wrap' }}>
+                  {PROFILE_HANDOFF_TIME_OPTIONS.map((label, i) => (
+                    <label key={label} className="chk-lbl">
+                      <input type="checkbox" id={`m-prof-time-${i}`} />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="lbl">一言メッセージ <small>任意・{PROF_TAGLINE_MAX}文字まで</small></label>
+                <input
+                  className="inp"
+                  id="m-prof-tagline"
+                  maxLength={PROF_TAGLINE_MAX}
+                  placeholder="例：お気軽にどうぞ"
+                  onInput={(e) => {
+                    const c = document.getElementById('m-prof-tagline-cnt')
+                    if (c) c.textContent = `${e.currentTarget.value.length}/${PROF_TAGLINE_MAX}`
+                  }}
+                />
+                <p className="prof-fg-hint" id="m-prof-tagline-cnt">0/{PROF_TAGLINE_MAX}</p>
               </div>
             </div>
           </div>
