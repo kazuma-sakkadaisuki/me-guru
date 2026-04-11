@@ -34,6 +34,8 @@ type Chat = {
   supabaseId?: string
   buyerId?: string
   sellerId?: string
+  /** Supabase items.id（ITEMS の数値 id とずれるとき一覧からの解決に使う） */
+  itemSupabaseId?: string
 }
 type Item = typeof ITEMS[0] & { imgSrc?: string; images?: string[]; sold?: boolean; expiry?: string; supabaseId?: string; userId?: string }
 
@@ -1265,12 +1267,22 @@ const BG_STYLES: Record<string,string> = {
   bb:'linear-gradient(135deg,#f0ebe3,#e0d5c0)',
   by:'linear-gradient(135deg,#fdf8e8,#fdf0cc)',
 }
+function getChatLinkedItem(chat: Chat | null | undefined): Item | null {
+  if (!chat) return null
+  if (chat.itemSupabaseId) {
+    const bySb = ITEMS.find((i) => i.supabaseId === chat.itemSupabaseId)
+    if (bySb) return bySb
+  }
+  if (chat.itemId) return ITEMS.find((x) => x.id === chat.itemId) ?? null
+  return null
+}
+
 function setCisIcon(elId: string, chatId: string) {
   const el = document.getElementById(elId)
   if (!el) return
   const chat = CHATS[chatId]
   if (!chat) return
-  const item = ITEMS.find(x => x.id === chat.itemId)
+  const item = getChatLinkedItem(chat)
   if (item?.imgSrc) {
     el.innerHTML = `<img src="${item.imgSrc}" />`
     el.style.background = 'none'
@@ -1286,6 +1298,7 @@ function setCisIcon(elId: string, chatId: string) {
     el.style.background = 'none'
   }
 }
+
 function openChatCore(chatId: string) {
   curChatId = chatId
   const c = CHATS[chatId]
@@ -1341,6 +1354,7 @@ function pcOpenChatFromDetail() {
   const cisp=document.getElementById('pc-cis-p'); if(cisp) cisp.textContent=c.ip
   renderMsgs('pc')
   renderChatList('pc')
+  updateCompleteBtn('pc')
 }
 function mOpenChatFromDetail() {
   const key = getOrCreateChatKey(curItem)
@@ -1413,10 +1427,24 @@ function openTradeModal(mode: string) {
     showToast('出品者のみ取引を完了できます')
     return
   }
-  const item = ITEMS.find(x => x.id === chat.itemId)
+  const item = getChatLinkedItem(chat)
   if (!item || item.sold) return
   tradeModalMode = mode
   document.getElementById('trade-modal')?.classList.remove('hidden')
+}
+
+function requestCompleteTradePc() {
+  const chat = CHATS[curChatId]
+  if (!chat) return
+  if (!chat.sellerId || CURRENT_USER_ID !== chat.sellerId) {
+    showToast('出品者のみ取引を完了できます')
+    return
+  }
+  const item = getChatLinkedItem(chat)
+  if (!item || item.sold) return
+  if (!confirm('取引を完了しますか？相手と手渡しが完了した後に押してください。')) return
+  tradeModalMode = 'pc'
+  confirmCompleteTrade()
 }
 function closeTradeModal() {
   document.getElementById('trade-modal')?.classList.add('hidden')
@@ -1592,9 +1620,8 @@ function confirmCompleteTrade() {
     closeTradeModal()
     return
   }
-  const found = ITEMS.find(x => x.id === chat.itemId)
-  if (!found) { closeTradeModal(); return }
-  const item = found as Item
+  const item = getChatLinkedItem(chat)
+  if (!item) { closeTradeModal(); return }
   item.sold = true
   const t = new Date()
   const time = t.getHours()+':'+String(t.getMinutes()).padStart(2,'0')
@@ -1627,11 +1654,39 @@ function confirmCompleteTrade() {
 }
 function updateCompleteBtn(mode: string) {
   const chat = CHATS[curChatId]
-  const item = chat ? ITEMS.find(x => x.id === chat.itemId) : null
+  const item = chat ? getChatLinkedItem(chat) : null
   const isSold = item?.sold ?? false
-  const btn = document.getElementById(mode==='pc'?'pc-complete-btn':'m-complete-btn') as HTMLButtonElement|null
-  if (!btn) return
   const isSeller = !!(chat?.sellerId && CURRENT_USER_ID === chat.sellerId)
+
+  if (mode === 'pc') {
+    const cisSold = document.getElementById('pc-chat-cis-sold')
+    if (cisSold) cisSold.style.display = item?.sold ? 'inline-flex' : 'none'
+
+    const wrap = document.getElementById('pc-chat-trade-wrap')
+    const badge = document.getElementById('pc-chat-sold-badge')
+    const bar = document.getElementById('pc-trade-bar-btn-wrap')
+    const btn = document.getElementById('pc-complete-btn') as HTMLButtonElement | null
+    if (!wrap || !badge || !bar || !btn) return
+    if (!isSeller) {
+      wrap.style.display = 'none'
+      return
+    }
+    wrap.style.display = 'block'
+    if (isSold) {
+      badge.style.display = 'block'
+      bar.style.display = 'none'
+    } else {
+      badge.style.display = 'none'
+      bar.style.display = 'block'
+      btn.textContent = '取引完了にする'
+      btn.className = 'trade-bar-btn active'
+      btn.disabled = false
+    }
+    return
+  }
+
+  const btn = document.getElementById('m-complete-btn') as HTMLButtonElement | null
+  if (!btn) return
   if (!isSeller) {
     btn.style.display = 'none'
     return
@@ -1928,6 +1983,7 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
         supabaseId: chat.id,
         buyerId: chat.buyer_id,
         sellerId: chat.seller_id,
+        itemSupabaseId: typeof item?.id === 'string' ? item.id : undefined,
       }
     }
     console.log('[meguru] loadChats: loaded', chatsData.length, 'chats from Supabase')
@@ -2000,6 +2056,7 @@ async function openChatWithSupabase(mode: string) {
         supabaseId: chatId,
         buyerId: CURRENT_USER_ID,
         sellerId: curItem.userId,
+        itemSupabaseId: curItem.supabaseId,
       }
     } else {
       const row = CHATS[key]
@@ -2011,6 +2068,7 @@ async function openChatWithSupabase(mode: string) {
       row.itemId = curItem.id
       row.buyerId = row.buyerId ?? CURRENT_USER_ID ?? undefined
       row.sellerId = row.sellerId ?? curItem.userId
+      row.itemSupabaseId = curItem.supabaseId
     }
     curItem.chatKey = key
     await loadMessagesForChat(chatId, key)
@@ -3818,11 +3876,62 @@ export default function Page() {
                 </div>
               </div>
               <div className="pc-chat-strip">
-                <div className="cis-wrap" style={{flex:1,minWidth:0}}><span className="cis-e" id="pc-cis-e">🍊</span><div style={{minWidth:0}}><p className="cis-n" id="pc-cis-n" style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>渋柿</p><p className="cis-p" id="pc-cis-p">¥500</p></div></div>
+                <div className="cis-wrap" style={{ flex: 1, minWidth: 0, alignItems: 'center', gap: '8px' }}>
+                  <span className="cis-e" id="pc-cis-e">🍊</span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <p className="cis-n" id="pc-cis-n" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>渋柿</p>
+                    <p className="cis-p" id="pc-cis-p">¥500</p>
+                  </div>
+                  <span
+                    id="pc-chat-cis-sold"
+                    style={{
+                      display: 'none',
+                      flexShrink: 0,
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      background: '#2D5A27',
+                      color: '#fff',
+                      fontSize: '.65rem',
+                      fontWeight: 800,
+                      letterSpacing: '.12em',
+                      fontFamily: 'var(--sf)',
+                    }}
+                  >
+                    SOLD
+                  </span>
+                </div>
               </div>
               <div className="pc-chat-msgs" id="pc-chat-msgs"></div>
-              <div className="pc-trade-bar">
-                <button id="pc-complete-btn" className="trade-bar-btn active" onClick={() => openTradeModal('pc')}>取引完了にする</button>
+              <div id="pc-chat-trade-wrap" style={{ display: 'none', flexShrink: 0, width: '100%' }}>
+                <div
+                  id="pc-chat-sold-badge"
+                  style={{
+                    display: 'none',
+                    margin: '0 14px 10px',
+                    padding: '12px 14px',
+                    background: '#F8F4EE',
+                    border: '1px solid var(--bd)',
+                    borderRadius: '10px',
+                    fontSize: '.88rem',
+                    fontWeight: 700,
+                    color: '#2D5A27',
+                    textAlign: 'center',
+                    fontFamily: 'var(--sf)',
+                  }}
+                >
+                  取引済み
+                </div>
+                <div className="pc-trade-bar" id="pc-trade-bar-btn-wrap">
+                  <button
+                    type="button"
+                    id="pc-complete-btn"
+                    className="trade-bar-btn active"
+                    style={{ background: '#2D5A27', color: '#fff', width: '100%', fontFamily: 'var(--sf)' }}
+                    onClick={() => requestCompleteTradePc()}
+                  >
+                    取引完了にする
+                  </button>
+                </div>
               </div>
               <div className="pc-chat-input">
                 <input className="pc-chat-inp" id="pc-chat-inp" placeholder="メッセージを入力…" onKeyDown={(e) => { if(e.key==='Enter') sendMsg('pc') }} />
