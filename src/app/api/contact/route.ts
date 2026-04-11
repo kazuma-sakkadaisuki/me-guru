@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
-const TO_EMAIL = 'sakkadaisukiningen@gmail.com'
+const TO_EMAIL = 'meguru.contact@gmail.com'
 const FROM_EMAIL = 'onboarding@resend.dev'
 const MAX_MESSAGE = 500
 const MAX_NAME = 200
