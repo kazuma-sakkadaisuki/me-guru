@@ -963,7 +963,8 @@ function isProbablyItemUuid(s: string): boolean {
 }
 
 function itemFavoriteStorageKey(it: Item): string {
-  if (it.supabaseId) return it.supabaseId
+  const sid = typeof it.supabaseId === 'string' ? it.supabaseId.trim() : ''
+  if (sid) return sid
   return `local:${it.id}`
 }
 
@@ -992,15 +993,18 @@ function persistFavorites() {
 }
 
 function isItemFavorited(it: Item): boolean {
-  if (favIdSet.has(itemFavoriteStorageKey(it))) return true
-  if (it.supabaseId && favIdSet.has(it.supabaseId)) return true
+  const canonical = itemFavoriteStorageKey(it)
+  if (favIdSet.has(canonical)) return true
+  const sid = typeof it.supabaseId === 'string' ? it.supabaseId.trim() : ''
+  if (sid && favIdSet.has(sid)) return true
   if (favIdSet.has(`local:${it.id}`)) return true
   if (favIdSet.has(String(it.id))) return true
   return false
 }
 
 function removeAllFavoriteStorageKeysForItem(it: Item) {
-  const keys = [itemFavoriteStorageKey(it), it.supabaseId, `local:${it.id}`, String(it.id)].filter(
+  const sid = typeof it.supabaseId === 'string' ? it.supabaseId.trim() : ''
+  const keys = [itemFavoriteStorageKey(it), sid || undefined, it.supabaseId, `local:${it.id}`, String(it.id)].filter(
     (k): k is string => typeof k === 'string' && k.length > 0
   )
   for (const k of keys) favIdSet.delete(k)
@@ -1058,11 +1062,15 @@ async function fetchFavoriteItemsForDisplay(): Promise<Item[]> {
   for (const it of fromSb) pushDedup(it, out)
 
   for (const k of otherKeys) {
-    let num: number | null = null
-    if (k.startsWith('local:')) num = Number(k.slice(6))
-    else if (/^\d+$/.test(k)) num = Number(k)
-    if (num === null || Number.isNaN(num)) continue
-    const found = ITEMS.find((i) => i.id === num)
+    let found: Item | undefined
+    if (k.startsWith('local:')) {
+      const num = Number(k.slice(6))
+      if (!Number.isNaN(num)) found = ITEMS.find((i) => i.id === num)
+    } else if (/^\d+$/.test(k)) {
+      const num = Number(k)
+      if (!Number.isNaN(num)) found = ITEMS.find((i) => i.id === num)
+    }
+    if (!found) found = ITEMS.find((i) => itemFavoriteStorageKey(i) === k)
     if (found) pushDedup(found, out)
   }
 
@@ -1074,7 +1082,14 @@ function toggleFav(mode: string) {
     removeAllFavoriteStorageKeysForItem(curItem)
     showToast('お気に入りから外しました')
   } else {
-    favIdSet.add(itemFavoriteStorageKey(curItem))
+    const sid = typeof curItem.supabaseId === 'string' ? curItem.supabaseId.trim() : ''
+    if (sid) {
+      favIdSet.add(sid)
+      favIdSet.delete(`local:${curItem.id}`)
+      favIdSet.delete(String(curItem.id))
+    } else {
+      favIdSet.add(`local:${curItem.id}`)
+    }
     showToast('お気に入りに追加しました')
   }
   persistFavorites()
