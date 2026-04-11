@@ -2249,20 +2249,58 @@ function formatPostedItemPriceLine(it: Item): string {
   return u ? `${it.price} ${u}`.trim() : it.price
 }
 
-/** 出品完了画面に商品名・価格を表示（リングは 🌿 固定） */
-function fillPostCompleteUI(it: Item) {
+/** 出品完了画面に商品名・価格を表示（リングは 🌿 固定・フォーム入力値をそのまま表示） */
+function fillPostCompleteSnapshot(title: string, priceLine: string) {
   document.querySelectorAll('.pc-comp-ring, .m-comp-ring').forEach((el) => {
     el.textContent = '🌿'
   })
-  const priceLine = formatPostedItemPriceLine(it)
-  const pcName = document.getElementById('pc-cc-name')
-  const pcPrice = document.getElementById('pc-cc-price')
-  const mName = document.getElementById('m-cc-name')
-  const mPrice = document.getElementById('m-cc-price')
-  if (pcName) pcName.textContent = it.name
-  if (pcPrice) pcPrice.textContent = priceLine
-  if (mName) mName.textContent = it.name
-  if (mPrice) mPrice.textContent = priceLine
+  const setLine = (id: string, text: string) => {
+    const el = document.getElementById(id)
+    if (el) el.replaceChildren(document.createTextNode(text))
+  }
+  setLine('pc-cc-name', title)
+  setLine('pc-cc-price', priceLine)
+  setLine('m-cc-name', title)
+  setLine('m-cc-price', priceLine)
+}
+
+function fillPostCompleteUI(it: Item) {
+  fillPostCompleteSnapshot(it.name, formatPostedItemPriceLine(it))
+}
+
+function setPostSubmitBusy(mode: string, busy: boolean) {
+  const id = mode === 'pc' ? 'pc-post-submit-btn' : 'm-post-submit-btn'
+  const btn = document.getElementById(id) as HTMLButtonElement | null
+  if (!btn) return
+  btn.disabled = busy
+  btn.setAttribute('aria-busy', busy ? 'true' : 'false')
+}
+
+/** insert 後: 画像をバックグラウンドで追記し、一覧を再同期 */
+async function syncPostedItemGridsAfterCreate(newItem: Item, pendingImages: string[], rowId: string | undefined) {
+  try {
+    if (pendingImages.length > 0 && rowId) {
+      const supabase = createClient()
+      const { error: upErr } = await supabase.from('items').update({ images: pendingImages }).eq('id', rowId)
+      if (upErr) console.warn('[meguru] item images update:', upErr.message, upErr.code)
+    }
+    const loaded = await loadItemsFromSupabase(CURRENT_USER_ID)
+    if (!loaded) {
+      const fallback: Item = { ...newItem }
+      if (rowId) fallback.supabaseId = rowId
+      fallback.images = [...pendingImages]
+      fallback.imgSrc = pendingImages[0] || ''
+      ITEMS.unshift(fallback)
+      saveItems()
+    } else {
+      saveItems()
+    }
+    initPcCats()
+    initMobCats()
+    redrawAllItemGridsForce()
+  } catch (e) {
+    console.error('[meguru] syncPostedItemGridsAfterCreate:', e)
+  }
 }
 
 /** 出品完了から「続けて出品」：スタック上の完了を外して出品フォームへ */
@@ -2278,168 +2316,185 @@ function mobReturnToPostForm() {
 }
 
 async function submitPost(mode: string) {
-  if (!CURRENT_USER_ID) {
-    window.location.href = '/login'
-    return
-  }
-  const isPC = mode === 'pc'
-  const name = (document.getElementById(isPC ? 'pc-post-name' : 'm-post-name') as HTMLInputElement)?.value.trim()
-  const price = (document.getElementById(isPC ? 'pc-post-price' : 'm-post-price') as HTMLInputElement)?.value.trim()
-  const unit = (document.getElementById(isPC ? 'pc-post-unit' : 'm-post-unit') as HTMLInputElement)?.value.trim()
-  const pre = isPC ? 'pc' : 'm'
-  const locCity = (document.getElementById(`${pre}-post-loc-city`) as HTMLSelectElement)?.value || ''
-  const locDist = (document.getElementById(`${pre}-post-loc-dist`) as HTMLSelectElement)?.value || ''
-  const loc = [locCity, locDist].filter(Boolean).join(' ')
-  const isFree = isPC ? pcFreeTog : mobFreeTog
-  const cat = isPC ? pcPostCat : mobPostCat
-  if (!name) {
-    showToast('余りものの名前を入力してください')
-    return
-  }
-  if (!isFree && !price) {
-    showToast('価格を入力するか、無料に設定してください')
-    return
-  }
-  const allImgs = isPC ? [...pcImages] : [...mobImages]
-  const expiry = (document.getElementById(isPC ? 'pc-post-expiry' : 'm-post-expiry') as HTMLInputElement)?.value || ''
-  const desc =
-    (document.getElementById(isPC ? 'pc-post-desc' : 'm-post-desc') as HTMLTextAreaElement)?.value?.trim() ||
-    '詳細は出品者にお問い合わせください。'
-  const newItem: Item = {
-    id: Date.now(),
-    name,
-    cat,
-    price: isFree ? '無料' : `¥${Number(price).toLocaleString()}`,
-    unit: unit ? `/ ${unit}` : '',
-    emoji: EMOJIMAP[cat] || '📦',
-    bg: BGMAP[cat] || 'by',
-    loc: loc || getUserCity() || '駒ヶ根市',
-    badge: isFree ? 'free' : 'new',
-    seller: USER.name,
-    sloc: USER.area,
-    savt: '🧑',
-    desc,
-    mine: true,
-    chatKey: '',
-    imgSrc: allImgs[0] || '',
-    images: allImgs,
-    expiry: expiry || undefined,
-  }
-
-  const pre2 = isPC ? 'pc' : 'm'
-  const getCheckedVals = (ids: string[], labels: string[]) =>
-    ids.reduce<string[]>((acc, id, i) => {
-      if ((document.getElementById(id) as HTMLInputElement | null)?.checked) acc.push(labels[i])
-      return acc
-    }, [])
-  const availDays = getCheckedVals(
-    [`${pre2}-day-wd`, `${pre2}-day-sat`, `${pre2}-day-sun`],
-    ['平日', '土曜', '日曜']
-  )
-  const availTimes = getCheckedVals(
-    [`${pre2}-time-am`, `${pre2}-time-pm`, `${pre2}-time-ev`],
-    ['午前', '午後', '夜']
-  )
-
-  const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    window.location.href = '/login'
-    return
-  }
-
-  const { error: profErr } = await supabase
-    .from('profiles')
-    .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true })
-  if (profErr) console.warn('[meguru] profiles upsert warn:', profErr.message, profErr.code)
-
-  const payload = {
-    user_id: user.id,
-    name: newItem.name,
-    category: newItem.cat,
-    price: newItem.price,
-    unit: unit || '',
-    is_free: isFree,
-    description: newItem.desc,
-    location: newItem.loc,
-    images: allImgs,
-    condition: isPC ? pcCondition : mobCondition,
-    pesticide: isPC ? pcPesticide : mobPesticide,
-    available_days: availDays,
-    available_times: availTimes,
-    deadline: expiry || null,
-    is_sold: false,
-  }
-
-  const { error: insErr } = await supabase.from('items').insert(payload)
-  if (insErr) {
-    console.error('[meguru] Supabase save failed:', insErr.message, insErr.code)
-    showToast('出品の保存に失敗しました')
-    return
-  }
-
-  const loaded = await loadItemsFromSupabase(CURRENT_USER_ID)
-  if (!loaded) {
-    ITEMS.unshift(newItem)
-    saveItems()
-  } else {
-    saveItems()
-  }
-
-  ;(['name', 'desc', 'price', 'unit'] as const).forEach((f) => {
-    const el = document.getElementById(`${isPC ? 'pc' : 'm'}-post-${f}`) as HTMLInputElement | HTMLTextAreaElement | null
-    if (el) {
-      el.value = ''
-      ;(el as HTMLInputElement).disabled = false
+  setPostSubmitBusy(mode, true)
+  let releaseBusyInBackground = false
+  try {
+    if (!CURRENT_USER_ID) {
+      window.location.href = '/login'
+      return
     }
-  })
-  if (isPC) {
-    pcFreeTog = false
-    pcImages = []
-    pcCondition = ''
-    pcPesticide = ''
-    document.getElementById('pc-free-row')?.classList.remove('on')
-    renderPhotoGrid('pc')
-    document.querySelectorAll('#pc-pg-post .sel-opt').forEach((o) => o.classList.remove('on'))
-    ;(['pc-post-qty', 'pc-post-expiry'] as const).forEach((id) => {
-      const el = document.getElementById(id) as HTMLInputElement | null
-      if (el) el.value = ''
-    })
-    ;(['pc-day-wd', 'pc-day-sat', 'pc-day-sun', 'pc-time-am', 'pc-time-pm', 'pc-time-ev'] as const).forEach((id) => {
-      const el = document.getElementById(id) as HTMLInputElement | null
-      if (el) el.checked = false
-    })
-  } else {
-    mobFreeTog = false
-    mobImages = []
-    mobCondition = ''
-    mobPesticide = ''
-    document.getElementById('m-free-row')?.classList.remove('on')
-    renderPhotoGrid('mob')
-    document.querySelectorAll('#ms-post .sel-opt').forEach((o) => o.classList.remove('on'))
-    ;(['m-post-qty', 'm-post-expiry'] as const).forEach((id) => {
-      const el = document.getElementById(id) as HTMLInputElement | null
-      if (el) el.value = ''
-    })
-    ;(['m-day-wd', 'm-day-sat', 'm-day-sun', 'm-time-am', 'm-time-pm', 'm-time-ev'] as const).forEach((id) => {
-      const el = document.getElementById(id) as HTMLInputElement | null
-      if (el) el.checked = false
-    })
-  }
+    const isPC = mode === 'pc'
+    const name = (document.getElementById(isPC ? 'pc-post-name' : 'm-post-name') as HTMLInputElement)?.value.trim()
+    const price = (document.getElementById(isPC ? 'pc-post-price' : 'm-post-price') as HTMLInputElement)?.value.trim()
+    const unit = (document.getElementById(isPC ? 'pc-post-unit' : 'm-post-unit') as HTMLInputElement)?.value.trim()
+    const pre = isPC ? 'pc' : 'm'
+    const locCity = (document.getElementById(`${pre}-post-loc-city`) as HTMLSelectElement)?.value || ''
+    const locDist = (document.getElementById(`${pre}-post-loc-dist`) as HTMLSelectElement)?.value || ''
+    const loc = [locCity, locDist].filter(Boolean).join(' ')
+    const isFree = isPC ? pcFreeTog : mobFreeTog
+    const cat = isPC ? pcPostCat : mobPostCat
+    if (!name) {
+      showToast('余りものの名前を入力してください')
+      return
+    }
+    if (!isFree && !price) {
+      showToast('価格を入力するか、無料に設定してください')
+      return
+    }
+    const allImgs = isPC ? [...pcImages] : [...mobImages]
+    const snapshotTitle = name
+    const expiry = (document.getElementById(isPC ? 'pc-post-expiry' : 'm-post-expiry') as HTMLInputElement)?.value || ''
+    const desc =
+      (document.getElementById(isPC ? 'pc-post-desc' : 'm-post-desc') as HTMLTextAreaElement)?.value?.trim() ||
+      '詳細は出品者にお問い合わせください。'
+    const newItem: Item = {
+      id: Date.now(),
+      name,
+      cat,
+      price: isFree ? '無料' : `¥${Number(price).toLocaleString()}`,
+      unit: unit ? `/ ${unit}` : '',
+      emoji: EMOJIMAP[cat] || '📦',
+      bg: BGMAP[cat] || 'by',
+      loc: loc || getUserCity() || '駒ヶ根市',
+      badge: isFree ? 'free' : 'new',
+      seller: USER.name,
+      sloc: USER.area,
+      savt: '🧑',
+      desc,
+      mine: true,
+      chatKey: '',
+      imgSrc: allImgs[0] || '',
+      images: allImgs,
+      expiry: expiry || undefined,
+    }
+    const snapshotPriceLine = formatPostedItemPriceLine(newItem)
 
-  initPcCats()
-  initMobCats()
-  redrawAllItemGridsForce()
-  fillPostCompleteUI(newItem)
-  if (isPC) {
-    pcGo('complete')
-  } else {
-    document.querySelectorAll('#mob-root .m-nt').forEach((b) => b.classList.remove('on'))
-    document.querySelectorAll('[data-t="ms-home"]').forEach((b) => b.classList.add('on'))
-    mNav('ms-complete')
-    document.querySelector('#ms-complete .m-body')?.scrollTo(0, 0)
+    const pre2 = isPC ? 'pc' : 'm'
+    const getCheckedVals = (ids: string[], labels: string[]) =>
+      ids.reduce<string[]>((acc, id, i) => {
+        if ((document.getElementById(id) as HTMLInputElement | null)?.checked) acc.push(labels[i])
+        return acc
+      }, [])
+    const availDays = getCheckedVals(
+      [`${pre2}-day-wd`, `${pre2}-day-sat`, `${pre2}-day-sun`],
+      ['平日', '土曜', '日曜']
+    )
+    const availTimes = getCheckedVals(
+      [`${pre2}-time-am`, `${pre2}-time-pm`, `${pre2}-time-ev`],
+      ['午前', '午後', '夜']
+    )
+
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      window.location.href = '/login'
+      return
+    }
+
+    const { error: profErr } = await supabase
+      .from('profiles')
+      .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true })
+    if (profErr) console.warn('[meguru] profiles upsert warn:', profErr.message, profErr.code)
+
+    /* 初回 insert は images を空にしペイロードを軽くする（画像はバックグラウンドで update） */
+    const payload = {
+      user_id: user.id,
+      name: newItem.name,
+      category: newItem.cat,
+      price: newItem.price,
+      unit: unit || '',
+      is_free: isFree,
+      description: newItem.desc,
+      location: newItem.loc,
+      images: [] as string[],
+      condition: isPC ? pcCondition : mobCondition,
+      pesticide: isPC ? pcPesticide : mobPesticide,
+      available_days: availDays,
+      available_times: availTimes,
+      deadline: expiry || null,
+      is_sold: false,
+    }
+
+    const { data: inserted, error: insErr } = await supabase.from('items').insert(payload).select('id').single()
+    if (insErr) {
+      console.error('[meguru] Supabase save failed:', insErr.message, insErr.code)
+      showToast('出品の保存に失敗しました')
+      return
+    }
+    const rowId = inserted?.id as string | undefined
+    newItem.userId = user.id
+    if (rowId) newItem.supabaseId = rowId
+
+    ;(['name', 'desc', 'price', 'unit'] as const).forEach((f) => {
+      const el = document.getElementById(`${isPC ? 'pc' : 'm'}-post-${f}`) as HTMLInputElement | HTMLTextAreaElement | null
+      if (el) {
+        el.value = ''
+        ;(el as HTMLInputElement).disabled = false
+      }
+    })
+    if (isPC) {
+      pcFreeTog = false
+      pcImages = []
+      pcCondition = ''
+      pcPesticide = ''
+      document.getElementById('pc-free-row')?.classList.remove('on')
+      renderPhotoGrid('pc')
+      document.querySelectorAll('#pc-pg-post .sel-opt').forEach((o) => o.classList.remove('on'))
+      ;(['pc-post-qty', 'pc-post-expiry'] as const).forEach((id) => {
+        const el = document.getElementById(id) as HTMLInputElement | null
+        if (el) el.value = ''
+      })
+      ;(['pc-day-wd', 'pc-day-sat', 'pc-day-sun', 'pc-time-am', 'pc-time-pm', 'pc-time-ev'] as const).forEach((id) => {
+        const el = document.getElementById(id) as HTMLInputElement | null
+        if (el) el.checked = false
+      })
+    } else {
+      mobFreeTog = false
+      mobImages = []
+      mobCondition = ''
+      mobPesticide = ''
+      document.getElementById('m-free-row')?.classList.remove('on')
+      renderPhotoGrid('mob')
+      document.querySelectorAll('#ms-post .sel-opt').forEach((o) => o.classList.remove('on'))
+      ;(['m-post-qty', 'm-post-expiry'] as const).forEach((id) => {
+        const el = document.getElementById(id) as HTMLInputElement | null
+        if (el) el.value = ''
+      })
+      ;(['m-day-wd', 'm-day-sat', 'm-day-sun', 'm-time-am', 'm-time-pm', 'm-time-ev'] as const).forEach((id) => {
+        const el = document.getElementById(id) as HTMLInputElement | null
+        if (el) el.checked = false
+      })
+    }
+
+    initPcCats()
+    initMobCats()
+
+    fillPostCompleteSnapshot(snapshotTitle, snapshotPriceLine)
+    if (isPC) {
+      pcGo('complete')
+    } else {
+      document.querySelectorAll('#mob-root .m-nt').forEach((b) => b.classList.remove('on'))
+      document.querySelectorAll('[data-t="ms-home"]').forEach((b) => b.classList.add('on'))
+      mNav('ms-complete')
+      document.querySelector('#ms-complete .m-body')?.scrollTo(0, 0)
+    }
+    requestAnimationFrame(() => fillPostCompleteSnapshot(snapshotTitle, snapshotPriceLine))
+
+    releaseBusyInBackground = true
+    void (async () => {
+      try {
+        await syncPostedItemGridsAfterCreate(newItem, allImgs, rowId)
+      } finally {
+        setPostSubmitBusy(mode, false)
+      }
+    })()
+  } catch (e) {
+    console.error('[meguru] submitPost:', e)
+    showToast('出品の保存に失敗しました')
+  } finally {
+    if (!releaseBusyInBackground) setPostSubmitBusy(mode, false)
   }
 }
 
@@ -3124,7 +3179,7 @@ export default function Page() {
                 <div className="hint"><span style={{fontSize:'.95rem',flexShrink:0}}>💡</span><p>詳しい住所はチャットで直接決めてOKです。掲示板には住所は出ません。</p></div>
                 <div className="pc-post-actions">
                   <button className="pc-cancel" onClick={()=>pcGo('listing')}>キャンセル</button>
-                  <button type="button" className="pc-submit" onClick={() => void submitPost('pc')}>出品する →</button>
+                  <button type="button" id="pc-post-submit-btn" className="pc-submit" onClick={() => void submitPost('pc')}>出品する →</button>
                 </div>
               </div>
             </div>
@@ -3641,7 +3696,7 @@ export default function Page() {
               {/* 受け取り期限 */}
               <div className="fg" style={{marginBottom:'16px'}}><label className="lbl">受け取り期限 <small>任意</small></label><input className="inp" type="date" id="m-post-expiry" /></div>
               <div className="hint" style={{marginBottom:'20px'}}><span style={{fontSize:'.95rem',flexShrink:0}}>💡</span><p>詳しい住所はチャットで直接決めてOKです。掲示板には住所は出ません。</p></div>
-              <button type="button" style={{width:'100%',padding:'16px',background:'var(--k)',color:'#fff',border:'none',borderRadius:'13px',fontSize:'.92rem',fontWeight:700,letterSpacing:'.08em',boxShadow:'0 5px 17px rgba(196,88,26,.34)',transition:'all .18s'}} onClick={() => void submitPost('mob')}>出品する →</button>
+              <button type="button" id="m-post-submit-btn" style={{width:'100%',padding:'16px',background:'var(--k)',color:'#fff',border:'none',borderRadius:'13px',fontSize:'.92rem',fontWeight:700,letterSpacing:'.08em',boxShadow:'0 5px 17px rgba(196,88,26,.34)',transition:'all .18s'}} onClick={() => void submitPost('mob')}>出品する →</button>
             </div>
           </div>
         </div>
