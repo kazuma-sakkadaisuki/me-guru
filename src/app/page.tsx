@@ -374,7 +374,7 @@ let pcDragIdx = -1, mobDragIdx = -1
 let mStk: string[] = ['ms-home']
 let mSearchCatKey = 'all'
 let areaFilterMode: 'local' | 'all' = 'local'
-/** ホーム一覧：出品中 / 受渡済 */
+/** ホーム一覧：出品中 / 渡し済み（全ユーザーの出品を ITEMS から絞る。mine では絞らない） */
 let homeSoldFilter: 'listing' | 'delivered' = 'listing'
 let selectedPref = ''
 let selectedCity = ''
@@ -616,9 +616,10 @@ function toggleHomeSoldFilter(mode: 'listing' | 'delivered') {
   applyMobFilter()
 }
 
+/** 販売状況のみで絞る（出品者 mine ・ user_id では絞らない。エリアは applyAreaFilter 側） */
 function applySoldStatusFilter(items: Item[]): Item[] {
   if (homeSoldFilter === 'listing') return items.filter((i) => !i.sold)
-  return items.filter((i) => !!i.sold)
+  return items.filter((i) => Boolean(i.sold))
 }
 
 function pipelineHomePc(): Item[] {
@@ -2118,7 +2119,7 @@ async function openChatWithSupabase(mode: string) {
 async function loadItemsFromSupabase(userId: string | null): Promise<boolean> {
   try {
     const supabase = createClient()
-    /* is_sold は WHERE に含めない（一覧はクライアントで sold 表示のみ。RLS で読めない行は data に入らない） */
+    /* is_sold は WHERE に含めない（渡し済みフィルター用に全件の is_sold をクライアントで扱う。他ユーザーの sold 行も表示するには RLS で SELECT 可能であること） */
     const { data, error } = await supabase
       .from('items')
       .select('*, profiles(name, area)')
@@ -3390,7 +3391,7 @@ export default function Page() {
                     <button id="pc-area-tog-local" className="area-tog on" onClick={() => toggleAreaFilter('local')}>このエリア</button>
                     <button id="pc-area-tog-all" className="area-tog" onClick={() => toggleAreaFilter('all')}>長野県全体</button>
                     <button type="button" id="pc-sold-tog-listing" className="home-sold-tog on" onClick={() => toggleHomeSoldFilter('listing')}>出品中</button>
-                    <button type="button" id="pc-sold-tog-delivered" className="home-sold-tog" onClick={() => toggleHomeSoldFilter('delivered')}>受渡済</button>
+                    <button type="button" id="pc-sold-tog-delivered" className="home-sold-tog" onClick={() => toggleHomeSoldFilter('delivered')}>渡し済み</button>
                   </div>
                 </div>
                 <select className="sort-sel" onChange={(e) => pcSort(e.target.value)}>
@@ -4009,7 +4010,7 @@ export default function Page() {
                 <button id="m-area-tog-local" className="area-tog-mob on" onClick={() => toggleAreaFilter('local')}>このエリア</button>
                 <button id="m-area-tog-all" className="area-tog-mob" onClick={() => toggleAreaFilter('all')}>長野県全体</button>
                 <button type="button" id="m-sold-tog-listing" className="home-sold-tog-mob on" onClick={() => toggleHomeSoldFilter('listing')}>出品中</button>
-                <button type="button" id="m-sold-tog-delivered" className="home-sold-tog-mob" onClick={() => toggleHomeSoldFilter('delivered')}>受渡済</button>
+                <button type="button" id="m-sold-tog-delivered" className="home-sold-tog-mob" onClick={() => toggleHomeSoldFilter('delivered')}>渡し済み</button>
               </div>
             </div>
             <div className="m-sbar-wrap"><div className="m-sbar-inner" onClick={() => mNav('ms-search')}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><input placeholder="柿、薪、野菜など…" readOnly style={{cursor:'pointer'}} /></div></div>

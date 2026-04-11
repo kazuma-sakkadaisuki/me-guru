@@ -877,7 +877,7 @@ a.pc-nav-tab:visited { color: var(--mu); }
 .area-tog-mob { padding:4px 11px; border-radius:20px; border:1px solid rgba(255,255,255,.45); background:rgba(255,255,255,.12); font-size:.7rem; font-weight:500; color:rgba(255,255,255,.85); cursor:pointer; transition:all .15s; }
 .area-tog-mob.on { background:rgba(255,255,255,.28); border-color:rgba(255,255,255,.8); color:#fff; font-weight:700; }
 
-/* ホーム：販売状況（出品中 / 受渡済）— PC */
+/* ホーム：販売状況（出品中 / 渡し済み）— PC */
 .home-sold-tog {
   padding: 5px 14px;
   border-radius: 20px;
