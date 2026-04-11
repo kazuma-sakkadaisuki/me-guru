@@ -1731,6 +1731,16 @@ function updateCompleteBtn(mode: string) {
 
 /* ── LOCALSTORAGE ── */
 const LS_KEY = 'meguru_items'
+
+/** Supabase を正とするため、商品キャッシュキーを削除 */
+function clearMeguruItemsLocalStorage() {
+  try {
+    localStorage.removeItem(LS_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
 function saveItems() {
   try {
     const data = JSON.stringify(ITEMS)
@@ -2122,11 +2132,17 @@ async function loadItemsFromSupabase(userId: string | null): Promise<boolean> {
       })
       return false
     }
-    if (!data || data.length === 0) {
+
+    clearMeguruItemsLocalStorage()
+
+    const rows = data ?? []
+    if (rows.length === 0) {
       console.warn('[meguru] loadItemsFromSupabase: 0 rows returned from items')
-      return false
+      ITEMS.splice(0, ITEMS.length)
+      return true
     }
-    const mapped = data.map((row) => mapSupabaseItem(row, userId))
+
+    const mapped = rows.map((row) => mapSupabaseItem(row, userId))
     ITEMS.splice(0, ITEMS.length, ...mapped)
     console.log('[meguru] loadItemsFromSupabase OK:', ITEMS.length, 'items mapped into ITEMS')
     return true
@@ -2166,7 +2182,7 @@ async function refreshItemGridsFromSupabaseThen(run: () => void) {
   resetListingFiltersAfterPost()
   const loaded = await loadItemsFromSupabase(CURRENT_USER_ID)
   if (!loaded) {
-    console.warn('[meguru] refreshItemGridsFromSupabaseThen: load failed or empty, initItemsFromStorage')
+    console.warn('[meguru] refreshItemGridsFromSupabaseThen: load failed, initItemsFromStorage')
     initItemsFromStorage()
   }
   initPcCats()
@@ -2182,7 +2198,7 @@ async function mobCompleteBackToHomeWithReload() {
 
   const loaded = await loadItemsFromSupabase(CURRENT_USER_ID)
   if (!loaded) {
-    console.warn('[meguru] mobCompleteBackToHomeWithReload: loadItemsFromSupabase failed or empty')
+    console.warn('[meguru] mobCompleteBackToHomeWithReload: loadItemsFromSupabase failed')
     initItemsFromStorage()
   }
   initPcCats()
