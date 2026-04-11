@@ -374,6 +374,8 @@ let pcDragIdx = -1, mobDragIdx = -1
 let mStk: string[] = ['ms-home']
 let mSearchCatKey = 'all'
 let areaFilterMode: 'local' | 'all' = 'local'
+/** ホーム一覧：出品中 / 受渡済 */
+let homeSoldFilter: 'listing' | 'delivered' = 'listing'
 let selectedPref = ''
 let selectedCity = ''
 let activeDistricts: string[] = []
@@ -604,6 +606,31 @@ function toggleAreaFilter(mode: 'local' | 'all') {
   applyMobFilter()
 }
 
+function toggleHomeSoldFilter(mode: 'listing' | 'delivered') {
+  homeSoldFilter = mode
+  ;(['pc', 'm'] as const).forEach((pre) => {
+    document.getElementById(`${pre}-sold-tog-listing`)?.classList.toggle('on', mode === 'listing')
+    document.getElementById(`${pre}-sold-tog-delivered`)?.classList.toggle('on', mode === 'delivered')
+  })
+  applyPcFilter()
+  applyMobFilter()
+}
+
+function applySoldStatusFilter(items: Item[]): Item[] {
+  if (homeSoldFilter === 'listing') return items.filter((i) => !i.sold)
+  return items.filter((i) => !!i.sold)
+}
+
+function pipelineHomePc(): Item[] {
+  const catFiltered = pcCatFilter === 'all' ? ITEMS : ITEMS.filter((i) => i.cat === pcCatFilter)
+  return applyAreaFilter(applySoldStatusFilter(catFiltered))
+}
+
+function pipelineHomeMob(): Item[] {
+  const catFiltered = mobCatFilter === 'all' ? ITEMS : ITEMS.filter((i) => i.cat === mobCatFilter)
+  return applyAreaFilter(applySoldStatusFilter(catFiltered))
+}
+
 function parseItemPrice(it: Item): number {
   if (it.price === '無料') return 0
   return Number(it.price.replace(/[¥,]/g, '')) || 0
@@ -674,14 +701,12 @@ function _showFilterMsg(gridId: string) {
 }
 
 function applyPcFilter() {
-  const catFiltered = pcCatFilter === 'all' ? ITEMS : ITEMS.filter(i => i.cat === pcCatFilter)
-  const base = applyAreaFilter(catFiltered)
+  const base = pipelineHomePc()
   renderGrid(applySortFilter(base, pcSortMode), 'pc-grid', 'pc')
   _showFilterMsg('pc-grid')
 }
 function applyMobFilter() {
-  const catFiltered = mobCatFilter === 'all' ? ITEMS : ITEMS.filter(i => i.cat === mobCatFilter)
-  const base = applyAreaFilter(catFiltered)
+  const base = pipelineHomeMob()
   renderGrid(applySortFilter(base, mobSortMode), 'm-home-grid', 'mob')
   _showFilterMsg('m-home-grid')
   mDoSearch()
@@ -698,9 +723,10 @@ function pcSbCat(btn: HTMLElement, cat: string) {
 function pcSearch() {
   const inp = document.getElementById('pc-search-inp') as HTMLInputElement
   const kw = inp.value.toLowerCase().trim()
-  let list = [...ITEMS]
-  if (kw) list = list.filter(i => i.name.toLowerCase().includes(kw)||i.loc.toLowerCase().includes(kw))
-  renderGrid(list,'pc-grid','pc')
+  let base = pipelineHomePc()
+  if (kw) base = base.filter((i) => i.name.toLowerCase().includes(kw) || i.loc.toLowerCase().includes(kw))
+  renderGrid(applySortFilter(base, pcSortMode), 'pc-grid', 'pc')
+  _showFilterMsg('pc-grid')
 }
 
 /* ── CHIP SVG ICONS (same paths as sidebar) ── */
@@ -812,7 +838,7 @@ function mDoSearch() {
   const inp = document.getElementById('m-search-inp') as HTMLInputElement
   const kw = inp?.value.toLowerCase().trim() ?? ''
   const catFiltered = mSearchCatKey === 'all' ? ITEMS : ITEMS.filter((i) => i.cat === mSearchCatKey)
-  const base = applyAreaFilter(catFiltered)
+  const base = applyAreaFilter(applySoldStatusFilter(catFiltered))
   const list = applySortFilter(
     kw ? base.filter((i) => i.name.toLowerCase().includes(kw) || i.loc.toLowerCase().includes(kw)) : base,
     mobSortMode
@@ -2112,12 +2138,10 @@ async function loadItemsFromSupabase(userId: string | null): Promise<boolean> {
 
 /** PC/モバイルの商品グリッドを ITEMS から再計算して描画し直す（renderGrid の明示実行） */
 function redrawAllItemGridsForce() {
-  const pcCatFiltered = pcCatFilter === 'all' ? ITEMS : ITEMS.filter((i) => i.cat === pcCatFilter)
-  const pcBase = applyAreaFilter(pcCatFiltered)
+  const pcBase = pipelineHomePc()
   renderGrid(applySortFilter(pcBase, pcSortMode), 'pc-grid', 'pc')
   _showFilterMsg('pc-grid')
-  const mobCatFiltered = mobCatFilter === 'all' ? ITEMS : ITEMS.filter((i) => i.cat === mobCatFilter)
-  const mobBase = applyAreaFilter(mobCatFiltered)
+  const mobBase = pipelineHomeMob()
   renderGrid(applySortFilter(mobBase, mobSortMode), 'm-home-grid', 'mob')
   _showFilterMsg('m-home-grid')
   mDoSearch()
@@ -3346,9 +3370,11 @@ export default function Page() {
                     </button>
                     の余りもの
                   </h1>
-                  <div className="area-tog-row" style={{marginTop:'9px'}}>
+                  <div className="area-tog-row" style={{ marginTop: '9px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <button id="pc-area-tog-local" className="area-tog on" onClick={() => toggleAreaFilter('local')}>このエリア</button>
                     <button id="pc-area-tog-all" className="area-tog" onClick={() => toggleAreaFilter('all')}>長野県全体</button>
+                    <button type="button" id="pc-sold-tog-listing" className="home-sold-tog on" onClick={() => toggleHomeSoldFilter('listing')}>出品中</button>
+                    <button type="button" id="pc-sold-tog-delivered" className="home-sold-tog" onClick={() => toggleHomeSoldFilter('delivered')}>受渡済</button>
                   </div>
                 </div>
                 <select className="sort-sel" onChange={(e) => pcSort(e.target.value)}>
@@ -3963,9 +3989,11 @@ export default function Page() {
                 </button>
                 <span style={{fontSize:'.82rem',fontWeight:500,color:'rgba(255,255,255,.75)'}}>の余りもの</span>
               </div>
-              <div className="area-tog-row-mob">
+              <div className="area-tog-row-mob" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
                 <button id="m-area-tog-local" className="area-tog-mob on" onClick={() => toggleAreaFilter('local')}>このエリア</button>
                 <button id="m-area-tog-all" className="area-tog-mob" onClick={() => toggleAreaFilter('all')}>長野県全体</button>
+                <button type="button" id="m-sold-tog-listing" className="home-sold-tog-mob on" onClick={() => toggleHomeSoldFilter('listing')}>出品中</button>
+                <button type="button" id="m-sold-tog-delivered" className="home-sold-tog-mob" onClick={() => toggleHomeSoldFilter('delivered')}>受渡済</button>
               </div>
             </div>
             <div className="m-sbar-wrap"><div className="m-sbar-inner" onClick={() => mNav('ms-search')}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><input placeholder="柿、薪、野菜など…" readOnly style={{cursor:'pointer'}} /></div></div>
