@@ -54,6 +54,7 @@ const EMOJIMAP: Record<string,string> = {fruit:'🍊',veg:'🥒',rice:'🌾',woo
 const BGMAP: Record<string,string> = {fruit:'bk',veg:'bg',rice:'by',wood:'bb',herb:'bg',other:'by',misc:'by'}
 
 const LS_CHAT_READ_PREFIX = 'meguru_chat_read_'
+const LS_FAVORITES_KEY = 'favorites'
 
 function markSupabaseChatRead(supabaseChatId: string) {
   localStorage.setItem(LS_CHAT_READ_PREFIX + supabaseChatId, new Date().toISOString())
@@ -289,7 +290,7 @@ function applyAvatarFileToPreviews(file: File) {
 let curItem: Item = ITEMS[0]
 let curDetailImgIdx = 0
 let curChatId = 'suzuki'
-const favSet = new Set<number>()
+const favIdSet = new Set<string>()
 let pcFreeTog = false, mobFreeTog = false, pcPostCat = 'veg', mobPostCat = 'veg'
 let pcSortMode = 'new', pcCatFilter = 'all'
 let mobSortMode = 'new', mobCatFilter = 'all'
@@ -328,7 +329,9 @@ function pcGo(page: string) {
   if (!['listing','chatlist','mylistings'].includes(page)) document.getElementById('pc-panel')?.classList.add('hidden')
   document.querySelectorAll('.pc-nav-tab').forEach(t => t.classList.remove('on'))
   if (page !== 'userprofile') {
-    const tab = document.getElementById('pct-'+page); if (tab) tab.classList.add('on')
+    const tabId = page === 'complete' ? 'pct-post' : 'pct-' + page
+    const tab = document.getElementById(tabId)
+    if (tab) tab.classList.add('on')
   }
   document.querySelectorAll('.sb-item').forEach(t => t.classList.remove('on'))
   if (page === 'listing') {
@@ -347,12 +350,12 @@ function pcGo(page: string) {
   if (page==='notif') renderPcNotifs()
   if (page==='mypage') { updateMypage('pc'); (document.getElementById('pc-pg-mypage') as HTMLElement).style.display='' }
   if (page==='chatlist') renderChatList('pc')
-  if (page==='mylistings') renderMyListings('pc','出品中のもの',ITEMS.filter(i=>i.mine))
   if (page==='txhistory') renderTxHistory('pc')
   const main = document.getElementById('pc-main'); if (main) main.scrollTop=0
 }
 function pcSubPage(p: string) {
   pcGo(p)
+  if (p === 'mylistings') renderMyListings('pc', '出品中のもの', ITEMS.filter((i) => i.mine))
   if (p === 'profedit') updateAllUserRefs()
 }
 
@@ -650,7 +653,7 @@ function initPcCats() {
 }
 
 /* ── MOBILE NAV ── */
-const MOB_SCENES_NEED_AUTH = new Set(['ms-post','ms-mypage','ms-chatlist','ms-mylistings','ms-txhistory','ms-profedit','ms-notif'])
+const MOB_SCENES_NEED_AUTH = new Set(['ms-post','ms-complete','ms-mypage','ms-chatlist','ms-mylistings','ms-txhistory','ms-profedit','ms-notif'])
 function mNav(id: string) {
   if (MOB_SCENES_NEED_AUTH.has(id) && !CURRENT_USER_ID) {
     window.location.href = '/login'
@@ -675,7 +678,6 @@ function mNav(id: string) {
   if (id==='ms-notif') renderMobNotifs()
   if (id==='ms-mypage') updateMypage('mob')
   if (id==='ms-txhistory') renderTxHistory('mob')
-  if (id==='ms-mylistings') { const t=document.getElementById('m-mylistings-title'); if(t)t.textContent='出品中のもの'; renderMyListings('mob','出品中のもの',ITEMS.filter(i=>i.mine)) }
   if (id === 'ms-profedit') updateAllUserRefs()
 }
 function mBack() {
@@ -911,7 +913,7 @@ function openDetail(id: number, mode: string) {
     setAvt(document.getElementById('pc-det-avt') as HTMLElement|null)
     const sname=document.getElementById('pc-det-sname'); if(sname) sname.textContent=sellerName
     const sloc=document.getElementById('pc-det-sloc'); if(sloc) sloc.textContent=sellerLoc
-    const fb=document.getElementById('pc-det-fav-btn'); if(fb){ fb.textContent=favSet.has(curItem.id)?'❤️':'🤍'; fb.classList.toggle('on',favSet.has(curItem.id)) }
+    applyFavButtonState('pc', curItem)
     const main=document.getElementById('pc-main'); if(main) main.scrollTop=0
     // SOLD状態の反映
     const pcSoldBanner=document.getElementById('pc-det-sold-banner'); if(pcSoldBanner) pcSoldBanner.style.display=curItem.sold?'flex':'none'
@@ -939,7 +941,7 @@ function openDetail(id: number, mode: string) {
     const date=document.getElementById('m-d-date'); if(date) date.textContent='本日'
     const mExp = document.getElementById('m-det-expiry')
     if (mExp) { const r=formatExpiry(curItem.expiry); mExp.textContent=r.text; mExp.style.color=r.color; mExp.style.fontWeight=r.color?'600':'' }
-    const fb=document.getElementById('m-fav-btn'); if(fb){ fb.textContent=favSet.has(curItem.id)?'❤️':'🤍'; fb.classList.toggle('on',favSet.has(curItem.id)) }
+    applyFavButtonState('mob', curItem)
     // SOLD状態の反映
     const mSoldBanner=document.getElementById('m-det-sold-banner'); if(mSoldBanner) mSoldBanner.style.display=curItem.sold?'flex':'none'
     const showWantMob = !curItem.mine && !curItem.sold
@@ -955,19 +957,147 @@ function openDetail(id: number, mode: string) {
   }
 }
 
-/* ── FAV ── */
-function toggleFav(mode: string) {
-  const btn = document.getElementById(mode==='pc'?'pc-det-fav-btn':'m-fav-btn')
-  if (!btn) return
-  if (favSet.has(curItem.id)) { favSet.delete(curItem.id); btn.textContent='🤍'; btn.classList.remove('on'); showToast('お気に入りから外しました') }
-  else { favSet.add(curItem.id); btn.textContent='❤️'; btn.classList.add('on'); showToast('お気に入りに追加しました') }
-  const pfs=document.getElementById('pc-fav-sub'); if(pfs) pfs.textContent=`${favSet.size}件`
-  const mfs=document.getElementById('m-fav-sub'); if(mfs) mfs.textContent=`${favSet.size}件`
+/* ── FAV（localStorage `favorites` + Supabase 行取得） ── */
+function isProbablyItemUuid(s: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)
 }
-function showFavs(mode: string) {
-  const favItems = ITEMS.filter(i=>favSet.has(i.id))
-  if (mode==='pc') { renderMyListings('pc','お気に入り',favItems); pcGo('mylistings') }
-  else { renderMyListings('mob','お気に入り',favItems); mNav('ms-mylistings') }
+
+function itemFavoriteStorageKey(it: Item): string {
+  if (it.supabaseId) return it.supabaseId
+  return `local:${it.id}`
+}
+
+function loadFavoritesFromStorage() {
+  favIdSet.clear()
+  try {
+    const raw = localStorage.getItem(LS_FAVORITES_KEY)
+    if (!raw) return
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return
+    for (const x of parsed) {
+      if (typeof x === 'string' && x) favIdSet.add(x)
+      else if (typeof x === 'number' && Number.isFinite(x)) favIdSet.add(String(x))
+    }
+  } catch (e) {
+    console.warn('[meguru] loadFavoritesFromStorage:', e)
+  }
+}
+
+function persistFavorites() {
+  try {
+    localStorage.setItem(LS_FAVORITES_KEY, JSON.stringify([...favIdSet]))
+  } catch (e) {
+    console.warn('[meguru] persistFavorites:', e)
+  }
+}
+
+function isItemFavorited(it: Item): boolean {
+  if (favIdSet.has(itemFavoriteStorageKey(it))) return true
+  if (it.supabaseId && favIdSet.has(it.supabaseId)) return true
+  if (favIdSet.has(`local:${it.id}`)) return true
+  if (favIdSet.has(String(it.id))) return true
+  return false
+}
+
+function removeAllFavoriteStorageKeysForItem(it: Item) {
+  const keys = [itemFavoriteStorageKey(it), it.supabaseId, `local:${it.id}`, String(it.id)].filter(
+    (k): k is string => typeof k === 'string' && k.length > 0
+  )
+  for (const k of keys) favIdSet.delete(k)
+}
+
+function applyFavButtonState(mode: string, it: Item) {
+  const on = isItemFavorited(it)
+  const heart = on ? '❤️' : '🤍'
+  if (mode === 'pc') {
+    const d = document.getElementById('pc-det-fav-btn')
+    if (d) {
+      d.textContent = heart
+      d.classList.toggle('on', on)
+    }
+    const p = document.getElementById('pc-fav-btn')
+    if (p) {
+      p.textContent = heart
+      p.classList.toggle('on', on)
+    }
+  } else {
+    const m = document.getElementById('m-fav-btn')
+    if (m) {
+      m.textContent = heart
+      m.classList.toggle('on', on)
+    }
+  }
+}
+
+async function fetchFavoriteItemsForDisplay(): Promise<Item[]> {
+  const keys = [...favIdSet]
+  const uuids = keys.filter(isProbablyItemUuid)
+  const otherKeys = keys.filter((k) => !isProbablyItemUuid(k))
+
+  let fromSb: Item[] = []
+  if (uuids.length > 0) {
+    const supabase = createClient()
+    const { data, error } = await supabase.from('items').select('*, profiles(name, area)').in('id', uuids)
+    if (error) console.warn('[meguru] fetchFavoriteItemsForDisplay:', error.message, error.code)
+    else if (data?.length) {
+      fromSb = data.map((row) => mapSupabaseItem(row, CURRENT_USER_ID))
+      const order = new Map(uuids.map((id, i) => [id, i]))
+      fromSb.sort((a, b) => (order.get(a.supabaseId!) ?? 99) - (order.get(b.supabaseId!) ?? 99))
+    }
+  }
+
+  const seen = new Set<string>()
+  const pushDedup = (it: Item, list: Item[]) => {
+    const k = it.supabaseId ? it.supabaseId : `local:${it.id}`
+    if (seen.has(k)) return
+    seen.add(k)
+    list.push(it)
+  }
+
+  const out: Item[] = []
+  for (const it of fromSb) pushDedup(it, out)
+
+  for (const k of otherKeys) {
+    let num: number | null = null
+    if (k.startsWith('local:')) num = Number(k.slice(6))
+    else if (/^\d+$/.test(k)) num = Number(k)
+    if (num === null || Number.isNaN(num)) continue
+    const found = ITEMS.find((i) => i.id === num)
+    if (found) pushDedup(found, out)
+  }
+
+  return out
+}
+
+function toggleFav(mode: string) {
+  if (isItemFavorited(curItem)) {
+    removeAllFavoriteStorageKeysForItem(curItem)
+    showToast('お気に入りから外しました')
+  } else {
+    favIdSet.add(itemFavoriteStorageKey(curItem))
+    showToast('お気に入りに追加しました')
+  }
+  persistFavorites()
+  applyFavButtonState(mode, curItem)
+  const pfs = document.getElementById('pc-fav-sub')
+  if (pfs) pfs.textContent = `${favIdSet.size}件`
+  const mfs = document.getElementById('m-fav-sub')
+  if (mfs) mfs.textContent = `${favIdSet.size}件`
+}
+
+async function showFavs(mode: string) {
+  if (!CURRENT_USER_ID) {
+    window.location.href = '/login'
+    return
+  }
+  const list = await fetchFavoriteItemsForDisplay()
+  if (mode === 'pc') {
+    pcGo('mylistings')
+    renderMyListings('pc', 'お気に入り', list)
+  } else {
+    mNav('ms-mylistings')
+    renderMyListings('mob', 'お気に入り', list)
+  }
 }
 
 /* ── CHAT ── */
@@ -1891,13 +2021,13 @@ function updateMypage(mode: string) {
   if (mode==='pc') {
     const cnt=document.getElementById('pc-mp-cnt'); if(cnt) cnt.textContent=String(mine.length)
     const sub=document.getElementById('pc-mp-sub'); if(sub) sub.textContent=`${mine.length}件出品中`
-    const fs=document.getElementById('pc-fav-sub'); if(fs) fs.textContent=`${favSet.size}件`
+    const fs=document.getElementById('pc-fav-sub'); if(fs) fs.textContent=`${favIdSet.size}件`
     const txc = document.getElementById('pc-mp-tx-cnt'); if (txc) txc.textContent = String(txDone)
     const txs = document.getElementById('pc-mp-tx-row-sub'); if (txs) txs.textContent = `完了${txDone}件`
   } else {
     const cnt=document.getElementById('m-mp-cnt'); if(cnt) cnt.textContent=String(mine.length)
     const sub=document.getElementById('m-mp-sub'); if(sub) sub.textContent=`${mine.length}件出品中`
-    const fs=document.getElementById('m-fav-sub'); if(fs) fs.textContent=`${favSet.size}件`
+    const fs=document.getElementById('m-fav-sub'); if(fs) fs.textContent=`${favIdSet.size}件`
     const txc = document.getElementById('m-mp-tx-cnt'); if (txc) txc.textContent = String(txDone)
     const txs = document.getElementById('m-mp-tx-row-sub'); if (txs) txs.textContent = `完了${txDone}件`
   }
@@ -2099,6 +2229,39 @@ function onPostLocCityChange(sel: HTMLSelectElement) {
   }
 }
 
+function formatPostedItemPriceLine(it: Item): string {
+  const u = (it.unit || '').trim()
+  return u ? `${it.price} ${u}`.trim() : it.price
+}
+
+/** 出品完了画面に商品名・価格を表示（リングは 🌿 固定） */
+function fillPostCompleteUI(it: Item) {
+  document.querySelectorAll('.pc-comp-ring, .m-comp-ring').forEach((el) => {
+    el.textContent = '🌿'
+  })
+  const priceLine = formatPostedItemPriceLine(it)
+  const pcName = document.getElementById('pc-cc-name')
+  const pcPrice = document.getElementById('pc-cc-price')
+  const mName = document.getElementById('m-cc-name')
+  const mPrice = document.getElementById('m-cc-price')
+  if (pcName) pcName.textContent = it.name
+  if (pcPrice) pcPrice.textContent = priceLine
+  if (mName) mName.textContent = it.name
+  if (mPrice) mPrice.textContent = priceLine
+}
+
+/** 出品完了から「続けて出品」：スタック上の完了を外して出品フォームへ */
+function mobReturnToPostForm() {
+  const cur = document.querySelector('#mob-root .scn.active')
+  if (cur) cur.classList.remove('active')
+  if (mStk.length && mStk[mStk.length - 1] === 'ms-complete') mStk.pop()
+  const post = document.getElementById('ms-post')
+  if (post) {
+    post.classList.add('active')
+    post.querySelector('.m-body')?.scrollTo(0, 0)
+  }
+}
+
 async function submitPost(mode: string) {
   if (!CURRENT_USER_ID) {
     window.location.href = '/login'
@@ -2254,14 +2417,14 @@ async function submitPost(mode: string) {
   initPcCats()
   initMobCats()
   redrawAllItemGridsForce()
-  showToast('出品が完了しました')
+  fillPostCompleteUI(newItem)
   if (isPC) {
-    pcGo('listing')
+    pcGo('complete')
   } else {
     document.querySelectorAll('#mob-root .m-nt').forEach((b) => b.classList.remove('on'))
     document.querySelectorAll('[data-t="ms-home"]').forEach((b) => b.classList.add('on'))
-    mStk = []
-    mNav('ms-home')
+    mNav('ms-complete')
+    document.querySelector('#ms-complete .m-body')?.scrollTo(0, 0)
   }
 }
 
@@ -2599,6 +2762,7 @@ export default function Page() {
     w.onPostLocCityChange = onPostLocCityChange
     w.toggleAreaFilter= toggleAreaFilter
     w.saveProfile = saveProfile
+    w.showFavs = showFavs
 
     // ── 認証状態変化の監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -2634,6 +2798,7 @@ export default function Page() {
       renderSkeletonGrid('m-home-grid')
 
       initAreaFromStorage()
+      loadFavoritesFromStorage()
       updateAreaDisplay()
 
       const { data: { session } } = await supabase.auth.getSession()
@@ -3004,7 +3169,7 @@ export default function Page() {
                       <button className="pc-det-fav" id="pc-det-fav-btn" onClick={() => toggleFav('pc')}>🤍</button>
                       <button type="button" className="pc-det-chat pc-det-want" id="pc-det-chat-btn" onClick={() => void openChatWithSupabase('pc')}>
                         <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                        受け取りたい
+                        連絡する
                       </button>
                     </div>
                     <hr className="pc-det-divider" />
@@ -3035,18 +3200,36 @@ export default function Page() {
             {/* COMPLETE */}
             <div id="pc-pg-complete" style={{display:'none'}}>
               <div className="pc-complete">
-                <div className="pc-comp-ring">🎉</div>
+                <div className="pc-comp-ring">🌿</div>
                 <h2 className="pc-comp-title">出品しました！</h2>
-                <p className="pc-comp-sub">地域の掲示板に載りました。<br />欲しい人からチャットが届いたらお知らせします。</p>
-                <div className="pc-comp-card">
-                  <p className="pc-comp-card-label">出品した余りもの</p>
-                  <div className="cc-row"><span className="cc-e" id="pc-cc-emoji">📦</span><div className="cc-t"><strong id="pc-cc-name">—</strong><br /><span id="pc-cc-price">—</span></div></div>
-                  <div className="cc-row"><span className="cc-e">📍</span><div className="cc-t" id="pc-cc-loc">—</div></div>
-                  <div className="cc-row"><span className="cc-e">✅</span><div className="cc-t">手数料：取引成立時のみ 12%</div></div>
+                <p className="pc-comp-sub">地域の掲示板に載りました。欲しい人からチャットが届いたらお知らせします。</p>
+                <div className="pc-comp-card" style={{ textAlign: 'center', padding: '20px 18px' }}>
+                  <p id="pc-cc-name" style={{ fontSize: '1.05rem', fontWeight: 700, color: '#2D5A27', margin: '0 0 10px', lineHeight: 1.45 }}>
+                    —
+                  </p>
+                  <p id="pc-cc-price" style={{ fontSize: '0.98rem', fontWeight: 600, color: '#2D5A27', margin: 0 }}>
+                    —
+                  </p>
                 </div>
                 <div className="pc-comp-btns">
-                  <button className="pc-comp-main" onClick={() => { void refreshItemGridsFromSupabaseThen(() => pcGo('listing')) }}>一覧に戻る</button>
-                  <button className="pc-comp-sec" onClick={() => pcGo('post')}>続けて出品する</button>
+                  <button
+                    type="button"
+                    className="pc-comp-main"
+                    style={{ background: '#2D5A27' }}
+                    onClick={() => {
+                      void refreshItemGridsFromSupabaseThen(() => pcGo('listing'))
+                    }}
+                  >
+                    一覧に戻る
+                  </button>
+                  <button
+                    type="button"
+                    className="pc-comp-sec"
+                    style={{ borderColor: '#2D5A27', color: '#2D5A27' }}
+                    onClick={() => pcGo('post')}
+                  >
+                    続けて出品する
+                  </button>
                 </div>
               </div>
             </div>
@@ -3075,7 +3258,7 @@ export default function Page() {
               <div className="pc-mp-grid">
                 <div className="pc-mp-row" onClick={() => pcSubPage('mylistings')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div><div><div className="pc-mp-row-label">出品中のもの</div><div className="pc-mp-row-sub" id="pc-mp-sub">—</div></div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => pcSubPage('txhistory')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="14" y2="16"/></svg></div><div><div className="pc-mp-row-label">取引履歴</div><div className="pc-mp-row-sub" id="pc-mp-tx-row-sub">完了0件</div></div><span className="pc-mp-arrow">›</span></div>
-                <div className="pc-mp-row" onClick={() => showFavs('pc')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24" className="mp-ico-fill"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div><div className="pc-mp-row-label">お気に入り</div><div className="pc-mp-row-sub" id="pc-fav-sub">0件</div></div><span className="pc-mp-arrow">›</span></div>
+                <div className="pc-mp-row" onClick={() => void showFavs('pc')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24" className="mp-ico-fill"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div><div className="pc-mp-row-label">お気に入り</div><div className="pc-mp-row-sub" id="pc-fav-sub">0件</div></div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => { if (!CURRENT_USER_ID) { showToast('ログインしてください'); return } void openPublicProfile(CURRENT_USER_ID, 'pc') }}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div><div className="pc-mp-row-label">プロフィールを表示</div><div className="pc-mp-row-sub">公開ページ（出品・評価）</div></div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => pcSubPage('profedit')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div className="pc-mp-row-label">プロフィール編集</div><span className="pc-mp-arrow">›</span></div>
                 <div className="pc-mp-row" onClick={() => showToast('設定は準備中です')}><div className="pc-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div><div className="pc-mp-row-label">設定</div><span className="pc-mp-arrow">›</span></div>
@@ -3171,7 +3354,7 @@ export default function Page() {
               </div>
               <div className="panel-actions">
                 <button className="p-fav" id="pc-fav-btn" onClick={() => toggleFav('pc')}>🤍</button>
-                <button type="button" className="p-chat p-want" onClick={() => void openChatWithSupabase('pc')}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>受け取りたい</button>
+                <button type="button" className="p-chat p-want" onClick={() => void openChatWithSupabase('pc')}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>連絡する</button>
               </div>
             </div>
             {/* Chat Panel */}
@@ -3329,9 +3512,9 @@ export default function Page() {
             </div>
             <p className="m-mp-sec">出品・取引</p>
             <div style={{background:'#fff'}}>
-              <div className="m-mp-row" onClick={() => mNav('ms-mylistings')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div><div style={{flex:1}}><div className="m-mp-row-label">出品中のもの</div><div className="m-mp-row-sub" id="m-mp-sub">—</div></div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => { mNav('ms-mylistings'); renderMyListings('mob', '出品中のもの', ITEMS.filter((i) => i.mine)) }}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div><div style={{flex:1}}><div className="m-mp-row-label">出品中のもの</div><div className="m-mp-row-sub" id="m-mp-sub">—</div></div><span className="m-mp-arrow">›</span></div>
               <div className="m-mp-row" onClick={() => mNav('ms-txhistory')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="14" y2="16"/></svg></div><div style={{flex:1}}><div className="m-mp-row-label">取引履歴</div><div className="m-mp-row-sub" id="m-mp-tx-row-sub">完了0件</div></div><span className="m-mp-arrow">›</span></div>
-              <div className="m-mp-row" onClick={() => showFavs('mob')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24" className="mp-ico-fill"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div style={{flex:1}}><div className="m-mp-row-label">お気に入り</div><div className="m-mp-row-sub" id="m-fav-sub">0件</div></div><span className="m-mp-arrow">›</span></div>
+              <div className="m-mp-row" onClick={() => void showFavs('mob')}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24" className="mp-ico-fill"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div style={{flex:1}}><div className="m-mp-row-label">お気に入り</div><div className="m-mp-row-sub" id="m-fav-sub">0件</div></div><span className="m-mp-arrow">›</span></div>
               <div className="m-mp-row" onClick={() => { if (!CURRENT_USER_ID) { showToast('ログインしてください'); return } void openPublicProfile(CURRENT_USER_ID, 'mob') }}><div className="m-mp-row-icon mp-ico-wrap" aria-hidden><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div style={{flex:1}}><div className="m-mp-row-label">プロフィールを表示</div><div className="m-mp-row-sub">公開ページ</div></div><span className="m-mp-arrow">›</span></div>
             </div>
             <p className="m-mp-sec">アカウント</p>
@@ -3454,17 +3637,35 @@ export default function Page() {
           <div className="m-tbar"><span className="m-logo">MEGURU</span></div>
           <div className="m-body">
             <div className="m-comp-wrap">
-              <div className="m-comp-ring">🎉</div>
+              <div className="m-comp-ring">🌿</div>
               <h2 className="m-comp-title">出品しました！</h2>
-              <p className="m-comp-sub">地域の掲示板に載りました。<br />欲しい人からチャットが届いたらお知らせします。</p>
-              <div className="m-comp-card">
-                <p className="m-comp-label">出品した余りもの</p>
-                <div className="cc-row"><span className="cc-e" id="m-cc-emoji">📦</span><div className="cc-t"><strong id="m-cc-name">—</strong><br /><span id="m-cc-price">—</span></div></div>
-                <div className="cc-row"><span className="cc-e">📍</span><div className="cc-t" id="m-cc-loc">—</div></div>
-                <div className="cc-row"><span className="cc-e">✅</span><div className="cc-t">手数料：取引成立時のみ 12%</div></div>
+              <p className="m-comp-sub">地域の掲示板に載りました。欲しい人からチャットが届いたらお知らせします。</p>
+              <div className="m-comp-card" style={{ textAlign: 'center', padding: '18px 16px' }}>
+                <p id="m-cc-name" style={{ fontSize: '1.02rem', fontWeight: 700, color: '#2D5A27', margin: '0 0 10px', lineHeight: 1.45 }}>
+                  —
+                </p>
+                <p id="m-cc-price" style={{ fontSize: '0.94rem', fontWeight: 600, color: '#2D5A27', margin: 0 }}>
+                  —
+                </p>
               </div>
-              <button className="btn-main" onClick={() => { void mobCompleteBackToHomeWithReload() }}>一覧に戻る</button>
-              <button className="btn-sec" onClick={() => mNav('ms-post')}>続けて出品する</button>
+              <button
+                type="button"
+                className="btn-main"
+                style={{ background: '#2D5A27' }}
+                onClick={() => {
+                  void mobCompleteBackToHomeWithReload()
+                }}
+              >
+                一覧に戻る
+              </button>
+              <button
+                type="button"
+                className="btn-sec"
+                style={{ borderColor: '#2D5A27', color: '#2D5A27' }}
+                onClick={() => mobReturnToPostForm()}
+              >
+                続けて出品する
+              </button>
             </div>
           </div>
         </div>
@@ -3508,7 +3709,7 @@ export default function Page() {
           </div>
           <div className="m-det-actions">
             <button className="m-fav" id="m-fav-btn" onClick={() => toggleFav('mob')}>🤍</button>
-            <button type="button" className="m-chat m-det-want" id="m-det-chat-btn" onClick={() => void openChatWithSupabase('mob')}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>受け取りたい</button>
+            <button type="button" className="m-chat m-det-want" id="m-det-chat-btn" onClick={() => void openChatWithSupabase('mob')}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>連絡する</button>
           </div>
         </div>
 
