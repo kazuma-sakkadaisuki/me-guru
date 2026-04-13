@@ -51,9 +51,109 @@ const TXHISTORY = [
   {emoji:'🥒',name:'きゅうり 3袋',meta:'山田さん · 駒ヶ根市中沢',price:'¥600',status:'進行中',date:'本日'},
   {emoji:'🌰',name:'山栗 約2kg',meta:'小林さん · 駒ヶ根市東伊那',price:'無料',status:'完了',date:'2025/9/28'},
 ]
-const CATMAP: Record<string,string> = {fruit:'🍊 果物',veg:'🥒 野菜',rice:'🌾 米',wood:'🪵 薪・木材',herb:'🌿 山菜',other:'🧴 加工品',misc:'📦 その他'}
-const EMOJIMAP: Record<string,string> = {fruit:'🍊',veg:'🥒',rice:'🌾',wood:'🪵',herb:'🌿',other:'🧴',misc:'📦'}
-const BGMAP: Record<string,string> = {fruit:'bk',veg:'bg',rice:'by',wood:'bb',herb:'bg',other:'by',misc:'by'}
+const CATMAP: Record<string,string> = {
+  fruit: '🍎 果物',
+  veg: '🥕 野菜',
+  rice: '🌾 米・穀物',
+  wood: '🪵 薪・木材',
+  herb: '🌿 山菜',
+  other: '🏺 加工品',
+  misc: '📦 なんでも',
+  land: '🏡 土地・農地',
+}
+const EMOJIMAP: Record<string,string> = {
+  fruit: '🍎',
+  veg: '🥕',
+  rice: '🌾',
+  wood: '🪵',
+  herb: '🌿',
+  other: '🏺',
+  misc: '📦',
+  land: '🏡',
+}
+const BGMAP: Record<string,string> = {
+  fruit: 'bk',
+  veg: 'bg',
+  rice: 'by',
+  wood: 'bb',
+  herb: 'bg',
+  other: 'by',
+  misc: 'by',
+  land: 'bb',
+}
+
+const POST_CATEGORY_PICKS: { key: string; emoji: string; label: string }[] = [
+  { key: 'veg', emoji: '🥕', label: '野菜' },
+  { key: 'fruit', emoji: '🍎', label: '果物' },
+  { key: 'rice', emoji: '🌾', label: '米・穀物' },
+  { key: 'other', emoji: '🏺', label: '加工品' },
+  { key: 'wood', emoji: '🪵', label: '薪・木材' },
+  { key: 'herb', emoji: '🌿', label: '山菜' },
+  { key: 'land', emoji: '🏡', label: '土地・農地' },
+  { key: 'misc', emoji: '📦', label: 'なんでも' },
+]
+
+const LAND_INFO_MARKER = '\n\n---土地情報---\n'
+
+type LandMeta = {
+  landType?: string
+  area?: string
+  areaUnit?: string
+  lendCondition?: string
+  purpose?: string
+  period?: string
+  landStatus?: string
+}
+
+function splitDescriptionForLand(raw: string): { main: string; land: LandMeta | null } {
+  const idx = raw.indexOf(LAND_INFO_MARKER)
+  if (idx < 0) return { main: raw, land: null }
+  const main = raw.slice(0, idx).trimEnd()
+  const jsonPart = raw.slice(idx + LAND_INFO_MARKER.length).trim()
+  try {
+    const parsed = JSON.parse(jsonPart) as LandMeta
+    if (parsed && typeof parsed === 'object') return { main, land: parsed }
+  } catch {
+    /* ignore */
+  }
+  return { main: raw, land: null }
+}
+
+function escapeHtmlAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function applyItemDescriptionToDetail(rawDesc: string, mode: 'pc' | 'mob') {
+  const { main, land } = splitDescriptionForLand(rawDesc)
+  const descId = mode === 'pc' ? 'pc-det-desc' : 'm-d-desc'
+  const descEl = document.getElementById(descId)
+  if (descEl) descEl.textContent = main.trim() ? main : '—'
+  const wrapId = mode === 'pc' ? 'pc-det-land-wrap' : 'm-det-land-wrap'
+  const boxId = mode === 'pc' ? 'pc-det-land-box' : 'm-det-land-box'
+  const wrap = document.getElementById(wrapId)
+  const box = document.getElementById(boxId)
+  if (!wrap || !box) return
+  if (!land || !Object.keys(land).some((k) => String((land as Record<string, unknown>)[k] || '').trim())) {
+    wrap.style.display = 'none'
+    box.innerHTML = ''
+    return
+  }
+  wrap.style.display = ''
+  const rows: [string, string][] = []
+  if (land.landType) rows.push(['土地の種類', land.landType])
+  if (land.area) rows.push(['面積', `${land.area}${land.areaUnit || ''}`])
+  if (land.lendCondition) rows.push(['貸出条件', land.lendCondition])
+  if (land.purpose) rows.push(['希望する使用目的', land.purpose])
+  if (land.period) rows.push(['契約期間', land.period])
+  if (land.landStatus) rows.push(['現在の状態', land.landStatus])
+  const inner = rows
+    .map(
+      ([k, v]) =>
+        `<div class="land-meta-row"><span class="land-meta-k">${escapeHtmlAttr(k)}</span><span class="land-meta-v">${escapeHtmlAttr(v)}</span></div>`
+    )
+    .join('')
+  box.innerHTML = `<div class="land-info-card"><p class="land-info-title">土地・農地の情報</p>${inner}</div>`
+}
 
 const LS_CHAT_READ_PREFIX = 'meguru_chat_read_'
 const LS_FAVORITES_KEY = 'favorites'
@@ -201,6 +301,7 @@ const CAT_CARD_ICONS: Record<string, string> = {
   other: `<svg class="cat-icon" viewBox="0 0 48 48"><rect x="14" y="3" width="20" height="7" rx="3.5" fill="#2D5A27"/><rect x="16" y="9" width="16" height="6" rx="2" fill="#6a8a6a"/><rect x="10" y="14" width="28" height="30" rx="5" fill="#8aaa8a"/><rect x="12" y="41" width="24" height="4" rx="2" fill="#6a8a6a"/><rect x="14" y="18" width="5" height="20" rx="2.5" fill="white" opacity="0.22"/></svg>`,
   rice: `<svg class="cat-icon" viewBox="0 0 48 48"><ellipse cx="24" cy="28" rx="14" ry="10" fill="#C4581A" opacity="0.35"/><path d="M24 8 Q18 18 14 28 Q20 32 24 38 Q28 32 34 28 Q30 18 24 8z" fill="#2D5A27"/><path d="M24 14 L24 34 M18 20 Q24 22 30 20 M17 26 Q24 28 31 26" stroke="#F8F4EE" stroke-width="1.2" fill="none" opacity="0.5"/></svg>`,
   misc: `<svg class="cat-icon" viewBox="0 0 48 48"><path d="M6 18 L24 8 L42 18 L42 40 Q42 44 38 44 L10 44 Q6 44 6 40z" fill="#8a8478"/><path d="M6 18 L24 28 L42 18" stroke="#6a6468" stroke-width="2" fill="none"/><line x1="24" y1="28" x2="24" y2="44" stroke="#6a6468" stroke-width="2"/></svg>`,
+  land: `<svg class="cat-icon" viewBox="0 0 48 48"><path d="M4 38 L16 22 L24 28 L32 18 L44 32 L44 40 L4 40 Z" fill="#3d7a34"/><path d="M4 38 L44 38" stroke="#2D5A27" stroke-width="2" fill="none"/><rect x="18" y="14" width="12" height="10" rx="1" fill="#C4581A" opacity="0.85"/><path d="M21 14 L21 10 L24 7 L27 10 L27 14" fill="#2D5A27"/></svg>`,
 }
 /** メッセージ以外の固定お知らせ（チャットとは別・タップでチャットは開かない） */
 const STATIC_NOTIF_DEFS: { id: string; icon: string; cls: string; title: string; sub: string; timeLabel: string }[] = [
@@ -368,6 +469,7 @@ let pcSortMode = 'new', pcCatFilter = 'all'
 let mobSortMode = 'new', mobCatFilter = 'all'
 let pcImages: string[] = [], mobImages: string[] = []
 let pcCondition = '', mobCondition = '', pcPesticide = '', mobPesticide = ''
+let pcWoodDry = '', mobWoodDry = '', pcWoodTree = '', mobWoodTree = ''
 let CURRENT_USER_ID: string | null = null
 let CACHED_USER_EMAIL: string | null = null
 let pcDragIdx = -1, mobDragIdx = -1
@@ -418,6 +520,8 @@ function pcGo(page: string) {
       wood: 'sb-wood',
       herb: 'sb-herb',
       other: 'sb-other',
+      land: 'sb-land',
+      misc: 'sb-misc',
     }
     const sid = PC_CAT_SB[pcCatFilter]
     ;(sid ? document.getElementById(sid) : document.getElementById('sb-all'))?.classList.add('on')
@@ -427,6 +531,7 @@ function pcGo(page: string) {
   if (page==='chatlist') renderChatList('pc')
   if (page==='txhistory') renderTxHistory('pc')
   if (page === 'settings') hydrateSettingsScreen()
+  if (page === 'post') showPostCategoryStep('pc')
   const main = document.getElementById('pc-main'); if (main) main.scrollTop=0
 }
 function pcSubPage(p: string) {
@@ -740,6 +845,7 @@ const CHIP_SVG_PATHS: Record<string,string> = {
   other: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/>',
   rice: '<path d="M12 22 Q12 8 18 4 Q20 12 18 22 Q15 18 12 22z" fill="#2D5A27"/><path d="M12 22 Q12 8 6 4 Q4 12 6 22 Q9 18 12 22z" fill="#3d7a34"/><ellipse cx="12" cy="20" rx="3" ry="2" fill="#C4581A" opacity="0.4"/>',
   misc:  '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+  land: '<path d="M3 21 L9 12 L14 16 L21 8 L21 21 Z" fill="#2D5A27"/><rect x="10" y="10" width="6" height="5" rx="0.5" fill="#C4581A"/><path d="M3 21 L21 21" stroke="#7A5230" stroke-width="1.2" fill="none"/>',
 }
 function chipSvg(cat: string): string {
   const p = CHIP_SVG_PATHS[cat] ?? CHIP_SVG_PATHS.misc
@@ -777,6 +883,7 @@ function mNav(id: string) {
     mDoSearch()
   }
   if (id==='ms-notif') renderMobNotifs()
+  if (id === 'ms-post') showPostCategoryStep('mob')
   if (id==='ms-mypage') updateMypage('mob')
   if (id==='ms-txhistory') renderTxHistory('mob')
   if (id === 'ms-profedit') updateAllUserRefs()
@@ -803,7 +910,17 @@ function mTab(btn: HTMLElement) {
 
 /* ── MOB CATS ── */
 function initMobCats() {
-  const cats = [{k:'all',l:'すべて'},{k:'fruit',l:'果物'},{k:'veg',l:'野菜'},{k:'rice',l:'米'},{k:'wood',l:'薪・木材'},{k:'herb',l:'山菜'},{k:'other',l:'加工品'}]
+  const cats = [
+    { k: 'all', l: 'すべて' },
+    { k: 'fruit', l: '果物' },
+    { k: 'veg', l: '野菜' },
+    { k: 'rice', l: '米・穀物' },
+    { k: 'wood', l: '薪・木材' },
+    { k: 'herb', l: '山菜' },
+    { k: 'other', l: '加工品' },
+    { k: 'land', l: '土地・農地' },
+    { k: 'misc', l: 'なんでも' },
+  ]
   if (!cats.some((c) => c.k === mobCatFilter)) mobCatFilter = 'all'
   const homeCats = document.getElementById('m-home-cats')
   if (homeCats) {
@@ -833,6 +950,8 @@ const M_SEARCH_CAT_LABELS: Record<string, string> = {
   wood: '薪・木材',
   herb: '山菜',
   other: '加工品',
+  land: '土地・農地',
+  misc: 'なんでも',
 }
 
 function mDoSearch() {
@@ -1077,7 +1196,7 @@ function openDetail(id: number, mode: string) {
     const title=document.getElementById('pc-det-title'); if(title) title.textContent=curItem.name
     const price=document.getElementById('pc-det-price'); if(price) price.innerHTML=`${curItem.price} <small>${curItem.unit}</small>`
     const cat=document.getElementById('pc-det-cat-tag'); if(cat) cat.textContent=CATMAP[curItem.cat]||curItem.cat
-    const desc=document.getElementById('pc-det-desc'); if(desc) desc.textContent=curItem.desc
+    applyItemDescriptionToDetail(curItem.desc, 'pc')
     const loc=document.getElementById('pc-det-loc'); if(loc) loc.textContent=curItem.loc
     const date=document.getElementById('pc-det-date'); if(date) date.textContent='本日'
     const pcExp = document.getElementById('pc-det-expiry')
@@ -1107,7 +1226,7 @@ function openDetail(id: number, mode: string) {
     const sloc=document.getElementById('m-d-sloc'); if(sloc) sloc.textContent=sellerLoc
     const title=document.getElementById('m-d-title'); if(title) title.textContent=curItem.name
     const price=document.getElementById('m-d-price'); if(price) price.innerHTML=`${curItem.price} <small>${curItem.unit}</small>`
-    const desc=document.getElementById('m-d-desc'); if(desc) desc.textContent=curItem.desc
+    applyItemDescriptionToDetail(curItem.desc, 'mob')
     const qty=document.getElementById('m-d-qty'); if(qty) qty.textContent=curItem.unit||'記載なし'
     const cat=document.getElementById('m-d-cat'); if(cat) cat.textContent=CATMAP[curItem.cat]||curItem.cat
     const date=document.getElementById('m-d-date'); if(date) date.textContent='本日'
@@ -2449,6 +2568,99 @@ function selCat(el: HTMLElement, mode: string) {
   el.closest('.fchips')?.querySelectorAll('.fchip').forEach(c=>c.classList.remove('on')); el.classList.add('on')
   if (mode==='pc') pcPostCat=el.dataset.v||'veg'; else mobPostCat=el.dataset.v||'veg'
 }
+
+function postingGroup(cat: string): 'produce' | 'wood' | 'land' | 'misc' {
+  if (cat === 'wood') return 'wood'
+  if (cat === 'land') return 'land'
+  if (cat === 'misc') return 'misc'
+  return 'produce'
+}
+
+function showPostCategoryStep(mode: 'pc' | 'mob') {
+  const pre = mode === 'pc' ? 'pc' : 'm'
+  const catEl = document.getElementById(`${pre}-post-step-cat`)
+  const formEl = document.getElementById(`${pre}-post-step-form`)
+  if (catEl) catEl.style.display = ''
+  if (formEl) formEl.style.display = 'none'
+}
+
+function pickPostCategory(mode: 'pc' | 'mob', cat: string) {
+  if (mode === 'pc') pcPostCat = cat
+  else mobPostCat = cat
+  const pre = mode === 'pc' ? 'pc' : 'm'
+  const catEl = document.getElementById(`${pre}-post-step-cat`)
+  const formEl = document.getElementById(`${pre}-post-step-form`)
+  if (catEl) catEl.style.display = 'none'
+  if (formEl) formEl.style.display = ''
+  const banner = document.getElementById(`${pre}-post-cat-banner`)
+  if (banner) banner.textContent = `選択中：${CATMAP[cat] ?? cat}`
+  updatePostFormVisibility(mode)
+  initPostLocSelects()
+}
+
+function onLandLendChange(mode: 'pc' | 'mob') {
+  const pre = mode === 'pc' ? 'pc' : 'm'
+  const sel = document.getElementById(`${pre}-post-land-lend`) as HTMLSelectElement | null
+  const row = document.getElementById(`${pre}-post-block-land-price`)
+  const v = sel?.value || ''
+  if (row) row.style.display = v === '有償' ? '' : 'none'
+}
+
+function updatePostFormVisibility(mode: 'pc' | 'mob') {
+  const pre = mode === 'pc' ? 'pc' : 'm'
+  const cat = mode === 'pc' ? pcPostCat : mobPostCat
+  const g = postingGroup(cat)
+  const vis = (id: string, on: boolean) => {
+    const el = document.getElementById(id)
+    if (el) el.style.display = on ? '' : 'none'
+  }
+  const photoLbl = document.getElementById(`${pre}-post-photo-lbl`)
+  if (photoLbl) {
+    photoLbl.innerHTML =
+      g === 'land'
+        ? '写真 <small>任意・最大5枚・1枚目がメイン</small>'
+        : '商品写真 <em>*</em> <small>最大5枚・1枚目がメイン</small>'
+  }
+  const nameLbl = document.getElementById(`${pre}-post-name-lbl`)
+  if (nameLbl) {
+    nameLbl.innerHTML = g === 'land' ? 'タイトル <em>*</em>' : '商品名 <em>*</em>'
+  }
+  const nameInp = document.getElementById(`${pre}-post-name`) as HTMLInputElement | null
+  if (nameInp) {
+    nameInp.placeholder =
+      g === 'land' ? '例：駒ヶ根市の畑 約100㎡ 無償貸与' : '例：渋柿・規格外きゅうり'
+  }
+  vis(`${pre}-post-block-produce-qty`, g === 'produce')
+  vis(`${pre}-post-block-wood-qty`, g === 'wood')
+  vis(`${pre}-post-block-condition`, g === 'produce')
+  vis(`${pre}-post-block-pesticide`, g === 'produce' && (cat === 'veg' || cat === 'fruit' || cat === 'rice'))
+  const descLbl = document.getElementById(`${pre}-post-desc-lbl`)
+  if (descLbl) {
+    descLbl.innerHTML =
+      g === 'land' ? '詳細説明 <small>自由記述・任意</small>' : '商品の説明 <small>任意</small>'
+  }
+  vis(`${pre}-post-block-standard-price`, g !== 'land')
+  vis(`${pre}-post-block-land-fields`, g === 'land')
+  vis(`${pre}-post-block-wood-only`, g === 'wood')
+  vis(`${pre}-post-block-handoff`, g !== 'land')
+  const locLbl = document.getElementById(`${pre}-post-loc-lbl`)
+  if (locLbl) locLbl.textContent = g === 'land' ? '場所（長野県）' : '受け渡し場所（長野県）'
+  if (g === 'land') onLandLendChange(mode)
+}
+
+function selectWoodDry(el: HTMLElement, mode: string) {
+  el.closest('.sel-opts')?.querySelectorAll('.sel-opt').forEach((o) => o.classList.remove('on'))
+  el.classList.add('on')
+  if (mode === 'pc') pcWoodDry = el.dataset.v || ''
+  else mobWoodDry = el.dataset.v || ''
+}
+
+function selectWoodTree(el: HTMLElement, mode: string) {
+  el.closest('.sel-opts')?.querySelectorAll('.sel-opt').forEach((o) => o.classList.remove('on'))
+  el.classList.add('on')
+  if (mode === 'pc') pcWoodTree = el.dataset.v || ''
+  else mobWoodTree = el.dataset.v || ''
+}
 function toggleFree(mode: string) {
   if (mode==='pc') {
     pcFreeTog=!pcFreeTog
@@ -2598,6 +2810,7 @@ function mobReturnToPostForm() {
     post.classList.add('active')
     post.querySelector('.m-body')?.scrollTo(0, 0)
   }
+  showPostCategoryStep('mob')
 }
 
 async function submitPost(mode: string) {
@@ -2609,35 +2822,170 @@ async function submitPost(mode: string) {
       return
     }
     const isPC = mode === 'pc'
-    const name = (document.getElementById(isPC ? 'pc-post-name' : 'm-post-name') as HTMLInputElement)?.value.trim()
-    const price = (document.getElementById(isPC ? 'pc-post-price' : 'm-post-price') as HTMLInputElement)?.value.trim()
-    const unit = (document.getElementById(isPC ? 'pc-post-unit' : 'm-post-unit') as HTMLInputElement)?.value.trim()
     const pre = isPC ? 'pc' : 'm'
+    const cat = isPC ? pcPostCat : mobPostCat
+    const g = postingGroup(cat)
+
+    const name = (document.getElementById(`${pre}-post-name`) as HTMLInputElement)?.value.trim() || ''
+    if (!name) {
+      showToast(g === 'land' ? 'タイトルを入力してください' : '商品名を入力してください')
+      return
+    }
+
+    const allImgs = isPC ? [...pcImages] : [...mobImages]
+    if (cat !== 'land' && allImgs.length === 0) {
+      showToast('商品写真を1枚以上追加してください')
+      return
+    }
+
+    const locPref = (document.getElementById(`${pre}-post-loc-pref`) as HTMLSelectElement)?.value || NAGANO_PREF
     const locCity = (document.getElementById(`${pre}-post-loc-city`) as HTMLSelectElement)?.value || ''
     const locDist = (document.getElementById(`${pre}-post-loc-dist`) as HTMLSelectElement)?.value || ''
-    const loc = [locCity, locDist].filter(Boolean).join(' ')
-    const isFree = isPC ? pcFreeTog : mobFreeTog
-    const cat = isPC ? pcPostCat : mobPostCat
-    if (!name) {
-      showToast('余りものの名前を入力してください')
+    const loc =
+      [locPref, locCity, locDist].filter(Boolean).join(' ') || `${NAGANO_PREF} ${getUserCity()}`.trim()
+
+    const descRaw = (document.getElementById(`${pre}-post-desc`) as HTMLTextAreaElement)?.value?.trim() || ''
+    const expiry =
+      g === 'land' ? '' : (document.getElementById(`${pre}-post-expiry`) as HTMLInputElement)?.value || ''
+
+    const getCheckedVals = (ids: string[], labels: string[]) =>
+      ids.reduce<string[]>((acc, id, i) => {
+        if ((document.getElementById(id) as HTMLInputElement | null)?.checked) acc.push(labels[i])
+        return acc
+      }, [])
+
+    const availDays =
+      g === 'land'
+        ? []
+        : getCheckedVals(
+            [`${pre}-day-wd`, `${pre}-day-sat`, `${pre}-day-sun`],
+            ['平日', '土曜', '日曜']
+          )
+    const availTimes =
+      g === 'land'
+        ? []
+        : getCheckedVals(
+            [`${pre}-time-am`, `${pre}-time-pm`, `${pre}-time-ev`],
+            ['午前', '午後', '夜']
+          )
+
+    let unitForDb = ''
+    let priceStr = '無料'
+    let isFree = true
+    let finalDesc = descRaw || '詳細は出品者にお問い合わせください。'
+    let conditionVal = ''
+    let pesticideVal = ''
+
+    if (g === 'land') {
+      const landType = (document.getElementById(`${pre}-post-land-type`) as HTMLSelectElement)?.value || ''
+      const landArea = (document.getElementById(`${pre}-post-land-area`) as HTMLInputElement)?.value.trim() || ''
+      const landAreaUnit = (document.getElementById(`${pre}-post-land-area-unit`) as HTMLSelectElement)?.value || '㎡'
+      const lend = (document.getElementById(`${pre}-post-land-lend`) as HTMLSelectElement)?.value || ''
+      const purpose = (document.getElementById(`${pre}-post-land-purpose`) as HTMLSelectElement)?.value || ''
+      const period = (document.getElementById(`${pre}-post-land-period`) as HTMLSelectElement)?.value || ''
+      const landStatus = (document.getElementById(`${pre}-post-land-status`) as HTMLSelectElement)?.value || ''
+
+      const landMeta: LandMeta = {
+        landType,
+        area: landArea,
+        areaUnit: landAreaUnit,
+        lendCondition: lend,
+        purpose,
+        period,
+        landStatus,
+      }
+      finalDesc = descRaw + LAND_INFO_MARKER + JSON.stringify(landMeta)
+      unitForDb = landArea ? `${landArea}${landAreaUnit}` : ''
+
+      if (lend === '有償') {
+        const lp = (document.getElementById(`${pre}-post-land-price`) as HTMLInputElement)?.value.trim() || ''
+        if (!lp) {
+          showToast('有償の場合は価格（円）を入力してください')
+          return
+        }
+        const n = Number(lp)
+        if (!Number.isFinite(n) || n < 0) {
+          showToast('価格は有効な数値で入力してください')
+          return
+        }
+        priceStr = `¥${n.toLocaleString()}`
+        isFree = false
+      } else if (lend === '応相談') {
+        priceStr = '応相談'
+        isFree = false
+      } else {
+        priceStr = '無料'
+        isFree = true
+      }
+    } else if (g === 'wood') {
+      unitForDb = (document.getElementById(`${pre}-post-wood-qty`) as HTMLInputElement)?.value.trim() || ''
+      const freeTog = isPC ? pcFreeTog : mobFreeTog
+      const price = (document.getElementById(`${pre}-post-price`) as HTMLInputElement)?.value.trim() || ''
+      if (!freeTog && !price) {
+        showToast('価格を入力するか、「無料で譲る」をオンにしてください')
+        return
+      }
+      if (!freeTog && price) {
+        const n = Number(price)
+        if (!Number.isFinite(n) || n < 0) {
+          showToast('価格は有効な数値で入力してください')
+          return
+        }
+      }
+      isFree = freeTog
+      priceStr = freeTog ? '無料' : `¥${Number(price).toLocaleString()}`
+      const wDry = isPC ? pcWoodDry : mobWoodDry
+      const wTree = isPC ? pcWoodTree : mobWoodTree
+      const woodNote =
+        wDry || wTree
+          ? `\n\n【薪・木材】${[wDry ? `乾燥：${wDry}` : '', wTree ? `樹種：${wTree}` : ''].filter(Boolean).join('／')}`
+          : ''
+      finalDesc = (descRaw || '詳細は出品者にお問い合わせください。') + woodNote
+    } else {
+      if (g === 'produce') {
+        unitForDb = (document.getElementById(`${pre}-post-qty`) as HTMLInputElement)?.value.trim() || ''
+      }
+      const freeTog = isPC ? pcFreeTog : mobFreeTog
+      const price = (document.getElementById(`${pre}-post-price`) as HTMLInputElement)?.value.trim() || ''
+      if (!freeTog && !price) {
+        showToast('価格を入力するか、「無料で譲る」をオンにしてください')
+        return
+      }
+      if (!freeTog && price) {
+        const n = Number(price)
+        if (!Number.isFinite(n) || n < 0) {
+          showToast('価格は有効な数値で入力してください')
+          return
+        }
+      }
+      isFree = freeTog
+      priceStr = freeTog ? '無料' : `¥${Number(price).toLocaleString()}`
+      finalDesc = descRaw || '詳細は出品者にお問い合わせください。'
+      conditionVal = g === 'produce' ? (isPC ? pcCondition : mobCondition) : ''
+      pesticideVal =
+        g === 'produce' && (cat === 'veg' || cat === 'fruit' || cat === 'rice')
+          ? isPC
+            ? pcPesticide
+            : mobPesticide
+          : ''
+    }
+
+    if (g === 'produce' && !conditionVal) {
+      showToast('商品の状態（良好・普通・傷あり）を選んでください')
       return
     }
-    if (!isFree && !price) {
-      showToast('価格を入力するか、無料に設定してください')
+    if (g === 'produce' && (cat === 'veg' || cat === 'fruit' || cat === 'rice') && !pesticideVal) {
+      showToast('農薬の使用（なし・あり・不明）を選んでください')
       return
     }
-    const allImgs = isPC ? [...pcImages] : [...mobImages]
+
     const snapshotTitle = name
-    const expiry = (document.getElementById(isPC ? 'pc-post-expiry' : 'm-post-expiry') as HTMLInputElement)?.value || ''
-    const desc =
-      (document.getElementById(isPC ? 'pc-post-desc' : 'm-post-desc') as HTMLTextAreaElement)?.value?.trim() ||
-      '詳細は出品者にお問い合わせください。'
     const newItem: Item = {
       id: Date.now(),
       name,
       cat,
-      price: isFree ? '無料' : `¥${Number(price).toLocaleString()}`,
-      unit: unit ? `/ ${unit}` : '',
+      price: priceStr,
+      unit: unitForDb ? `/ ${unitForDb}` : '',
       emoji: EMOJIMAP[cat] || '📦',
       bg: BGMAP[cat] || 'by',
       loc: loc || getUserCity() || '駒ヶ根市',
@@ -2645,7 +2993,7 @@ async function submitPost(mode: string) {
       seller: USER.name,
       sloc: USER.area,
       savt: '🧑',
-      desc,
+      desc: finalDesc,
       mine: true,
       chatKey: '',
       imgSrc: allImgs[0] || '',
@@ -2653,21 +3001,6 @@ async function submitPost(mode: string) {
       expiry: expiry || undefined,
     }
     const snapshotPriceLine = formatPostedItemPriceLine(newItem)
-
-    const pre2 = isPC ? 'pc' : 'm'
-    const getCheckedVals = (ids: string[], labels: string[]) =>
-      ids.reduce<string[]>((acc, id, i) => {
-        if ((document.getElementById(id) as HTMLInputElement | null)?.checked) acc.push(labels[i])
-        return acc
-      }, [])
-    const availDays = getCheckedVals(
-      [`${pre2}-day-wd`, `${pre2}-day-sat`, `${pre2}-day-sun`],
-      ['平日', '土曜', '日曜']
-    )
-    const availTimes = getCheckedVals(
-      [`${pre2}-time-am`, `${pre2}-time-pm`, `${pre2}-time-ev`],
-      ['午前', '午後', '夜']
-    )
 
     const supabase = createClient()
     const {
@@ -2683,19 +3016,18 @@ async function submitPost(mode: string) {
       .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true })
     if (profErr) console.warn('[meguru] profiles upsert warn:', profErr.message, profErr.code)
 
-    /* 初回 insert は images を空にしペイロードを軽くする（画像はバックグラウンドで update） */
     const payload = {
       user_id: user.id,
       name: newItem.name,
       category: newItem.cat,
       price: newItem.price,
-      unit: unit || '',
+      unit: unitForDb,
       is_free: isFree,
       description: newItem.desc,
       location: newItem.loc,
       images: [] as string[],
-      condition: isPC ? pcCondition : mobCondition,
-      pesticide: isPC ? pcPesticide : mobPesticide,
+      condition: conditionVal,
+      pesticide: pesticideVal,
       available_days: availDays,
       available_times: availTimes,
       deadline: expiry || null,
@@ -2712,22 +3044,37 @@ async function submitPost(mode: string) {
     newItem.userId = user.id
     if (rowId) newItem.supabaseId = rowId
 
-    ;(['name', 'desc', 'price', 'unit'] as const).forEach((f) => {
-      const el = document.getElementById(`${isPC ? 'pc' : 'm'}-post-${f}`) as HTMLInputElement | HTMLTextAreaElement | null
+    const resetPre = isPC ? 'pc' : 'm'
+    ;(['name', 'desc', 'price'] as const).forEach((f) => {
+      const el = document.getElementById(`${resetPre}-post-${f}`) as HTMLInputElement | HTMLTextAreaElement | null
       if (el) {
         el.value = ''
         ;(el as HTMLInputElement).disabled = false
       }
     })
+    const landPriceEl = document.getElementById(`${resetPre}-post-land-price`) as HTMLInputElement | null
+    if (landPriceEl) {
+      landPriceEl.value = ''
+      landPriceEl.disabled = false
+    }
+    const woodQtyEl = document.getElementById(`${resetPre}-post-wood-qty`) as HTMLInputElement | null
+    if (woodQtyEl) woodQtyEl.value = ''
+    const produceQtyEl = document.getElementById(`${resetPre}-post-qty`) as HTMLInputElement | null
+    if (produceQtyEl) produceQtyEl.value = ''
+    const landAreaEl = document.getElementById(`${resetPre}-post-land-area`) as HTMLInputElement | null
+    if (landAreaEl) landAreaEl.value = ''
+
     if (isPC) {
       pcFreeTog = false
       pcImages = []
       pcCondition = ''
       pcPesticide = ''
+      pcWoodDry = ''
+      pcWoodTree = ''
       document.getElementById('pc-free-row')?.classList.remove('on')
       renderPhotoGrid('pc')
       document.querySelectorAll('#pc-pg-post .sel-opt').forEach((o) => o.classList.remove('on'))
-      ;(['pc-post-qty', 'pc-post-expiry'] as const).forEach((id) => {
+      ;(['pc-post-expiry'] as const).forEach((id) => {
         const el = document.getElementById(id) as HTMLInputElement | null
         if (el) el.value = ''
       })
@@ -2740,10 +3087,12 @@ async function submitPost(mode: string) {
       mobImages = []
       mobCondition = ''
       mobPesticide = ''
+      mobWoodDry = ''
+      mobWoodTree = ''
       document.getElementById('m-free-row')?.classList.remove('on')
       renderPhotoGrid('mob')
       document.querySelectorAll('#ms-post .sel-opt').forEach((o) => o.classList.remove('on'))
-      ;(['m-post-qty', 'm-post-expiry'] as const).forEach((id) => {
+      ;(['m-post-expiry'] as const).forEach((id) => {
         const el = document.getElementById(id) as HTMLInputElement | null
         if (el) el.value = ''
       })
@@ -2753,8 +3102,30 @@ async function submitPost(mode: string) {
       })
     }
 
+    const priceInp = document.getElementById(`${resetPre}-post-price`) as HTMLInputElement | null
+    if (priceInp) {
+      priceInp.disabled = false
+      priceInp.value = ''
+    }
+
+    ;(
+      [
+        `${resetPre}-post-land-type`,
+        `${resetPre}-post-land-area-unit`,
+        `${resetPre}-post-land-lend`,
+        `${resetPre}-post-land-purpose`,
+        `${resetPre}-post-land-period`,
+        `${resetPre}-post-land-status`,
+      ] as const
+    ).forEach((id) => {
+      const sel = document.getElementById(id) as HTMLSelectElement | null
+      if (sel) sel.selectedIndex = 0
+    })
+    onLandLendChange(isPC ? 'pc' : 'mob')
+
     initPcCats()
     initMobCats()
+    showPostCategoryStep(isPC ? 'pc' : 'mob')
 
     fillPostCompleteSnapshot(snapshotTitle, snapshotPriceLine)
     if (isPC) {
@@ -3355,7 +3726,13 @@ export default function Page() {
               <span className="sbi"><svg viewBox="0 0 24 24"><line x1="12" y1="22" x2="12" y2="14"/><path d="M12 16 Q6 14 4 9 Q6 5 10 8 Q11 12 12 16z"/><path d="M12 16 Q18 14 20 9 Q18 5 14 8 Q13 12 12 16z"/><path d="M12 12 Q10 6 12 2 Q14 6 12 12z"/></svg></span>山菜
             </button>
             <button className="sb-item"    id="sb-other" onClick={(e) => pcSbCat(e.currentTarget, 'other')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg></span>加工品・その他
+              <span className="sbi"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg></span>加工品
+            </button>
+            <button className="sb-item"    id="sb-land" onClick={(e) => pcSbCat(e.currentTarget, 'land')}>
+              <span className="sbi"><svg viewBox="0 0 24 24"><path d="M3 21 L9 11 L14 15 L21 6 L21 21 Z" fill="currentColor" opacity="0.2"/><path d="M3 21 L21 21" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg></span>土地・農地
+            </button>
+            <button className="sb-item"    id="sb-misc" onClick={(e) => pcSbCat(e.currentTarget, 'misc')}>
+              <span className="sbi"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>なんでも
             </button>
             <p className="sb-section">マイページ</p>
             <button type="button" className="sb-item sb-item--chat" onClick={() => pcGo('chatlist')}>
@@ -3443,91 +3820,272 @@ export default function Page() {
             </div>
 
             {/* POST */}
-            <div id="pc-pg-post" style={{display:'none'}}>
-              <div className="pc-ph"><div><h1 className="pc-ph-title">余りものを出品する</h1><p className="pc-ph-sub">写真を撮って、情報を入力するだけ。</p></div></div>
-              <div style={{maxWidth:'680px',display:'flex',flexDirection:'column',gap:'18px'}}>
-                {/* 写真 */}
-                <div className="fg">
-                  <label className="lbl">写真 <small>最大5枚・1枚目がメイン画像</small></label>
-                  <input type="file" id="pc-photo-file" accept="image/*" multiple style={{display:'none'}} onChange={(e)=>addPhotos(e.currentTarget,'pc')} />
-                  <div id="pc-photo-grid" className="pf-imgs">
-                    <button className="pf-img-add" onClick={()=>(document.getElementById('pc-photo-file') as HTMLInputElement)?.click()}>
-                      <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                      <span>0/5</span>
+            <div id="pc-pg-post" style={{ display: 'none' }}>
+              <div className="pc-ph">
+                <div>
+                  <h1 className="pc-ph-title">余りものを出品する</h1>
+                  <p className="pc-ph-sub">まずカテゴリを選び、内容を入力します。</p>
+                </div>
+              </div>
+              <div style={{ maxWidth: '720px', display: 'flex', flexDirection: 'column', gap: '18px', paddingBottom: '28px' }}>
+                <div id="pc-post-step-cat">
+                  <p style={{ fontSize: '.9rem', fontWeight: 600, color: '#2D5A27', marginBottom: '14px' }}>ステップ1：カテゴリを選択</p>
+                  <div className="post-cat-grid">
+                    {POST_CATEGORY_PICKS.map((c) => (
+                      <button key={c.key} type="button" className="post-cat-card" onClick={() => pickPostCategory('pc', c.key)}>
+                        <span className="post-cat-emoji" aria-hidden>{c.emoji}</span>
+                        <span className="post-cat-label">{c.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div id="pc-post-step-form" style={{ display: 'none' }}>
+                  <button type="button" className="post-cat-back" onClick={() => showPostCategoryStep('pc')}>
+                    ← カテゴリ選択に戻る
+                  </button>
+                  <p id="pc-post-cat-banner" className="post-cat-banner" />
+                  <input type="file" id="pc-photo-file" accept="image/*" multiple style={{ display: 'none' }} onChange={(e) => addPhotos(e.currentTarget, 'pc')} />
+
+                  <div className="fg">
+                    <label className="lbl" id="pc-post-photo-lbl">
+                      商品写真 <em>*</em> <small>最大5枚・1枚目がメイン</small>
+                    </label>
+                    <div id="pc-photo-grid" className="pf-imgs">
+                      <button type="button" className="pf-img-add" onClick={() => (document.getElementById('pc-photo-file') as HTMLInputElement)?.click()}>
+                        <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" strokeWidth="1.8" strokeLinecap="round">
+                          <line x1="12" y1="5" x2="12" y2="19" />
+                          <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        <span>0/5</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="fg">
+                    <label className="lbl" id="pc-post-name-lbl">
+                      商品名 <em>*</em>
+                    </label>
+                    <input className="inp" id="pc-post-name" style={{ maxWidth: '480px' }} />
+                  </div>
+
+                  <div className="fg" id="pc-post-block-produce-qty" style={{ display: 'none' }}>
+                    <label className="lbl">
+                      数量・単位 <small>例：3kg、1袋</small>
+                    </label>
+                    <input className="inp" id="pc-post-qty" placeholder="例：約3kg、1袋、10本" style={{ maxWidth: '400px' }} />
+                  </div>
+
+                  <div className="fg" id="pc-post-block-wood-qty" style={{ display: 'none' }}>
+                    <label className="lbl">量の目安</label>
+                    <input className="inp" id="pc-post-wood-qty" placeholder="例：軽トラ1台分、袋で5袋" style={{ maxWidth: '400px' }} />
+                  </div>
+
+                  <div id="pc-post-block-land-fields" style={{ display: 'none' }}>
+                    <div className="fg">
+                      <label className="lbl">土地の種類</label>
+                      <select className="inp" id="pc-post-land-type" style={{ maxWidth: '320px' }}>
+                        <option value="">選択してください</option>
+                        <option value="農地">農地</option>
+                        <option value="山林">山林</option>
+                        <option value="空き地">空き地</option>
+                        <option value="その他">その他</option>
+                      </select>
+                    </div>
+                    <div className="fg">
+                      <label className="lbl">面積</label>
+                      <div className="price-row" style={{ maxWidth: '380px' }}>
+                        <input className="inp" id="pc-post-land-area" inputMode="decimal" placeholder="数値" />
+                        <select className="inp" id="pc-post-land-area-unit" style={{ maxWidth: '100px' }}>
+                          <option value="㎡">㎡</option>
+                          <option value="畝">畝</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="fg">
+                      <label className="lbl">貸出条件</label>
+                      <select className="inp" id="pc-post-land-lend" style={{ maxWidth: '400px' }} onChange={() => onLandLendChange('pc')}>
+                        <option value="">選択してください</option>
+                        <option value="無償貸与">無償貸与</option>
+                        <option value="有償">有償</option>
+                        <option value="管理してくれるなら無料">管理してくれるなら無料</option>
+                        <option value="応相談">応相談</option>
+                      </select>
+                    </div>
+                    <div className="fg" id="pc-post-block-land-price" style={{ display: 'none' }}>
+                      <label className="lbl">価格（円） <em>*</em></label>
+                      <input className="inp" type="number" id="pc-post-land-price" placeholder="金額" style={{ maxWidth: '240px' }} />
+                    </div>
+                    <div className="fg">
+                      <label className="lbl">希望する使用目的</label>
+                      <select className="inp" id="pc-post-land-purpose" style={{ maxWidth: '360px' }}>
+                        <option value="">選択してください</option>
+                        <option value="農業">農業</option>
+                        <option value="家庭菜園">家庭菜園</option>
+                        <option value="薪割り場">薪割り場</option>
+                        <option value="その他">その他</option>
+                      </select>
+                    </div>
+                    <div className="fg">
+                      <label className="lbl">契約期間</label>
+                      <select className="inp" id="pc-post-land-period" style={{ maxWidth: '320px' }}>
+                        <option value="">選択してください</option>
+                        <option value="単発">単発</option>
+                        <option value="年間">年間</option>
+                        <option value="応相談">応相談</option>
+                      </select>
+                    </div>
+                    <div className="fg">
+                      <label className="lbl">現在の状態</label>
+                      <select className="inp" id="pc-post-land-status" style={{ maxWidth: '360px' }}>
+                        <option value="">選択してください</option>
+                        <option value="すぐ使える">すぐ使える</option>
+                        <option value="整備が必要">整備が必要</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="fg" id="pc-post-block-condition" style={{ display: 'none' }}>
+                    <label className="lbl">商品の状態</label>
+                    <div className="sel-opts">
+                      {(['良好', '普通', '傷あり'] as const).map((c) => (
+                        <button key={c} type="button" className="sel-opt" data-v={c} onClick={(e) => selectCondition(e.currentTarget, 'pc')}>
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="fg" id="pc-post-block-wood-only" style={{ display: 'none' }}>
+                    <label className="lbl">乾燥済みか</label>
+                    <div className="sel-opts">
+                      {(['済み', '未乾燥', '不明'] as const).map((c) => (
+                        <button key={c} type="button" className="sel-opt" data-v={c} onClick={(e) => selectWoodDry(e.currentTarget, 'pc')}>
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                    <label className="lbl" style={{ marginTop: '14px', display: 'block' }}>
+                      樹種
+                    </label>
+                    <div className="sel-opts">
+                      {(['スギ', 'ヒノキ', 'ナラ', 'その他', '不明'] as const).map((c) => (
+                        <button key={c} type="button" className="sel-opt" data-v={c} onClick={(e) => selectWoodTree(e.currentTarget, 'pc')}>
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="fg">
+                    <label className="lbl" id="pc-post-desc-lbl">
+                      商品の説明 <small>任意</small>
+                    </label>
+                    <textarea className="txta" id="pc-post-desc" placeholder="状態や受け渡しの希望など" style={{ maxWidth: '560px', minHeight: '88px' }} />
+                  </div>
+
+                  <div id="pc-post-block-standard-price">
+                    <div className="fg">
+                      <label className="lbl">価格</label>
+                      <div className="price-row" style={{ maxWidth: '280px' }}>
+                        <input className="inp" type="number" id="pc-post-price" placeholder="金額（円）" />
+                      </div>
+                      <div className="free-row" id="pc-free-row" onClick={() => toggleFree('pc')}>
+                        <div className="tog" />
+                        <span style={{ fontSize: '.8rem', fontWeight: 500, color: 'var(--ink2)' }}>無料で譲る</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <hr className="pf-section" />
+
+                  <div className="fg" id="pc-post-block-loc">
+                    <label className="lbl" id="pc-post-loc-lbl">
+                      受け渡し場所（長野県）
+                    </label>
+                    <div className="loc-sel-row">
+                      <select className="inp loc-sel" id="pc-post-loc-pref" onChange={(e) => onPostLocPrefChange(e.target as HTMLSelectElement)}>
+                        <option value="">都道府県</option>
+                      </select>
+                      <select className="inp loc-sel" id="pc-post-loc-city" disabled onChange={(e) => onPostLocCityChange(e.target as HTMLSelectElement)}>
+                        <option value="">市区町村</option>
+                      </select>
+                      <select className="inp loc-sel" id="pc-post-loc-dist" disabled>
+                        <option value="">地区（任意）</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div id="pc-post-block-handoff">
+                    <hr className="pf-section" />
+                    <div className="fg">
+                      <label className="lbl">受渡可能曜日・時間帯</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div>
+                          <p style={{ fontSize: '.74rem', color: 'var(--mu)', marginBottom: '7px', fontWeight: 500 }}>曜日</p>
+                          <div className="pickup-row">
+                            <label className="chk-lbl">
+                              <input type="checkbox" id="pc-day-wd" />
+                              <span>平日</span>
+                            </label>
+                            <label className="chk-lbl">
+                              <input type="checkbox" id="pc-day-sat" />
+                              <span>土曜</span>
+                            </label>
+                            <label className="chk-lbl">
+                              <input type="checkbox" id="pc-day-sun" />
+                              <span>日曜</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '.74rem', color: 'var(--mu)', marginBottom: '7px', fontWeight: 500 }}>時間帯</p>
+                          <div className="pickup-row">
+                            <label className="chk-lbl">
+                              <input type="checkbox" id="pc-time-am" />
+                              <span>午前</span>
+                            </label>
+                            <label className="chk-lbl">
+                              <input type="checkbox" id="pc-time-pm" />
+                              <span>午後</span>
+                            </label>
+                            <label className="chk-lbl">
+                              <input type="checkbox" id="pc-time-ev" />
+                              <span>夜</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="fg">
+                      <label className="lbl">受け取り期限 <small>任意</small></label>
+                      <input className="inp" type="date" id="pc-post-expiry" style={{ maxWidth: '200px' }} />
+                    </div>
+                  </div>
+
+                  <div className="fg" id="pc-post-block-pesticide" style={{ display: 'none' }}>
+                    <label className="lbl">農薬の使用 <em>*</em></label>
+                    <div className="sel-opts">
+                      {(['なし', 'あり', '不明'] as const).map((p) => (
+                        <button key={p} type="button" className="sel-opt" data-v={p} onClick={(e) => selectPesticide(e.currentTarget, 'pc')}>
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="hint">
+                    <span style={{ fontSize: '.95rem', flexShrink: 0 }}>💡</span>
+                    <p>詳しい住所はチャットで直接決めてOKです。掲示板には住所は出ません。</p>
+                  </div>
+                  <div className="pc-post-actions">
+                    <button type="button" className="pc-cancel" onClick={() => pcGo('listing')}>
+                      キャンセル
+                    </button>
+                    <button type="button" id="pc-post-submit-btn" className="pc-submit" onClick={() => void submitPost('pc')}>
+                      出品する →
                     </button>
                   </div>
-                </div>
-                {/* カテゴリ */}
-                <div className="fg"><label className="lbl">カテゴリ <em>*</em></label><div className="fchips" id="pc-form-cats"></div></div>
-                {/* 名前 */}
-                <div className="fg"><label className="lbl">余りものの名前 <em>*</em></label><input className="inp" id="pc-post-name" placeholder="例：渋柿" style={{maxWidth:'440px'}} /></div>
-                {/* 数量 */}
-                <div className="fg"><label className="lbl">数量 <small>任意</small></label><input className="inp" id="pc-post-qty" placeholder="例：約15kg・10袋・ひとかご分" style={{maxWidth:'360px'}} /></div>
-                {/* 商品の状態 */}
-                <div className="fg">
-                  <label className="lbl">商品の状態</label>
-                  <div className="sel-opts">
-                    {(['良好','普通','傷あり'] as const).map(c=>(
-                      <button key={c} type="button" className="sel-opt" data-v={c} onClick={(e)=>selectCondition(e.currentTarget,'pc')}>{c}</button>
-                    ))}
-                  </div>
-                </div>
-                {/* 説明 */}
-                <div className="fg"><label className="lbl">説明 <small>任意</small></label><textarea className="txta" id="pc-post-desc" placeholder="形は悪いけど味は最高！受け取りは土日OK など" style={{maxWidth:'560px',height:'80px'}}></textarea></div>
-                <hr className="pf-section" />
-                {/* 価格 */}
-                <div className="fg">
-                  <label className="lbl">希望価格 <em>*</em></label>
-                  <div className="price-row" style={{maxWidth:'440px'}}><input className="inp" type="number" id="pc-post-price" placeholder="金額（円）" /><input className="inp" id="pc-post-unit" placeholder="単位（袋・kgなど）" /></div>
-                  <div className="free-row" id="pc-free-row" onClick={()=>toggleFree('pc')}><div className="tog"></div><span style={{fontSize:'.8rem',fontWeight:500,color:'var(--ink2)'}}>無料でおすそわけする</span></div>
-                </div>
-                {/* 受け渡し場所 */}
-                <div className="fg">
-                  <label className="lbl">受け渡し場所 <small>任意</small></label>
-                  <div className="loc-sel-row">
-                    <select className="inp loc-sel" id="pc-post-loc-pref" onChange={(e) => onPostLocPrefChange(e.target as HTMLSelectElement)}><option value="">都道府県（任意）</option></select>
-                    <select className="inp loc-sel" id="pc-post-loc-city" disabled onChange={(e) => onPostLocCityChange(e.target as HTMLSelectElement)}><option value="">市区町村</option></select>
-                    <select className="inp loc-sel" id="pc-post-loc-dist" disabled><option value="">地区（任意）</option></select>
-                  </div>
-                </div>
-                <hr className="pf-section" />
-                {/* 受け渡し可能日時 */}
-                <div className="fg">
-                  <label className="lbl">受け渡し可能日時 <small>任意</small></label>
-                  <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
-                    <div>
-                      <p style={{fontSize:'.74rem',color:'var(--mu)',marginBottom:'7px',fontWeight:500}}>曜日</p>
-                      <div className="pickup-row">
-                        <label className="chk-lbl"><input type="checkbox" id="pc-day-wd" /><span>平日</span></label>
-                        <label className="chk-lbl"><input type="checkbox" id="pc-day-sat" /><span>土曜</span></label>
-                        <label className="chk-lbl"><input type="checkbox" id="pc-day-sun" /><span>日曜</span></label>
-                      </div>
-                    </div>
-                    <div>
-                      <p style={{fontSize:'.74rem',color:'var(--mu)',marginBottom:'7px',fontWeight:500}}>時間帯</p>
-                      <div className="pickup-row">
-                        <label className="chk-lbl"><input type="checkbox" id="pc-time-am" /><span>午前</span></label>
-                        <label className="chk-lbl"><input type="checkbox" id="pc-time-pm" /><span>午後</span></label>
-                        <label className="chk-lbl"><input type="checkbox" id="pc-time-ev" /><span>夜</span></label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* 農薬 */}
-                <div className="fg">
-                  <label className="lbl">農薬の使用</label>
-                  <div className="sel-opts">
-                    {(['なし','あり','不明'] as const).map(p=>(
-                      <button key={p} type="button" className="sel-opt" data-v={p} onClick={(e)=>selectPesticide(e.currentTarget,'pc')}>{p}</button>
-                    ))}
-                  </div>
-                </div>
-                {/* 受け取り期限 */}
-                <div className="fg"><label className="lbl">受け取り期限 <small>任意</small></label><input className="inp" type="date" id="pc-post-expiry" style={{maxWidth:'200px'}} /></div>
-                <div className="hint"><span style={{fontSize:'.95rem',flexShrink:0}}>💡</span><p>詳しい住所はチャットで直接決めてOKです。掲示板には住所は出ません。</p></div>
-                <div className="pc-post-actions">
-                  <button className="pc-cancel" onClick={()=>pcGo('listing')}>キャンセル</button>
-                  <button type="button" id="pc-post-submit-btn" className="pc-submit" onClick={() => void submitPost('pc')}>出品する →</button>
                 </div>
               </div>
             </div>
@@ -3594,6 +4152,9 @@ export default function Page() {
                     {/* 説明 */}
                     <p className="pc-det-sect-lbl">商品の説明</p>
                     <p className="pc-det-desc-box" id="pc-det-desc">—</p>
+                    <div id="pc-det-land-wrap" style={{ display: 'none' }}>
+                      <div id="pc-det-land-box" />
+                    </div>
                     {/* 商品情報テーブル */}
                     <p className="pc-det-sect-lbl">商品情報</p>
                     <table className="pc-det-table">
@@ -4145,89 +4706,288 @@ export default function Page() {
 
         {/* POST */}
         <div className="scn" id="ms-post">
-          <div className="m-tbar"><button className="m-back" onClick={mBack}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button><span className="m-title">余りものを出品する</span></div>
+          <div className="m-tbar">
+            <button className="m-back" onClick={mBack}>
+              <svg viewBox="0 0 24 24">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <span className="m-title">余りものを出品する</span>
+          </div>
           <div className="m-body">
             <div className="m-post-body">
-              <input type="file" id="m-photo-file" accept="image/*" multiple style={{display:'none'}} onChange={(e)=>addPhotos(e.currentTarget,'mob')} />
-              {/* 写真 */}
-              <div className="fg" style={{marginBottom:'16px'}}>
-                <label className="lbl">写真 <small>最大5枚・1枚目がメイン</small></label>
-                <div id="m-photo-grid" className="pf-imgs">
-                  <button className="pf-img-add" onClick={()=>(document.getElementById('m-photo-file') as HTMLInputElement)?.click()}>
-                    <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    <span>0/5</span>
-                  </button>
-                </div>
-              </div>
-              {/* カテゴリ */}
-              <div className="fg" style={{marginBottom:'16px'}}><label className="lbl">カテゴリ <em>*</em></label><div className="fchips" id="m-form-cats"></div></div>
-              {/* 名前 */}
-              <div className="fg" style={{marginBottom:'16px'}}><label className="lbl">余りものの名前 <em>*</em></label><input className="inp" id="m-post-name" placeholder="例：渋柿" /></div>
-              {/* 数量 */}
-              <div className="fg" style={{marginBottom:'16px'}}><label className="lbl">数量 <small>任意</small></label><input className="inp" id="m-post-qty" placeholder="例：約15kg・10袋・ひとかご分" /></div>
-              {/* 商品の状態 */}
-              <div className="fg" style={{marginBottom:'16px'}}>
-                <label className="lbl">商品の状態</label>
-                <div className="sel-opts">
-                  {(['良好','普通','傷あり'] as const).map(c=>(
-                    <button key={c} type="button" className="sel-opt" data-v={c} onClick={(e)=>selectCondition(e.currentTarget,'mob')}>{c}</button>
+              <div id="m-post-step-cat">
+                <p style={{ fontSize: '.82rem', fontWeight: 600, color: '#2D5A27', marginBottom: '12px' }}>ステップ1：カテゴリを選択</p>
+                <div className="post-cat-grid post-cat-grid--mob">
+                  {POST_CATEGORY_PICKS.map((c) => (
+                    <button key={c.key} type="button" className="post-cat-card" onClick={() => pickPostCategory('mob', c.key)}>
+                      <span className="post-cat-emoji" aria-hidden>
+                        {c.emoji}
+                      </span>
+                      <span className="post-cat-label">{c.label}</span>
+                    </button>
                   ))}
                 </div>
               </div>
-              {/* 説明 */}
-              <div className="fg" style={{marginBottom:'16px'}}><label className="lbl">説明 <small>任意</small></label><textarea className="txta" id="m-post-desc" placeholder="形は悪いけど味は最高！受け取りは土日OK など"></textarea></div>
-              <hr className="pf-section" />
-              {/* 価格 */}
-              <div className="fg" style={{marginBottom:'16px'}}>
-                <label className="lbl">希望価格 <em>*</em></label>
-                <div className="price-row"><input className="inp" type="number" id="m-post-price" placeholder="金額（円）" /><input className="inp" id="m-post-unit" placeholder="単位（袋・kgなど）" /></div>
-                <div className="free-row" id="m-free-row" onClick={()=>toggleFree('mob')}><div className="tog"></div><span style={{fontSize:'.8rem',fontWeight:500,color:'var(--ink2)'}}>無料でおすそわけする</span></div>
-              </div>
-              {/* 受け渡し場所 */}
-              <div className="fg" style={{marginBottom:'16px'}}>
-                <label className="lbl">受け渡し場所 <small>任意</small></label>
-                <div className="loc-sel-row">
-                  <select className="inp loc-sel" id="m-post-loc-pref" onChange={(e) => onPostLocPrefChange(e.target as HTMLSelectElement)}><option value="">都道府県（任意）</option></select>
-                  <select className="inp loc-sel" id="m-post-loc-city" disabled onChange={(e) => onPostLocCityChange(e.target as HTMLSelectElement)}><option value="">市区町村</option></select>
-                  <select className="inp loc-sel" id="m-post-loc-dist" disabled><option value="">地区（任意）</option></select>
-                </div>
-              </div>
-              <hr className="pf-section" />
-              {/* 受け渡し可能日時 */}
-              <div className="fg" style={{marginBottom:'16px'}}>
-                <label className="lbl">受け渡し可能日時 <small>任意</small></label>
-                <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
-                  <div>
-                    <p style={{fontSize:'.74rem',color:'var(--mu)',marginBottom:'7px',fontWeight:500}}>曜日</p>
-                    <div className="pickup-row">
-                      <label className="chk-lbl"><input type="checkbox" id="m-day-wd" /><span>平日</span></label>
-                      <label className="chk-lbl"><input type="checkbox" id="m-day-sat" /><span>土曜</span></label>
-                      <label className="chk-lbl"><input type="checkbox" id="m-day-sun" /><span>日曜</span></label>
-                    </div>
-                  </div>
-                  <div>
-                    <p style={{fontSize:'.74rem',color:'var(--mu)',marginBottom:'7px',fontWeight:500}}>時間帯</p>
-                    <div className="pickup-row">
-                      <label className="chk-lbl"><input type="checkbox" id="m-time-am" /><span>午前</span></label>
-                      <label className="chk-lbl"><input type="checkbox" id="m-time-pm" /><span>午後</span></label>
-                      <label className="chk-lbl"><input type="checkbox" id="m-time-ev" /><span>夜</span></label>
-                    </div>
+
+              <div id="m-post-step-form" style={{ display: 'none' }}>
+                <button type="button" className="post-cat-back" style={{ marginBottom: '12px' }} onClick={() => showPostCategoryStep('mob')}>
+                  ← カテゴリ選択に戻る
+                </button>
+                <p id="m-post-cat-banner" className="post-cat-banner" />
+                <input type="file" id="m-photo-file" accept="image/*" multiple style={{ display: 'none' }} onChange={(e) => addPhotos(e.currentTarget, 'mob')} />
+
+                <div className="fg" style={{ marginBottom: '16px' }}>
+                  <label className="lbl" id="m-post-photo-lbl">
+                    商品写真 <em>*</em> <small>最大5枚</small>
+                  </label>
+                  <div id="m-photo-grid" className="pf-imgs">
+                    <button type="button" className="pf-img-add" onClick={() => (document.getElementById('m-photo-file') as HTMLInputElement)?.click()}>
+                      <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" strokeWidth="1.8" strokeLinecap="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      <span>0/5</span>
+                    </button>
                   </div>
                 </div>
-              </div>
-              {/* 農薬 */}
-              <div className="fg" style={{marginBottom:'16px'}}>
-                <label className="lbl">農薬の使用</label>
-                <div className="sel-opts">
-                  {(['なし','あり','不明'] as const).map(p=>(
-                    <button key={p} type="button" className="sel-opt" data-v={p} onClick={(e)=>selectPesticide(e.currentTarget,'mob')}>{p}</button>
-                  ))}
+
+                <div className="fg" style={{ marginBottom: '16px' }}>
+                  <label className="lbl" id="m-post-name-lbl">
+                    商品名 <em>*</em>
+                  </label>
+                  <input className="inp" id="m-post-name" />
                 </div>
+
+                <div className="fg" id="m-post-block-produce-qty" style={{ display: 'none', marginBottom: '16px' }}>
+                  <label className="lbl">
+                    数量・単位 <small>例：3kg、1袋</small>
+                  </label>
+                  <input className="inp" id="m-post-qty" placeholder="例：約3kg、1袋" />
+                </div>
+
+                <div className="fg" id="m-post-block-wood-qty" style={{ display: 'none', marginBottom: '16px' }}>
+                  <label className="lbl">量の目安</label>
+                  <input className="inp" id="m-post-wood-qty" placeholder="例：軽トラ1台分" />
+                </div>
+
+                <div id="m-post-block-land-fields" style={{ display: 'none' }}>
+                  <div className="fg" style={{ marginBottom: '16px' }}>
+                    <label className="lbl">土地の種類</label>
+                    <select className="inp" id="m-post-land-type">
+                      <option value="">選択してください</option>
+                      <option value="農地">農地</option>
+                      <option value="山林">山林</option>
+                      <option value="空き地">空き地</option>
+                      <option value="その他">その他</option>
+                    </select>
+                  </div>
+                  <div className="fg" style={{ marginBottom: '16px' }}>
+                    <label className="lbl">面積</label>
+                    <div className="price-row">
+                      <input className="inp" id="m-post-land-area" inputMode="decimal" placeholder="数値" />
+                      <select className="inp" id="m-post-land-area-unit" style={{ maxWidth: '100px' }}>
+                        <option value="㎡">㎡</option>
+                        <option value="畝">畝</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="fg" style={{ marginBottom: '16px' }}>
+                    <label className="lbl">貸出条件</label>
+                    <select className="inp" id="m-post-land-lend" onChange={() => onLandLendChange('mob')}>
+                      <option value="">選択してください</option>
+                      <option value="無償貸与">無償貸与</option>
+                      <option value="有償">有償</option>
+                      <option value="管理してくれるなら無料">管理してくれるなら無料</option>
+                      <option value="応相談">応相談</option>
+                    </select>
+                  </div>
+                  <div className="fg" id="m-post-block-land-price" style={{ display: 'none', marginBottom: '16px' }}>
+                    <label className="lbl">価格（円） <em>*</em></label>
+                    <input className="inp" type="number" id="m-post-land-price" placeholder="金額" />
+                  </div>
+                  <div className="fg" style={{ marginBottom: '16px' }}>
+                    <label className="lbl">希望する使用目的</label>
+                    <select className="inp" id="m-post-land-purpose">
+                      <option value="">選択してください</option>
+                      <option value="農業">農業</option>
+                      <option value="家庭菜園">家庭菜園</option>
+                      <option value="薪割り場">薪割り場</option>
+                      <option value="その他">その他</option>
+                    </select>
+                  </div>
+                  <div className="fg" style={{ marginBottom: '16px' }}>
+                    <label className="lbl">契約期間</label>
+                    <select className="inp" id="m-post-land-period">
+                      <option value="">選択してください</option>
+                      <option value="単発">単発</option>
+                      <option value="年間">年間</option>
+                      <option value="応相談">応相談</option>
+                    </select>
+                  </div>
+                  <div className="fg" style={{ marginBottom: '16px' }}>
+                    <label className="lbl">現在の状態</label>
+                    <select className="inp" id="m-post-land-status">
+                      <option value="">選択してください</option>
+                      <option value="すぐ使える">すぐ使える</option>
+                      <option value="整備が必要">整備が必要</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="fg" id="m-post-block-condition" style={{ display: 'none', marginBottom: '16px' }}>
+                  <label className="lbl">商品の状態</label>
+                  <div className="sel-opts">
+                    {(['良好', '普通', '傷あり'] as const).map((c) => (
+                      <button key={c} type="button" className="sel-opt" data-v={c} onClick={(e) => selectCondition(e.currentTarget, 'mob')}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="fg" id="m-post-block-wood-only" style={{ display: 'none', marginBottom: '16px' }}>
+                  <label className="lbl">乾燥済みか</label>
+                  <div className="sel-opts">
+                    {(['済み', '未乾燥', '不明'] as const).map((c) => (
+                      <button key={c} type="button" className="sel-opt" data-v={c} onClick={(e) => selectWoodDry(e.currentTarget, 'mob')}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="lbl" style={{ marginTop: '12px', display: 'block' }}>
+                    樹種
+                  </label>
+                  <div className="sel-opts">
+                    {(['スギ', 'ヒノキ', 'ナラ', 'その他', '不明'] as const).map((c) => (
+                      <button key={c} type="button" className="sel-opt" data-v={c} onClick={(e) => selectWoodTree(e.currentTarget, 'mob')}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="fg" style={{ marginBottom: '16px' }}>
+                  <label className="lbl" id="m-post-desc-lbl">
+                    商品の説明 <small>任意</small>
+                  </label>
+                  <textarea className="txta" id="m-post-desc" placeholder="状態や受け渡しの希望など" />
+                </div>
+
+                <div id="m-post-block-standard-price">
+                  <div className="fg" style={{ marginBottom: '16px' }}>
+                    <label className="lbl">価格</label>
+                    <div className="price-row">
+                      <input className="inp" type="number" id="m-post-price" placeholder="金額（円）" />
+                    </div>
+                    <div className="free-row" id="m-free-row" onClick={() => toggleFree('mob')}>
+                      <div className="tog" />
+                      <span style={{ fontSize: '.8rem', fontWeight: 500, color: 'var(--ink2)' }}>無料で譲る</span>
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="pf-section" />
+
+                <div className="fg" id="m-post-block-loc" style={{ marginBottom: '16px' }}>
+                  <label className="lbl" id="m-post-loc-lbl">
+                    受け渡し場所（長野県）
+                  </label>
+                  <div className="loc-sel-row">
+                    <select className="inp loc-sel" id="m-post-loc-pref" onChange={(e) => onPostLocPrefChange(e.target as HTMLSelectElement)}>
+                      <option value="">都道府県</option>
+                    </select>
+                    <select className="inp loc-sel" id="m-post-loc-city" disabled onChange={(e) => onPostLocCityChange(e.target as HTMLSelectElement)}>
+                      <option value="">市区町村</option>
+                    </select>
+                    <select className="inp loc-sel" id="m-post-loc-dist" disabled>
+                      <option value="">地区（任意）</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div id="m-post-block-handoff">
+                  <hr className="pf-section" />
+                  <div className="fg" style={{ marginBottom: '16px' }}>
+                    <label className="lbl">受渡可能曜日・時間帯</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div>
+                        <p style={{ fontSize: '.74rem', color: 'var(--mu)', marginBottom: '7px', fontWeight: 500 }}>曜日</p>
+                        <div className="pickup-row">
+                          <label className="chk-lbl">
+                            <input type="checkbox" id="m-day-wd" />
+                            <span>平日</span>
+                          </label>
+                          <label className="chk-lbl">
+                            <input type="checkbox" id="m-day-sat" />
+                            <span>土曜</span>
+                          </label>
+                          <label className="chk-lbl">
+                            <input type="checkbox" id="m-day-sun" />
+                            <span>日曜</span>
+                          </label>
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '.74rem', color: 'var(--mu)', marginBottom: '7px', fontWeight: 500 }}>時間帯</p>
+                        <div className="pickup-row">
+                          <label className="chk-lbl">
+                            <input type="checkbox" id="m-time-am" />
+                            <span>午前</span>
+                          </label>
+                          <label className="chk-lbl">
+                            <input type="checkbox" id="m-time-pm" />
+                            <span>午後</span>
+                          </label>
+                          <label className="chk-lbl">
+                            <input type="checkbox" id="m-time-ev" />
+                            <span>夜</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="fg" style={{ marginBottom: '16px' }}>
+                    <label className="lbl">受け取り期限 <small>任意</small></label>
+                    <input className="inp" type="date" id="m-post-expiry" />
+                  </div>
+                </div>
+
+                <div className="fg" id="m-post-block-pesticide" style={{ display: 'none', marginBottom: '16px' }}>
+                  <label className="lbl">農薬の使用 <em>*</em></label>
+                  <div className="sel-opts">
+                    {(['なし', 'あり', '不明'] as const).map((p) => (
+                      <button key={p} type="button" className="sel-opt" data-v={p} onClick={(e) => selectPesticide(e.currentTarget, 'mob')}>
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="hint" style={{ marginBottom: '20px' }}>
+                  <span style={{ fontSize: '.95rem', flexShrink: 0 }}>💡</span>
+                  <p>詳しい住所はチャットで直接決めてOKです。掲示板には住所は出ません。</p>
+                </div>
+                <button
+                  type="button"
+                  id="m-post-submit-btn"
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    background: '#2D5A27',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '13px',
+                    fontSize: '.92rem',
+                    fontWeight: 700,
+                    letterSpacing: '.08em',
+                    boxShadow: '0 5px 17px rgba(45,90,39,.28)',
+                  }}
+                  onClick={() => void submitPost('mob')}
+                >
+                  出品する →
+                </button>
               </div>
-              {/* 受け取り期限 */}
-              <div className="fg" style={{marginBottom:'16px'}}><label className="lbl">受け取り期限 <small>任意</small></label><input className="inp" type="date" id="m-post-expiry" /></div>
-              <div className="hint" style={{marginBottom:'20px'}}><span style={{fontSize:'.95rem',flexShrink:0}}>💡</span><p>詳しい住所はチャットで直接決めてOKです。掲示板には住所は出ません。</p></div>
-              <button type="button" id="m-post-submit-btn" style={{width:'100%',padding:'16px',background:'var(--k)',color:'#fff',border:'none',borderRadius:'13px',fontSize:'.92rem',fontWeight:700,letterSpacing:'.08em',boxShadow:'0 5px 17px rgba(196,88,26,.34)',transition:'all .18s'}} onClick={() => void submitPost('mob')}>出品する →</button>
             </div>
           </div>
         </div>
@@ -4293,6 +5053,9 @@ export default function Page() {
               <p className="m-d-price" id="m-d-price">¥500 <small>/ 箱</small></p>
               <div className="m-d-tags"><span className="m-d-tag" id="m-d-cat">🍊 果物</span><span className="m-d-tag">手渡しOK</span><span className="m-d-tag">今週末受取可</span></div>
               <p className="m-d-desc" id="m-d-desc">—</p>
+              <div id="m-det-land-wrap" style={{ display: 'none', margin: '0 0 12px' }}>
+                <div id="m-det-land-box" />
+              </div>
               <div className="m-d-meta">
                 <div className="m-d-mi"><div className="m-d-ml">数量</div><div className="m-d-mv" id="m-d-qty">—</div></div>
                 <div className="m-d-mi"><div className="m-d-ml">受け渡し</div><div className="m-d-mv">手渡し（駒ヶ根）</div></div>

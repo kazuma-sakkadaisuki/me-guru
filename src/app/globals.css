@@ -1294,3 +1294,124 @@ select.inp.prof-muni-sel {
   cursor: pointer;
   appearance: auto;
 }
+
+/* ── 出品：カテゴリカード ── */
+.post-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+.post-cat-grid--mob {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 400px) {
+  .post-cat-grid--mob {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}
+.post-cat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 104px;
+  padding: 16px 12px;
+  border-radius: 16px;
+  border: 2px solid rgba(45, 90, 39, 0.18);
+  background: #fff;
+  box-shadow: var(--sh);
+  font-family: var(--ss);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+  text-align: center;
+}
+.post-cat-card:hover {
+  border-color: #C4581A;
+  box-shadow: 0 6px 20px rgba(196, 88, 26, 0.18);
+}
+.post-cat-card:active {
+  transform: scale(0.98);
+}
+.post-cat-emoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+.post-cat-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #2D5A27;
+  letter-spacing: 0.02em;
+}
+.post-cat-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #2D5A27;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--ss);
+}
+.post-cat-back:hover {
+  color: #C4581A;
+}
+.post-cat-banner {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #2D5A27;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: rgba(248, 244, 238, 0.95);
+  border-radius: 12px;
+  border: 1px solid rgba(45, 90, 39, 0.12);
+  font-family: var(--ss);
+}
+
+/* 商品詳細：土地情報 */
+.land-info-card {
+  background: #fff;
+  border: 1px solid rgba(45, 90, 39, 0.15);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-family: var(--ss);
+}
+.land-info-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #C4581A;
+  letter-spacing: 0.06em;
+  margin: 0 0 12px;
+}
+.land-meta-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 34%) 1fr;
+  gap: 8px 12px;
+  font-size: 0.84rem;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(45, 90, 39, 0.08);
+}
+.land-meta-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.land-meta-k {
+  color: var(--mu);
+  font-weight: 600;
+}
+.land-meta-v {
+  color: var(--ink);
+  font-weight: 500;
+  line-height: 1.5;
+  word-break: break-word;
+}
+@media (max-width: 480px) {
+  .land-meta-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
