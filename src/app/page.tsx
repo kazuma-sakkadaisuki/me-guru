@@ -36,6 +36,20 @@ type Chat = {
   sellerId?: string
   /** Supabase items.id（ITEMS の数値 id とずれるとき一覧からの解決に使う） */
   itemSupabaseId?: string
+  /** 欲しいものリクエスト経由チャット */
+  requestSupabaseId?: string
+}
+
+type MeguruRequest = {
+  id: string
+  user_id: string
+  category: string
+  description: string
+  area: string
+  created_at: string
+  hope_price: string | null
+  hope_timing: string | null
+  posterName?: string
 }
 type Item = typeof ITEMS[0] & { imgSrc?: string; images?: string[]; sold?: boolean; expiry?: string; supabaseId?: string; userId?: string }
 
@@ -92,6 +106,28 @@ const POST_CATEGORY_PICKS: { key: string; emoji: string; label: string }[] = [
   { key: 'land', emoji: '🏡', label: '土地・農地' },
   { key: 'misc', emoji: '📦', label: 'なんでも' },
 ]
+
+/** 欲しいものリクエスト（フォーム・表示ラベル） */
+const REQUEST_FORM_CATEGORIES: { value: string; label: string }[] = [
+  { value: 'veg', label: '野菜' },
+  { value: 'fruit', label: '果物' },
+  { value: 'rice', label: '米' },
+  { value: 'other', label: '加工品' },
+  { value: 'firewood', label: '薪' },
+  { value: 'timber', label: '木材' },
+  { value: 'herb', label: '山菜' },
+  { value: 'land_plot', label: '土地' },
+  { value: 'farmland', label: '農地' },
+  { value: 'misc', label: 'なんでも' },
+]
+const REQUEST_CAT_LABELS: Record<string, string> = {
+  ...(Object.fromEntries(REQUEST_FORM_CATEGORIES.map((c) => [c.value, c.label])) as Record<string, string>),
+  /** 旧データ用 */
+  wood: '薪・木材',
+  land: '土地・農地',
+}
+const REQ_AREA_FILTER_ALL = 'all'
+const REQ_AREA_FILTER_NAGANO = 'nagano-wide'
 
 const LAND_INFO_MARKER = '\n\n---土地情報---\n'
 
@@ -475,6 +511,9 @@ let CACHED_USER_EMAIL: string | null = null
 let pcDragIdx = -1, mobDragIdx = -1
 let mStk: string[] = ['ms-home']
 let mSearchCatKey = 'all'
+let meguruRequestsCache: MeguruRequest[] = []
+let reqListCatFilter = 'all'
+let reqListAreaFilter = 'all'
 let areaFilterMode: 'local' | 'all' = 'local'
 /** ホーム一覧：出品中 / 渡し済み（全ユーザーの出品を ITEMS から絞る。mine では絞らない） */
 let homeSoldFilter: 'listing' | 'delivered' = 'listing'
@@ -494,7 +533,7 @@ function showToast(msg: string) {
 }
 
 /* ── PC NAV ── */
-const PC_PAGES = ['listing','post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','settings','about','detail','userprofile']
+const PC_PAGES = ['listing','requests','post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','settings','about','detail','userprofile']
 const PC_PAGES_NEED_AUTH = ['post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','settings','about','userprofile']
 function pcGo(page: string) {
   if (PC_PAGES_NEED_AUTH.includes(page) && !CURRENT_USER_ID) {
@@ -503,7 +542,7 @@ function pcGo(page: string) {
   }
   PC_PAGES.forEach(p => { const el = document.getElementById('pc-pg-'+p); if (el) el.style.display='none' })
   const el = document.getElementById('pc-pg-'+page); if (el) el.style.display=''
-  if (!['listing','chatlist','mylistings'].includes(page)) document.getElementById('pc-panel')?.classList.add('hidden')
+  if (!['listing','chatlist','mylistings','requests'].includes(page)) document.getElementById('pc-panel')?.classList.add('hidden')
   document.querySelectorAll('.pc-nav-tab').forEach(t => t.classList.remove('on'))
   if (page !== 'userprofile') {
     const tabId = page === 'complete' ? 'pct-post' : 'pct-' + page
@@ -529,6 +568,11 @@ function pcGo(page: string) {
   if (page==='notif') renderPcNotifs()
   if (page==='mypage') { updateMypage('pc'); (document.getElementById('pc-pg-mypage') as HTMLElement).style.display='' }
   if (page==='chatlist') renderChatList('pc')
+  if (page === 'requests') {
+    initRequestLocSelects()
+    syncRequestFilterSelects()
+    void loadRequestsFromSupabase()
+  }
   if (page==='txhistory') renderTxHistory('pc')
   if (page === 'settings') hydrateSettingsScreen()
   if (page === 'post') showPostCategoryStep('pc')
@@ -873,6 +917,13 @@ function mNav(id: string) {
   if (!next) return
   next.classList.remove('back'); next.classList.add('active')
   if (id==='ms-chatlist') renderChatList('mob')
+  if (id === 'ms-requests') {
+    document.querySelectorAll('#mob-root .m-nt').forEach((b) => b.classList.remove('on'))
+    document.querySelectorAll('[data-t="ms-requests"]').forEach((b) => b.classList.add('on'))
+    initRequestLocSelects()
+    syncRequestFilterSelects()
+    void loadRequestsFromSupabase()
+  }
   if (id === 'ms-search') {
     document.querySelectorAll('#mob-root .m-nt').forEach((b) => b.classList.remove('on'))
     document.querySelectorAll('[data-t="ms-search"]').forEach((b) => b.classList.add('on'))
@@ -1824,6 +1875,18 @@ function confirmCompleteTrade() {
 }
 function updateCompleteBtn(mode: string) {
   const chat = CHATS[curChatId]
+  if (chat?.requestSupabaseId) {
+    if (mode === 'pc') {
+      const wrap = document.getElementById('pc-chat-trade-wrap')
+      if (wrap) wrap.style.display = 'none'
+      const cisSold = document.getElementById('pc-chat-cis-sold')
+      if (cisSold) cisSold.style.display = 'none'
+    } else {
+      const btn = document.getElementById('m-complete-btn') as HTMLButtonElement | null
+      if (btn) btn.style.display = 'none'
+    }
+    return
+  }
   const item = chat ? getChatLinkedItem(chat) : null
   const isSold = item?.sold ?? false
   const isSeller = !!(chat?.sellerId && CURRENT_USER_ID === chat.sellerId)
@@ -2065,6 +2128,285 @@ function wipeSupabaseChatsFromMemoryAndRefresh() {
   refreshNotifListsIfOpen()
 }
 
+/* ── 欲しいものリクエスト ── */
+function syncRequestFilterSelects() {
+  ;(['pc', 'm'] as const).forEach((pre) => {
+    const c = document.getElementById(`${pre}-req-filter-cat`) as HTMLSelectElement | null
+    if (c) c.value = reqListCatFilter
+    const a = document.getElementById(`${pre}-req-filter-area`) as HTMLSelectElement | null
+    if (a) a.value = reqListAreaFilter
+  })
+}
+
+function initRequestLocSelects() {
+  const currentCity = getUserCity()
+  const cities = AREA_DATA[NAGANO_PREF] || []
+  const cityOpts =
+    '<option value="">市区町村を選択</option>' +
+    cities.map((c) => `<option value="${c}"${c === currentCity ? ' selected' : ''}>${c}</option>`).join('')
+  ;(['pc', 'm'] as const).forEach((pre) => {
+    const citySel = document.getElementById(`${pre}-req-loc-city`) as HTMLSelectElement | null
+    if (citySel) {
+      citySel.innerHTML = cityOpts
+      citySel.disabled = false
+    }
+  })
+}
+
+function renderRequestLists() {
+  const filtered = meguruRequestsCache.filter((r) => {
+    if (reqListCatFilter !== 'all' && r.category !== reqListCatFilter) return false
+    if (reqListAreaFilter === REQ_AREA_FILTER_ALL) return true
+    if (reqListAreaFilter === REQ_AREA_FILTER_NAGANO) return (r.area || '').includes(NAGANO_PREF)
+    return (r.area || '').includes(reqListAreaFilter)
+  })
+  const cardHtml = (r: MeguruRequest, mode: 'pc' | 'mob') => {
+    const isMine = !!(CURRENT_USER_ID && r.user_id === CURRENT_USER_ID)
+    const catLabel = REQUEST_CAT_LABELS[r.category] || r.category
+    const desc = r.description || ''
+    const posted =
+      r.created_at
+        ? new Date(r.created_at).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })
+        : '—'
+    const priceDisp = r.hope_price ? escChatHtml(r.hope_price) : '—'
+    const timingDisp = r.hope_timing ? escChatHtml(r.hope_timing) : '—'
+    let actions = ''
+    if (!isMine && CURRENT_USER_ID) {
+      actions = `<button type="button" class="req-offer-btn" onclick="offerForRequest('${r.id}','${mode}')">提供できます</button>`
+    } else if (isMine) {
+      actions = `<button type="button" class="req-del-btn" onclick="deleteRequest('${r.id}','${mode}')">削除</button>`
+    }
+    const poster = r.posterName ? escChatHtml(chatPartnerNameFromProfile(r.posterName)) : 'ユーザー'
+    return `<article class="req-card" data-id="${r.id}">
+      <div class="req-card-head"><span class="req-card-cat">${escChatHtml(catLabel)}</span></div>
+      <p class="req-card-labeled"><span class="req-card-k">投稿日</span><span class="req-card-v">${escChatHtml(posted)}</span></p>
+      <p class="req-card-labeled"><span class="req-card-k">説明</span></p>
+      <p class="req-card-desc">${escChatHtml(desc)}</p>
+      <p class="req-card-labeled"><span class="req-card-k">エリア</span><span class="req-card-v">${escChatHtml(r.area || '—')}</span></p>
+      <p class="req-card-labeled"><span class="req-card-k">希望価格</span><span class="req-card-v">${priceDisp}</span></p>
+      <p class="req-card-labeled"><span class="req-card-k">希望時期</span><span class="req-card-v">${timingDisp}</span></p>
+      <p class="req-card-labeled"><span class="req-card-k">投稿者</span><span class="req-card-v">${poster}</span></p>
+      <div class="req-card-actions">${actions}</div>
+    </article>`
+  }
+  const inner = filtered.length ? filtered.map((r) => cardHtml(r, 'pc')).join('') : '<p class="req-empty">まだリクエストがありません</p>'
+  const pcList = document.getElementById('pc-req-list')
+  const mobList = document.getElementById('m-req-list')
+  if (pcList) pcList.innerHTML = inner
+  if (mobList) mobList.innerHTML = filtered.length ? filtered.map((r) => cardHtml(r, 'mob')).join('') : '<p class="req-empty">まだリクエストがありません</p>'
+}
+
+async function loadRequestsFromSupabase() {
+  try {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('requests')
+      .select(
+        `id, user_id, category, description, area, created_at, "希望価格", "希望時期", profiles (name)`
+      )
+      .order('created_at', { ascending: false })
+    if (error) {
+      console.error('[meguru] loadRequests:', error.message, error.code)
+      meguruRequestsCache = []
+      renderRequestLists()
+      return
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    meguruRequestsCache = (data || []).map((row: any) => {
+      const rawProf = row.profiles as { name: string | null } | { name: string | null }[] | null | undefined
+      const prof = Array.isArray(rawProf) ? rawProf[0] : rawProf
+      return {
+        id: row.id as string,
+        user_id: row.user_id as string,
+        category: row.category as string,
+        description: row.description as string,
+        area: row.area as string,
+        created_at: row.created_at as string,
+        hope_price: (row['希望価格'] as string | null) ?? null,
+        hope_timing: (row['希望時期'] as string | null) ?? null,
+        posterName: prof?.name ?? undefined,
+      }
+    })
+    renderRequestLists()
+  } catch (e) {
+    console.error('[meguru] loadRequestsFromSupabase:', e)
+    meguruRequestsCache = []
+    renderRequestLists()
+  }
+}
+
+async function submitRequestForm(mode: 'pc' | 'mob') {
+  if (!CURRENT_USER_ID) {
+    window.location.href = '/login'
+    return
+  }
+  const pre = mode
+  const cat = (document.getElementById(`${pre}-req-cat`) as HTMLSelectElement | null)?.value ?? ''
+  const desc = (document.getElementById(`${pre}-req-desc`) as HTMLTextAreaElement | null)?.value.trim() ?? ''
+  const city = (document.getElementById(`${pre}-req-loc-city`) as HTMLSelectElement | null)?.value ?? ''
+  const hopePrice = (document.getElementById(`${pre}-req-price`) as HTMLInputElement | null)?.value.trim() ?? ''
+  const hopeWhen = (document.getElementById(`${pre}-req-when`) as HTMLInputElement | null)?.value.trim() ?? ''
+  if (!cat) {
+    showToast('カテゴリを選んでください')
+    return
+  }
+  if (!desc) {
+    showToast('欲しいもの・詳細を入力してください')
+    return
+  }
+  if (!city) {
+    showToast('市区町村を選んでください')
+    return
+  }
+  const area = `${NAGANO_PREF} ${city}`.trim()
+  const btn = document.getElementById(`${pre}-req-submit`) as HTMLButtonElement | null
+  if (btn) {
+    btn.disabled = true
+    btn.setAttribute('aria-busy', 'true')
+  }
+  try {
+    const supabase = createClient()
+    const rowPayload: Record<string, unknown> = {
+      user_id: CURRENT_USER_ID,
+      category: cat,
+      description: desc,
+      area,
+      希望価格: hopePrice || null,
+      希望時期: hopeWhen || null,
+    }
+    const { error } = await supabase.from('requests').insert(rowPayload)
+    if (error) {
+      console.error('[meguru] submitRequest:', error.message, error.code)
+      showToast('投稿に失敗しました')
+      return
+    }
+    showToast('投稿しました')
+    ;(document.getElementById(`${pre}-req-desc`) as HTMLTextAreaElement).value = ''
+    ;(document.getElementById(`${pre}-req-price`) as HTMLInputElement).value = ''
+    ;(document.getElementById(`${pre}-req-when`) as HTMLInputElement).value = ''
+    await loadRequestsFromSupabase()
+  } catch (e) {
+    console.error('[meguru] submitRequestForm:', e)
+    showToast('投稿に失敗しました')
+  } finally {
+    if (btn) {
+      btn.disabled = false
+      btn.setAttribute('aria-busy', 'false')
+    }
+  }
+}
+
+async function deleteRequest(id: string, _mode: string) {
+  if (!CURRENT_USER_ID) {
+    window.location.href = '/login'
+    return
+  }
+  if (!window.confirm('このリクエストを削除しますか？')) return
+  try {
+    const supabase = createClient()
+    const { error } = await supabase.from('requests').delete().eq('id', id)
+    if (error) {
+      console.error('[meguru] deleteRequest:', error.message)
+      showToast('削除に失敗しました')
+      return
+    }
+    showToast('削除しました')
+    await loadRequestsFromSupabase()
+  } catch (e) {
+    console.error('[meguru] deleteRequest:', e)
+    showToast('削除に失敗しました')
+  }
+}
+
+async function offerForRequest(requestId: string, mode: string) {
+  if (!CURRENT_USER_ID) {
+    window.location.href = '/login'
+    return
+  }
+  const req = meguruRequestsCache.find((r) => r.id === requestId)
+  if (!req) {
+    showToast('リクエストが見つかりません')
+    return
+  }
+  if (req.user_id === CURRENT_USER_ID) return
+  const supabase = createClient()
+  try {
+    let chatId: string
+    const { data: existing } = await supabase
+      .from('chats')
+      .select('id')
+      .eq('request_id', requestId)
+      .eq('buyer_id', CURRENT_USER_ID)
+      .maybeSingle()
+    if (existing?.id) {
+      chatId = existing.id
+    } else {
+      const { error: buyerProfErr } = await supabase
+        .from('profiles')
+        .upsert({ id: CURRENT_USER_ID }, { onConflict: 'id', ignoreDuplicates: true })
+      if (buyerProfErr) {
+        console.error('[meguru] offerForRequest profiles:', buyerProfErr.message)
+        showToast('チャットを始められませんでした')
+        return
+      }
+      const { data: newChat, error } = await supabase
+        .from('chats')
+        .insert({
+          request_id: requestId,
+          item_id: null,
+          buyer_id: CURRENT_USER_ID,
+          seller_id: req.user_id,
+        })
+        .select('id')
+        .single()
+      if (error || !newChat) {
+        console.error('[meguru] offerForRequest insert:', error?.message, error?.code)
+        showToast('チャットを始められませんでした（DBのマイグレーションを確認してください）')
+        return
+      }
+      chatId = newChat.id as string
+    }
+    const key = `sb_${chatId}`
+    const partnerName = chatPartnerNameFromProfile(req.posterName ?? null)
+    const catLine = `求む：${REQUEST_CAT_LABELS[req.category] || req.category}`
+    if (!CHATS[key]) {
+      CHATS[key] = {
+        name: partnerName,
+        sub: req.area || NAGANO_PREF,
+        avt: '🧑',
+        ie: '🙋',
+        in_: catLine,
+        ip: (req.description || '').length > 48 ? `${(req.description || '').slice(0, 48)}…` : (req.description || ''),
+        unread: 0,
+        itemId: 0,
+        lastAt: Date.now(),
+        msgs: [],
+        supabaseId: chatId,
+        buyerId: CURRENT_USER_ID,
+        sellerId: req.user_id,
+        requestSupabaseId: requestId,
+      }
+    } else {
+      const row = CHATS[key]
+      row.name = partnerName
+      row.sub = req.area || NAGANO_PREF
+      row.ie = '🙋'
+      row.in_ = catLine
+      row.ip = (req.description || '').length > 48 ? `${(req.description || '').slice(0, 48)}…` : (req.description || '')
+      row.itemId = 0
+      row.buyerId = CURRENT_USER_ID
+      row.sellerId = req.user_id
+      row.requestSupabaseId = requestId
+      row.itemSupabaseId = undefined
+    }
+    await loadMessagesForChat(chatId, key)
+    openChat(key, mode)
+  } catch (e) {
+    console.error('[meguru] offerForRequest:', e)
+    showToast('チャットを開けませんでした')
+  }
+}
+
 /** 失敗時は []（ネットワーク等で fetch が落ちると Supabase クライアントが TypeError を投げることがある） */
 async function loadChatsFromSupabase(): Promise<unknown[]> {
   if (!CURRENT_USER_ID) return []
@@ -2072,8 +2414,9 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
     const supabase = createClient()
     const { data: chatsData, error } = await supabase
       .from('chats')
-      .select(`id, created_at, buyer_id, seller_id, item_id,
-        item:item_id(id, name, price, unit, category, images)`)
+      .select(`id, created_at, buyer_id, seller_id, item_id, request_id,
+        item:item_id(id, name, price, unit, category, images),
+        request:request_id(id, category, description, area)`)
       .or(`buyer_id.eq.${CURRENT_USER_ID},seller_id.eq.${CURRENT_USER_ID}`)
       .order('created_at', { ascending: false })
     if (error) {
@@ -2132,6 +2475,8 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
       const otherId = chat.buyer_id === CURRENT_USER_ID ? chat.seller_id : chat.buyer_id
       const prof = otherId ? profById.get(otherId) : undefined
       const item = chat.item
+      const req = chat.request
+      const isRequestChat = !!(chat.request_id && !chat.item_id && req?.id)
       const myMsgs = (allMsgs || []).filter((m: any) => m.chat_id === chat.id)
       const lastMsg = myMsgs[myMsgs.length - 1]
       const readMs = getSupabaseChatLastReadMs(chat.id)
@@ -2140,6 +2485,38 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
       ).length
       const inMemItem = ITEMS.find(i => (i as Item).supabaseId === item?.id)
       const areaStr = (prof?.area && String(prof.area).trim()) || ''
+      if (isRequestChat) {
+        const catKey = req.category as string
+        const catLine = `求む：${REQUEST_CAT_LABELS[catKey] || catKey}`
+        const desc = (req.description as string) || ''
+        CHATS[key] = {
+          name: chatPartnerNameFromProfile(prof?.name ?? null),
+          sub: areaStr || (req.area as string) || NAGANO_PREF,
+          avt: '🧑',
+          ie: '🙋',
+          in_: catLine,
+          ip: desc.length > 48 ? `${desc.slice(0, 48)}…` : desc,
+          unread,
+          itemId: 0,
+          lastAt: lastMsg ? new Date(lastMsg.created_at).getTime() : new Date(chat.created_at).getTime(),
+          msgs: myMsgs.map((m: any) => {
+            const t = new Date(m.created_at)
+            return {
+              from: m.sender_id === CURRENT_USER_ID ? 'me' : 'them',
+              text: m.text,
+              time: t.getHours() + ':' + String(t.getMinutes()).padStart(2, '0'),
+              id: m.id,
+              createdAt: m.created_at,
+            }
+          }),
+          supabaseId: chat.id,
+          buyerId: chat.buyer_id,
+          sellerId: chat.seller_id,
+          requestSupabaseId: req.id as string,
+          itemSupabaseId: undefined,
+        }
+        continue
+      }
       CHATS[key] = {
         name: chatPartnerNameFromProfile(prof?.name ?? null),
         sub: areaStr || '駒ヶ根市',
@@ -3556,6 +3933,9 @@ export default function Page() {
     w.selectAreaApply     = selectAreaApply
     w.onPostLocPrefChange = onPostLocPrefChange
     w.onPostLocCityChange = onPostLocCityChange
+    w.submitRequestForm = submitRequestForm
+    w.deleteRequest = deleteRequest
+    w.offerForRequest = offerForRequest
     w.toggleAreaFilter= toggleAreaFilter
     w.saveProfile = saveProfile
     w.showFavs = showFavs
@@ -3611,7 +3991,9 @@ export default function Page() {
         applyPcFilter()
         applyMobFilter()
         initPostLocSelects()
+        initRequestLocSelects()
         initMobCats()
+        void loadRequestsFromSupabase()
         renderChatList('pc')
         renderChatList('mob')
         renderTxHistory('pc')
@@ -3637,7 +4019,9 @@ export default function Page() {
       applyPcFilter()
       applyMobFilter()
       initPostLocSelects()
+      initRequestLocSelects()
       initMobCats()
+      void loadRequestsFromSupabase()
       setHomeListReady(true)
 
       loadChatsFromSupabase().then(() => {
@@ -3673,6 +4057,7 @@ export default function Page() {
       initPcCats()
       initMobCats()
       initPostLocSelects()
+      initRequestLocSelects()
       applyPcFilter()
       applyMobFilter()
       mDoSearch()
@@ -3692,6 +4077,9 @@ export default function Page() {
             <button className="pc-nav-tab on" id="pct-listing" onClick={() => pcGo('listing')}>
               <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
               一覧
+            </button>
+            <button type="button" className="pc-nav-tab" id="pct-requests" onClick={() => pcGo('requests')}>
+              求む
             </button>
             <button className="pc-nav-tab" id="pct-post" onClick={() => pcGo('post')}>
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -3809,6 +4197,91 @@ export default function Page() {
               </div>
               <div className="filter-msg" id="pc-filter-msg" style={{display:'none'}}></div>
               <div className="pc-grid" id="pc-grid"></div>
+            </div>
+
+            {/* REQUESTS（欲しいもの） */}
+            <div id="pc-pg-requests" style={{ display: 'none' }}>
+              <div className="pc-ph">
+                <div>
+                  <h1 className="pc-ph-title">欲しいものリクエスト</h1>
+                  <p className="pc-ph-sub">譲ってほしいものを投稿したり、「提供できます」からチャットで返答できます。</p>
+                </div>
+              </div>
+              <div style={{ maxWidth: '720px', display: 'flex', flexDirection: 'column', gap: '22px', paddingBottom: '36px' }}>
+                <section className="req-form-panel">
+                  <p style={{ fontSize: '.9rem', fontWeight: 600, color: '#2D5A27', marginBottom: '14px' }}>リクエストを投稿</p>
+                  <div className="fg">
+                    <label className="lbl">カテゴリ <em>*</em></label>
+                    <select className="inp" id="pc-req-cat" style={{ maxWidth: '320px' }} defaultValue="veg">
+                      {REQUEST_FORM_CATEGORIES.map((c) => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="fg">
+                    <label className="lbl">欲しいもの・詳細 <em>*</em></label>
+                    <textarea className="txta" id="pc-req-desc" placeholder="品目・数量の目安・状態の希望など" style={{ maxWidth: '560px', minHeight: '100px' }} />
+                  </div>
+                  <div className="fg">
+                    <label className="lbl">エリア <em>*</em></label>
+                    <div className="loc-sel-row" style={{ alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                      <span className="req-pref-fixed">{NAGANO_PREF}</span>
+                      <select className="inp loc-sel" id="pc-req-loc-city" style={{ flex: '1', minWidth: '200px', maxWidth: '360px' }}>
+                        <option value="">市区町村を選択</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="fg">
+                    <label className="lbl">希望価格 <small>任意</small></label>
+                    <input className="inp" id="pc-req-price" placeholder="例：無料希望・100円以内など" style={{ maxWidth: '400px' }} />
+                  </div>
+                  <div className="fg">
+                    <label className="lbl">受け取り希望時期 <small>任意</small></label>
+                    <input className="inp" id="pc-req-when" placeholder="例：今月中・今週末など" style={{ maxWidth: '400px' }} />
+                  </div>
+                  <button type="button" className="req-submit-btn" id="pc-req-submit" onClick={() => void submitRequestForm('pc')}>
+                    投稿する
+                  </button>
+                </section>
+                <div className="req-filters-row">
+                  <label className="req-filter-lbl">
+                    カテゴリ
+                    <select
+                      className="inp req-filter-sel"
+                      id="pc-req-filter-cat"
+                      defaultValue="all"
+                      onChange={(e) => {
+                        reqListCatFilter = e.target.value
+                        renderRequestLists()
+                      }}
+                    >
+                      <option value="all">すべて</option>
+                      {REQUEST_FORM_CATEGORIES.map((c) => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="req-filter-lbl">
+                    エリア
+                    <select
+                      className="inp req-filter-sel"
+                      id="pc-req-filter-area"
+                      defaultValue={REQ_AREA_FILTER_ALL}
+                      onChange={(e) => {
+                        reqListAreaFilter = e.target.value
+                        renderRequestLists()
+                      }}
+                    >
+                      <option value={REQ_AREA_FILTER_ALL}>すべて</option>
+                      <option value={REQ_AREA_FILTER_NAGANO}>長野県全域</option>
+                      {NAGANO_MUNICIPALITIES.map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div id="pc-req-list" className="req-list" />
+              </div>
             </div>
 
             {/* USER PROFILE（出品者・自分） */}
@@ -4627,6 +5100,7 @@ export default function Page() {
           <div className="m-nav" id="mn-home">
             <button className="m-nt on" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
             <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
+            <button type="button" className="m-nt" data-t="ms-requests" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M8 10h8M8 14h5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg><span>求む</span></button>
             <button className="m-nt-post" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
             <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
               <span className="m-nt-ico-wrap">
@@ -4677,6 +5151,104 @@ export default function Page() {
           <div className="m-nav" id="mn-search">
             <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
             <button className="m-nt on" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
+            <button type="button" className="m-nt" data-t="ms-requests" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M8 10h8M8 14h5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg><span>求む</span></button>
+            <button className="m-nt-post" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
+            <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
+              <span className="m-nt-ico-wrap">
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span className="m-nav-chat-unread-dot" aria-hidden="true" />
+              </span>
+              <span>チャット</span>
+            </button>
+            <button className="m-nt" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
+          </div>
+        </div>
+
+        {/* REQUESTS（欲しいもの） */}
+        <div className="scn" id="ms-requests">
+          <div className="m-tbar">
+            <span className="m-logo">MEGURU</span>
+            <span style={{ fontSize: '.72rem', color: 'var(--mu)', fontWeight: 500, marginLeft: '6px' }}>欲しいもの</span>
+          </div>
+          <div className="m-body" style={{ paddingBottom: '20px' }}>
+            <section className="req-form-panel req-form-panel--mob" style={{ margin: '0 12px 16px' }}>
+              <p style={{ fontSize: '.82rem', fontWeight: 600, color: '#2D5A27', marginBottom: '12px' }}>リクエストを投稿</p>
+              <div className="fg">
+                <label className="lbl">カテゴリ <em>*</em></label>
+                <select className="inp" id="m-req-cat" defaultValue="veg">
+                  {REQUEST_FORM_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="fg">
+                <label className="lbl">欲しいもの・詳細 <em>*</em></label>
+                <textarea className="txta" id="m-req-desc" placeholder="品目・数量の目安など" style={{ minHeight: '88px' }} />
+              </div>
+              <div className="fg">
+                <label className="lbl">エリア <em>*</em></label>
+                <div className="req-mob-loc-row">
+                  <span className="req-pref-fixed">{NAGANO_PREF}</span>
+                  <select className="inp loc-sel" id="m-req-loc-city" style={{ width: '100%', marginTop: '8px' }}>
+                    <option value="">市区町村を選択</option>
+                  </select>
+                </div>
+              </div>
+              <div className="fg">
+                <label className="lbl">希望価格 <small>任意</small></label>
+                <input className="inp" id="m-req-price" placeholder="例：無料希望など" />
+              </div>
+              <div className="fg">
+                <label className="lbl">受け取り希望時期 <small>任意</small></label>
+                <input className="inp" id="m-req-when" placeholder="例：今月中など" />
+              </div>
+              <button type="button" className="req-submit-btn" id="m-req-submit" onClick={() => void submitRequestForm('mob')}>
+                投稿する
+              </button>
+            </section>
+            <div className="req-filters-row req-filters-row--mob" style={{ padding: '0 12px 12px' }}>
+              <label className="req-filter-lbl">
+                カテゴリ
+                <select
+                  className="inp req-filter-sel"
+                  id="m-req-filter-cat"
+                  defaultValue="all"
+                  onChange={(e) => {
+                    reqListCatFilter = e.target.value
+                    renderRequestLists()
+                  }}
+                >
+                  <option value="all">すべて</option>
+                  {REQUEST_FORM_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="req-filter-lbl">
+                エリア
+                <select
+                  className="inp req-filter-sel"
+                  id="m-req-filter-area"
+                  defaultValue={REQ_AREA_FILTER_ALL}
+                  onChange={(e) => {
+                    reqListAreaFilter = e.target.value
+                    renderRequestLists()
+                  }}
+                >
+                  <option value={REQ_AREA_FILTER_ALL}>すべて</option>
+                  <option value={REQ_AREA_FILTER_NAGANO}>長野県全域</option>
+                  {NAGANO_MUNICIPALITIES.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div id="m-req-list" className="req-list" style={{ padding: '0 12px 24px' }} />
+          </div>
+          <div className="m-nav" id="mn-requests">
+            <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
+            <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
+            <button type="button" className="m-nt on" data-t="ms-requests" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M8 10h8M8 14h5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg><span>求む</span></button>
             <button className="m-nt-post" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
             <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
               <span className="m-nt-ico-wrap">
@@ -4727,6 +5299,7 @@ export default function Page() {
           <div className="m-nav">
             <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
             <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
+            <button type="button" className="m-nt" data-t="ms-requests" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M8 10h8M8 14h5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg><span>求む</span></button>
             <button className="m-nt-post" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
             <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
               <span className="m-nt-ico-wrap">
@@ -5161,6 +5734,7 @@ export default function Page() {
           <div className="m-nav">
             <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
             <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
+            <button type="button" className="m-nt" data-t="ms-requests" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M8 10h8M8 14h5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg><span>求む</span></button>
             <button className="m-nt-post" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
             <button type="button" className="m-nt on" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
               <span className="m-nt-ico-wrap">

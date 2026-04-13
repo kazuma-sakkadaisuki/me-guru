@@ -1435,3 +1435,165 @@ select.inp.prof-muni-sel {
     gap: 2px;
   }
 }
+
+/* 欲しいものリクエスト */
+.req-form-panel {
+  background: #fff;
+  border: 1px solid rgba(45, 90, 39, 0.12);
+  border-radius: 14px;
+  padding: 18px 20px;
+  font-family: var(--ss);
+}
+.req-form-panel--mob {
+  padding: 14px;
+}
+.req-submit-btn {
+  margin-top: 6px;
+  padding: 12px 22px;
+  background: #C4581A;
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-family: var(--ss);
+}
+.req-submit-btn:hover {
+  filter: brightness(1.05);
+}
+.req-submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.req-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+}
+.req-filters-row--mob {
+  flex-direction: column;
+  align-items: stretch;
+}
+.req-filter-lbl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #2D5A27;
+  letter-spacing: 0.04em;
+  font-family: var(--ss);
+}
+.req-filter-sel {
+  min-width: 160px;
+  max-width: 100%;
+}
+.req-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.req-card {
+  background: #fff;
+  border: 1px solid rgba(45, 90, 39, 0.12);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-family: var(--ss);
+}
+.req-pref-fixed {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #2D5A27;
+  letter-spacing: 0.02em;
+  font-family: var(--ss);
+}
+.req-card-labeled {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+  font-family: var(--ss);
+  line-height: 1.45;
+}
+.req-card-k {
+  flex: 0 0 auto;
+  min-width: 4.5em;
+  font-weight: 700;
+  color: #2D5A27;
+  letter-spacing: 0.03em;
+}
+.req-card-v {
+  flex: 1 1 auto;
+  color: var(--ink2);
+  font-weight: 500;
+  word-break: break-word;
+}
+.req-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.req-card-cat {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #2D5A27;
+  background: rgba(232, 240, 230, 0.9);
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.req-card-desc {
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.55;
+  margin: 0 0 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.req-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.req-offer-btn {
+  padding: 9px 16px;
+  background: #2D5A27;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-family: var(--ss);
+}
+.req-offer-btn:hover {
+  filter: brightness(1.08);
+}
+.req-del-btn {
+  padding: 9px 16px;
+  background: transparent;
+  color: #c0392b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid rgba(192, 57, 43, 0.35);
+  cursor: pointer;
+  font-family: var(--ss);
+}
+.req-empty {
+  text-align: center;
+  color: var(--mu);
+  font-size: 0.86rem;
+  padding: 28px 12px;
+  font-family: var(--ss);
+}
