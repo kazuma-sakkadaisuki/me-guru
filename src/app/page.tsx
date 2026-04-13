@@ -1178,6 +1178,30 @@ function wireSellerProfileClicks(mode: 'pc' | 'mob') {
   })
 }
 
+/* ── 商品詳細URL・LINEシェア ── */
+const MEGURU_PUBLIC_ORIGIN = 'https://me-guru.vercel.app'
+
+function buildItemDetailPageUrl(it: Item): string {
+  const sid = typeof it.supabaseId === 'string' ? it.supabaseId.trim() : ''
+  if (sid) return `${MEGURU_PUBLIC_ORIGIN}/?item=${encodeURIComponent(sid)}`
+  return `${MEGURU_PUBLIC_ORIGIN}/`
+}
+
+function buildLineShareMessageText(it: Item, itemPageUrl: string): string {
+  const priceLine =
+    it.price === '無料'
+      ? '無料'
+      : [it.price, (it.unit || '').trim()].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()
+  return `「【MEGURU】${it.name}\n${priceLine}｜${it.loc}\n農村の余りものプラットフォームMEGURUで見つけました🌿\n詳細はこちら→ ${itemPageUrl}」`
+}
+
+function openLineShareForCurrentItem() {
+  const itemUrl = buildItemDetailPageUrl(curItem)
+  const text = buildLineShareMessageText(curItem, itemUrl)
+  const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(itemUrl)}&text=${encodeURIComponent(text)}`
+  window.open(lineUrl, '_blank', 'noopener,noreferrer')
+}
+
 /* ── DETAIL ── */
 function openDetail(id: number, mode: string) {
   curItem = ITEMS.find(x=>x.id===id)||ITEMS[0]
@@ -4142,11 +4166,22 @@ export default function Page() {
                     </div>
                     {/* アクション */}
                     <div className="pc-det-actions">
-                      <button className="pc-det-fav" id="pc-det-fav-btn" onClick={() => toggleFav('pc')}>🤍</button>
-                      <button type="button" className="pc-det-chat pc-det-want" id="pc-det-chat-btn" onClick={() => void openChatWithSupabase('pc')}>
-                        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                        連絡する
-                      </button>
+                      <button type="button" className="pc-det-fav" id="pc-det-fav-btn" onClick={() => toggleFav('pc')}>🤍</button>
+                      <div className="pc-det-actions-cta">
+                        <button type="button" className="pc-det-chat pc-det-want" id="pc-det-chat-btn" onClick={() => void openChatWithSupabase('pc')}>
+                          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                          連絡する
+                        </button>
+                        <button type="button" className="pc-det-line-share" id="pc-det-line-share-btn" onClick={() => openLineShareForCurrentItem()}>
+                          <svg className="pc-det-line-share-ico" viewBox="0 0 24 24" aria-hidden>
+                            <path
+                              fill="currentColor"
+                              d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.022.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.63.629M24 10.314C24 4.943 18.615.572 12 .572 5.385.572 0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.816-4.011 9.315-6.52 1.351-1.365 2.709-3.027 2.709-5.128"
+                            />
+                          </svg>
+                          LINEでシェア
+                        </button>
+                      </div>
                     </div>
                     <hr className="pc-det-divider" />
                     {/* 説明 */}
@@ -5070,8 +5105,22 @@ export default function Page() {
             <span>この商品は取引済みです</span>
           </div>
           <div className="m-det-actions">
-            <button className="m-fav" id="m-fav-btn" onClick={() => toggleFav('mob')}>🤍</button>
-            <button type="button" className="m-chat m-det-want" id="m-det-chat-btn" onClick={() => void openChatWithSupabase('mob')}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>連絡する</button>
+            <button type="button" className="m-fav" id="m-fav-btn" onClick={() => toggleFav('mob')}>🤍</button>
+            <div className="m-det-actions-cta">
+              <button type="button" className="m-chat m-det-want" id="m-det-chat-btn" onClick={() => void openChatWithSupabase('mob')}>
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                連絡する
+              </button>
+              <button type="button" className="m-det-line-share" id="m-det-line-share-btn" onClick={() => openLineShareForCurrentItem()}>
+                <svg className="m-det-line-share-ico" viewBox="0 0 24 24" aria-hidden>
+                  <path
+                    fill="currentColor"
+                    d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.022.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.63.629M24 10.314C24 4.943 18.615.572 12 .572 5.385.572 0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.816-4.011 9.315-6.52 1.351-1.365 2.709-3.027 2.709-5.128"
+                  />
+                </svg>
+                LINEでシェア
+              </button>
+            </div>
           </div>
         </div>
 
