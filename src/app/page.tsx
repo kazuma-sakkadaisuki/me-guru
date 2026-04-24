@@ -107,24 +107,30 @@ const POST_CATEGORY_PICKS: { key: string; emoji: string; label: string }[] = [
   { key: 'misc', emoji: '📦', label: 'なんでも' },
 ]
 
-/** 欲しいものリクエスト（フォーム・表示ラベル） */
+/** 求む掲示板：カテゴリ（DBの category に保存する value） */
 const REQUEST_FORM_CATEGORIES: { value: string; label: string }[] = [
   { value: 'veg', label: '野菜' },
   { value: 'fruit', label: '果物' },
   { value: 'rice', label: '米・穀物' },
   { value: 'other', label: '加工品' },
-  { value: 'firewood', label: '薪' },
-  { value: 'timber', label: '木材' },
+  { value: 'wood', label: '薪・木材' },
   { value: 'herb', label: '山菜' },
-  { value: 'land_plot', label: '土地' },
-  { value: 'farmland', label: '農地' },
+  { value: 'land', label: '土地・農地' },
   { value: 'misc', label: 'なんでも' },
 ]
 const REQUEST_CAT_LABELS: Record<string, string> = {
-  ...(Object.fromEntries(REQUEST_FORM_CATEGORIES.map((c) => [c.value, c.label])) as Record<string, string>),
-  /** 旧データ用 */
+  veg: '野菜',
+  fruit: '果物',
+  rice: '米・穀物',
+  other: '加工品',
   wood: '薪・木材',
+  herb: '山菜',
   land: '土地・農地',
+  misc: 'なんでも',
+  firewood: '薪・木材',
+  timber: '薪・木材',
+  land_plot: '土地・農地',
+  farmland: '土地・農地',
 }
 const REQ_AREA_FILTER_ALL = 'all'
 const REQ_AREA_FILTER_NAGANO = 'nagano-wide'
@@ -165,15 +171,8 @@ function requestCategoryExtraGroup(cat: string): RequestExtraGroup {
   return 'none'
 }
 
-function updateRequestFormExtraVisibility(mode: 'pc' | 'mob') {
-  const pre = mode === 'pc' ? 'pc' : 'm'
-  const sel = document.getElementById(`${pre}-req-cat`) as HTMLSelectElement | null
-  const cat = sel?.value ?? 'veg'
-  const g = requestCategoryExtraGroup(cat)
-  ;(['produce', 'wood', 'other', 'land'] as const).forEach((k) => {
-    const el = document.getElementById(`${pre}-req-extra-${k}`)
-    if (el) el.style.display = g === k ? 'block' : 'none'
-  })
+function updateRequestFormExtraVisibility(_mode: 'pc' | 'mob') {
+  /* 旧カテゴリ別追加フォームは廃止（求む掲示板はシンプル5項目のみ） */
 }
 
 function resetRequestExtraFields(mode: 'pc' | 'mob') {
@@ -258,14 +257,13 @@ function renderHomeRequestPreview() {
   }
   const cardHtml = (r: MeguruRequest) => {
     const catLabel = REQUEST_CAT_LABELS[r.category] || r.category
-    const sum = escChatHtml(requestSummaryFromDescription(r.description, 30))
+    const sum = escChatHtml(requestSummaryFromDescription(r.description, 42))
     const area = escChatHtml(r.area || '')
     const poster = r.posterName ? escChatHtml(chatPartnerNameFromProfile(r.posterName)) : 'ユーザー'
-    return `<article class="home-req-card">
-      <p class="home-req-card-cat">${escChatHtml(catLabel)}</p>
+    return `<article class="home-req-card home-req-card--compact">
+      <span class="home-req-card-badge">${escChatHtml(catLabel)}</span>
       <p class="home-req-card-sum">${sum}</p>
-      <p class="home-req-card-area">${area}</p>
-      <p class="home-req-card-poster">${poster}</p>
+      <p class="home-req-card-sub">${area} · ${poster}</p>
     </article>`
   }
   const inner = top.map(cardHtml).join('')
@@ -2291,11 +2289,10 @@ function wipeSupabaseChatsFromMemoryAndRefresh() {
 /* ── 欲しいものリクエスト ── */
 function syncRequestFilterSelects() {
   ;(['pc', 'm'] as const).forEach((pre) => {
-    const c = document.getElementById(`${pre}-req-filter-cat`) as HTMLSelectElement | null
-    if (c) c.value = reqListCatFilter
     const a = document.getElementById(`${pre}-req-filter-area`) as HTMLSelectElement | null
     if (a) a.value = reqListAreaFilter
   })
+  renderReqCatFilterTags()
 }
 
 function initRequestLocSelects() {
@@ -2304,8 +2301,8 @@ function initRequestLocSelects() {
   const cityOpts =
     '<option value="">市区町村を選択</option>' +
     cities.map((c) => `<option value="${c}"${c === currentCity ? ' selected' : ''}>${c}</option>`).join('')
-  ;(['pc', 'm'] as const).forEach((pre) => {
-    const citySel = document.getElementById(`${pre}-req-loc-city`) as HTMLSelectElement | null
+  ;(['pc-req-modal-city', 'm-req-modal-city'] as const).forEach((id) => {
+    const citySel = document.getElementById(id) as HTMLSelectElement | null
     if (citySel) {
       citySel.innerHTML = cityOpts
       citySel.disabled = false
@@ -2313,9 +2310,94 @@ function initRequestLocSelects() {
   })
 }
 
+function renderReqCatFilterTags() {
+  const mk = (pre: 'pc' | 'm') => {
+    const wrap = document.getElementById(`${pre}-req-cat-tags`)
+    if (!wrap) return
+    const parts: string[] = [
+      `<button type="button" class="reqb-cat-filt${reqListCatFilter === 'all' ? ' on' : ''}" data-val="all">すべて</button>`,
+    ]
+    for (const c of REQUEST_FORM_CATEGORIES) {
+      parts.push(
+        `<button type="button" class="reqb-cat-filt${reqListCatFilter === c.value ? ' on' : ''}" data-val="${escAttr(c.value)}">${escChatHtml(c.label)}</button>`
+      )
+    }
+    wrap.innerHTML = parts.join('')
+    wrap.querySelectorAll('.reqb-cat-filt').forEach((el) => {
+      el.addEventListener('click', () => {
+        reqListCatFilter = (el as HTMLElement).dataset.val || 'all'
+        renderReqCatFilterTags()
+        renderRequestLists()
+      })
+    })
+  }
+  mk('pc')
+  mk('m')
+}
+
+function escAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+}
+
+function setReqModalCategory(mode: 'pc' | 'mob', value: string) {
+  const pre = mode === 'pc' ? 'pc' : 'm'
+  const hid = document.getElementById(`${pre}-req-modal-cat`) as HTMLInputElement | null
+  if (hid) hid.value = value
+  document.querySelectorAll(`#${pre}-req-modal-cat-grid .reqb-catpick`).forEach((el) => {
+    el.classList.toggle('on', (el as HTMLElement).dataset.value === value)
+  })
+}
+
+function resetReqPostModal(mode: 'pc' | 'mob') {
+  const pre = mode === 'pc' ? 'pc' : 'm'
+  const d = document.getElementById(`${pre}-req-modal-desc`) as HTMLTextAreaElement | null
+  if (d) d.value = ''
+  const w = document.getElementById(`${pre}-req-modal-when`) as HTMLInputElement | null
+  if (w) w.value = ''
+  const p = document.getElementById(`${pre}-req-modal-price`) as HTMLInputElement | null
+  if (p) p.value = ''
+  const city = document.getElementById(`${pre}-req-modal-city`) as HTMLSelectElement | null
+  if (city) {
+    const cur = getUserCity()
+    if (cur && [...city.options].some((o) => o.value === cur)) city.value = cur
+    else city.value = ''
+  }
+  setReqModalCategory(mode, REQUEST_FORM_CATEGORIES[0]?.value ?? 'veg')
+}
+
+function openReqPostModal(mode: 'pc' | 'mob') {
+  if (!CURRENT_USER_ID) {
+    window.location.href = '/login'
+    return
+  }
+  initRequestLocSelects()
+  resetReqPostModal(mode)
+  const root = document.getElementById(mode === 'pc' ? 'pc-req-modal-root' : 'm-req-modal-root')
+  if (root) {
+    root.classList.add('is-open')
+    root.setAttribute('aria-hidden', 'false')
+  }
+  document.body.style.overflow = 'hidden'
+}
+
+function closeReqPostModal(mode: 'pc' | 'mob') {
+  const root = document.getElementById(mode === 'pc' ? 'pc-req-modal-root' : 'm-req-modal-root')
+  if (root) {
+    root.classList.remove('is-open')
+    root.setAttribute('aria-hidden', 'true')
+  }
+  document.body.style.overflow = ''
+}
+
+function normalizeReqCategoryFilterKey(cat: string): string {
+  if (cat === 'land_plot' || cat === 'farmland') return 'land'
+  if (cat === 'firewood' || cat === 'timber') return 'wood'
+  return cat
+}
+
 function renderRequestLists() {
   const filtered = meguruRequestsCache.filter((r) => {
-    if (reqListCatFilter !== 'all' && r.category !== reqListCatFilter) return false
+    if (reqListCatFilter !== 'all' && normalizeReqCategoryFilterKey(r.category) !== reqListCatFilter) return false
     if (reqListAreaFilter === REQ_AREA_FILTER_ALL) return true
     if (reqListAreaFilter === REQ_AREA_FILTER_NAGANO) return (r.area || '').includes(NAGANO_PREF)
     return (r.area || '').includes(reqListAreaFilter)
@@ -2328,8 +2410,14 @@ function renderRequestLists() {
       r.created_at
         ? new Date(r.created_at).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })
         : '—'
-    const priceDisp = r.hope_price ? escChatHtml(r.hope_price) : '—'
-    const timingDisp = r.hope_timing ? escChatHtml(r.hope_timing) : '—'
+    const metaBits: string[] = []
+    if (r.hope_timing && r.hope_timing.trim()) {
+      metaBits.push(`<span class="reqb-card-meta-i">いつまでに：${escChatHtml(r.hope_timing.trim())}</span>`)
+    }
+    if (r.hope_price && r.hope_price.trim()) {
+      metaBits.push(`<span class="reqb-card-meta-i">希望価格：${escChatHtml(r.hope_price.trim())}</span>`)
+    }
+    const metaHtml = metaBits.length ? `<div class="reqb-card-meta">${metaBits.join('')}</div>` : ''
     let actions = ''
     if (!isMine && CURRENT_USER_ID) {
       actions = `<button type="button" class="req-offer-btn" onclick="offerForRequest('${r.id}','${mode}')">提供できます</button>`
@@ -2337,23 +2425,23 @@ function renderRequestLists() {
       actions = `<button type="button" class="req-del-btn" onclick="deleteRequest('${r.id}','${mode}')">削除</button>`
     }
     const poster = r.posterName ? escChatHtml(chatPartnerNameFromProfile(r.posterName)) : 'ユーザー'
-    return `<article class="req-card" data-id="${r.id}">
-      <div class="req-card-head"><span class="req-card-cat">${escChatHtml(catLabel)}</span></div>
-      <p class="req-card-labeled"><span class="req-card-k">投稿日</span><span class="req-card-v">${escChatHtml(posted)}</span></p>
-      <p class="req-card-labeled"><span class="req-card-k">説明</span></p>
-      <p class="req-card-desc">${escChatHtml(desc)}</p>
-      <p class="req-card-labeled"><span class="req-card-k">エリア</span><span class="req-card-v">${escChatHtml(r.area || '—')}</span></p>
-      <p class="req-card-labeled"><span class="req-card-k">希望価格</span><span class="req-card-v">${priceDisp}</span></p>
-      <p class="req-card-labeled"><span class="req-card-k">希望時期</span><span class="req-card-v">${timingDisp}</span></p>
-      <p class="req-card-labeled"><span class="req-card-k">投稿者</span><span class="req-card-v">${poster}</span></p>
-      <div class="req-card-actions">${actions}</div>
+    return `<article class="reqb-card" data-id="${r.id}">
+      <span class="reqb-card-badge">${escChatHtml(catLabel)}</span>
+      <p class="reqb-card-body">${escChatHtml(desc)}</p>
+      ${metaHtml}
+      <div class="reqb-card-foot">
+        <span class="reqb-card-foot-line">${escChatHtml(r.area || '—')} · ${poster} · ${escChatHtml(posted)}</span>
+      </div>
+      <div class="reqb-card-actions">${actions}</div>
     </article>`
   }
-  const inner = filtered.length ? filtered.map((r) => cardHtml(r, 'pc')).join('') : '<p class="req-empty">まだリクエストがありません</p>'
+  const empty = '<p class="req-empty">まだリクエストがありません</p>'
+  const inner = filtered.length ? filtered.map((r) => cardHtml(r, 'pc')).join('') : empty
   const pcList = document.getElementById('pc-req-list')
   const mobList = document.getElementById('m-req-list')
   if (pcList) pcList.innerHTML = inner
-  if (mobList) mobList.innerHTML = filtered.length ? filtered.map((r) => cardHtml(r, 'mob')).join('') : '<p class="req-empty">まだリクエストがありません</p>'
+  if (mobList) mobList.innerHTML = filtered.length ? filtered.map((r) => cardHtml(r, 'mob')).join('') : empty
+  renderReqCatFilterTags()
 }
 
 async function loadRequestsFromSupabase() {
@@ -2403,46 +2491,40 @@ async function submitRequestForm(mode: 'pc' | 'mob') {
     window.location.href = '/login'
     return
   }
-  const pre = mode
-  const cat = (document.getElementById(`${pre}-req-cat`) as HTMLSelectElement | null)?.value ?? ''
-  const desc = (document.getElementById(`${pre}-req-desc`) as HTMLTextAreaElement | null)?.value.trim() ?? ''
-  const city = (document.getElementById(`${pre}-req-loc-city`) as HTMLSelectElement | null)?.value ?? ''
-  const hopePrice = (document.getElementById(`${pre}-req-price`) as HTMLInputElement | null)?.value.trim() ?? ''
-  const hopeWhen = (document.getElementById(`${pre}-req-when`) as HTMLInputElement | null)?.value.trim() ?? ''
+  const pre = mode === 'pc' ? 'pc' : 'm'
+  const cat = (document.getElementById(`${pre}-req-modal-cat`) as HTMLInputElement | null)?.value.trim() ?? ''
+  const desc = (document.getElementById(`${pre}-req-modal-desc`) as HTMLTextAreaElement | null)?.value.trim() ?? ''
+  const city = (document.getElementById(`${pre}-req-modal-city`) as HTMLSelectElement | null)?.value ?? ''
+  const hopePrice = (document.getElementById(`${pre}-req-modal-price`) as HTMLInputElement | null)?.value.trim() ?? ''
+  const hopeWhen = (document.getElementById(`${pre}-req-modal-when`) as HTMLInputElement | null)?.value.trim() ?? ''
   if (!cat) {
     showToast('カテゴリを選んでください')
     return
   }
   if (!desc) {
-    showToast('欲しいもの・詳細を入力してください')
+    showToast('何が欲しいかを入力してください')
+    return
+  }
+  if (desc.length > 100) {
+    showToast('欲しいものの内容は100文字以内で入力してください')
     return
   }
   if (!city) {
-    showToast('市区町村を選んでください')
+    showToast('お住まいの市区町村を選んでください')
     return
   }
-  const extraErr = validateRequestExtra(cat, mode)
-  if (extraErr) {
-    showToast(extraErr)
-    return
-  }
-  const extraObj = collectRequestExtraPayload(cat, mode)
   const area = `${NAGANO_PREF} ${city}`.trim()
-  const btn = document.getElementById(`${pre}-req-submit`) as HTMLButtonElement | null
+  const btn = document.getElementById(`${pre}-req-modal-submit`) as HTMLButtonElement | null
   if (btn) {
     btn.disabled = true
     btn.setAttribute('aria-busy', 'true')
   }
   try {
     const supabase = createClient()
-    const fullDesc =
-      extraObj && Object.keys(extraObj).length > 0
-        ? `${desc}${REQUEST_EXTRA_MARKER}${JSON.stringify(extraObj)}`
-        : desc
     const rowPayload: Record<string, unknown> = {
       user_id: CURRENT_USER_ID,
       category: cat,
-      description: fullDesc,
+      description: desc,
       area,
       希望価格: hopePrice || null,
       希望時期: hopeWhen || null,
@@ -2453,12 +2535,9 @@ async function submitRequestForm(mode: 'pc' | 'mob') {
       showToast('投稿に失敗しました')
       return
     }
-    showToast('投稿しました')
-    ;(document.getElementById(`${pre}-req-desc`) as HTMLTextAreaElement).value = ''
-    ;(document.getElementById(`${pre}-req-price`) as HTMLInputElement).value = ''
-    ;(document.getElementById(`${pre}-req-when`) as HTMLInputElement).value = ''
-    resetRequestExtraFields(mode)
-    updateRequestFormExtraVisibility(mode)
+    showToast('掲示板に載りました！')
+    closeReqPostModal(mode)
+    resetReqPostModal(mode)
     await loadRequestsFromSupabase()
   } catch (e) {
     console.error('[meguru] submitRequestForm:', e)
@@ -4116,6 +4195,8 @@ export default function Page() {
     w.submitRequestForm = submitRequestForm
     w.deleteRequest = deleteRequest
     w.offerForRequest = offerForRequest
+    w.openReqPostModal = openReqPostModal
+    w.closeReqPostModal = closeReqPostModal
     w.toggleAreaFilter= toggleAreaFilter
     w.saveProfile = saveProfile
     w.showFavs = showFavs
@@ -4399,182 +4480,108 @@ export default function Page() {
               <div className="pc-grid" id="pc-grid"></div>
             </div>
 
-            {/* REQUESTS（欲しいもの） */}
-            <div id="pc-pg-requests" style={{ display: 'none' }}>
-              <div className="pc-ph">
-                <div>
-                  <h1 className="pc-ph-title">欲しいものリクエスト</h1>
-                  <p className="pc-ph-sub">譲ってほしいものを投稿したり、「提供できます」からチャットで返答できます。</p>
-                </div>
-              </div>
-              <div style={{ maxWidth: '720px', display: 'flex', flexDirection: 'column', gap: '22px', paddingBottom: '36px' }}>
-                <section className="req-form-panel">
-                  <p style={{ fontSize: '.9rem', fontWeight: 600, color: '#2D5A27', marginBottom: '14px' }}>リクエストを投稿</p>
-                  <div className="fg">
-                    <label className="lbl">カテゴリ <em>*</em></label>
-                    <select
-                      className="inp"
-                      id="pc-req-cat"
-                      style={{ maxWidth: '320px' }}
-                      defaultValue="veg"
-                      onChange={() => updateRequestFormExtraVisibility('pc')}
-                    >
-                      {REQUEST_FORM_CATEGORIES.map((c) => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div id="pc-req-extra-produce" className="req-extra-block" style={{ display: 'none' }}>
-                    <div className="fg">
-                      <label className="lbl">数量 <em>*</em></label>
-                      <div className="price-row" style={{ maxWidth: '420px' }}>
-                        <input type="number" className="inp" id="pc-req-ex-prod-qty" inputMode="decimal" placeholder="例：3" min="0" step="any" />
-                        <select className="inp" id="pc-req-ex-prod-unit" style={{ maxWidth: '120px' }}>
-                          <option value="kg">kg</option>
-                          <option value="g">g</option>
-                          <option value="袋">袋</option>
-                          <option value="箱">箱</option>
-                          <option value="束">束</option>
-                          <option value="個">個</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="fg">
-                      <label className="lbl">状態の希望 <em>*</em></label>
-                      <select className="inp" id="pc-req-ex-prod-cond" style={{ maxWidth: '340px' }}>
-                        <option value="なんでも">なんでも</option>
-                        <option value="新鮮なもの">新鮮なもの</option>
-                        <option value="加工済みでも可">加工済みでも可</option>
-                      </select>
-                    </div>
-                    <div className="fg">
-                      <label className="lbl">農薬 <em>*</em></label>
-                      <select className="inp" id="pc-req-ex-prod-pest" style={{ maxWidth: '340px' }}>
-                        <option value="気にしない">気にしない</option>
-                        <option value="無農薬希望">無農薬希望</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div id="pc-req-extra-wood" className="req-extra-block" style={{ display: 'none' }}>
-                    <div className="fg">
-                      <label className="lbl">量の目安 <em>*</em></label>
-                      <input className="inp" id="pc-req-ex-wood-amt" placeholder="例：軽トラ1台分" style={{ maxWidth: '420px' }} />
-                    </div>
-                    <div className="fg">
-                      <label className="lbl">乾燥済み希望 <em>*</em></label>
-                      <select className="inp" id="pc-req-ex-wood-dry" style={{ maxWidth: '340px' }}>
-                        <option value="希望する">希望する</option>
-                        <option value="どちらでも">どちらでも</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div id="pc-req-extra-other" className="req-extra-block" style={{ display: 'none' }}>
-                    <div className="fg">
-                      <label className="lbl">種類 <em>*</em></label>
-                      <select className="inp" id="pc-req-ex-oth-kind" style={{ maxWidth: '340px' }}>
-                        <option value="漬物">漬物</option>
-                        <option value="味噌">味噌</option>
-                        <option value="ジャム">ジャム</option>
-                        <option value="その他">その他</option>
-                      </select>
-                    </div>
-                    <div className="fg">
-                      <label className="lbl">数量目安 <small>任意</small></label>
-                      <input className="inp" id="pc-req-ex-oth-qty" placeholder="例：瓶2つ分" style={{ maxWidth: '420px' }} />
-                    </div>
-                  </div>
-                  <div id="pc-req-extra-land" className="req-extra-block" style={{ display: 'none' }}>
-                    <div className="fg">
-                      <label className="lbl">希望面積 <em>*</em></label>
-                      <div className="price-row" style={{ maxWidth: '420px' }}>
-                        <input type="number" className="inp" id="pc-req-ex-land-area" inputMode="decimal" placeholder="数値" min="0" step="any" />
-                        <select className="inp" id="pc-req-ex-land-aunit" style={{ maxWidth: '100px' }}>
-                          <option value="㎡">㎡</option>
-                          <option value="畝">畝</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="fg">
-                      <label className="lbl">用途 <em>*</em></label>
-                      <select className="inp" id="pc-req-ex-land-use" style={{ maxWidth: '340px' }}>
-                        <option value="農業">農業</option>
-                        <option value="家庭菜園">家庭菜園</option>
-                        <option value="薪割り場">薪割り場</option>
-                        <option value="その他">その他</option>
-                      </select>
-                    </div>
-                    <div className="fg">
-                      <label className="lbl">希望契約期間 <em>*</em></label>
-                      <select className="inp" id="pc-req-ex-land-period" style={{ maxWidth: '340px' }}>
-                        <option value="単発">単発</option>
-                        <option value="年間">年間</option>
-                        <option value="応相談">応相談</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="fg">
-                    <label className="lbl">欲しいもの・詳細 <em>*</em></label>
-                    <textarea className="txta" id="pc-req-desc" placeholder="品目・数量の目安・状態の希望など" style={{ maxWidth: '560px', minHeight: '100px' }} />
-                  </div>
-                  <div className="fg">
-                    <label className="lbl">エリア <em>*</em></label>
-                    <div className="loc-sel-row" style={{ alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                      <span className="req-pref-fixed">{NAGANO_PREF}</span>
-                      <select className="inp loc-sel" id="pc-req-loc-city" style={{ flex: '1', minWidth: '200px', maxWidth: '360px' }}>
-                        <option value="">市区町村を選択</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="fg">
-                    <label className="lbl">希望価格 <small>任意</small></label>
-                    <input className="inp" id="pc-req-price" placeholder="例：無料希望・100円以内など" style={{ maxWidth: '400px' }} />
-                  </div>
-                  <div className="fg">
-                    <label className="lbl">受け取り希望時期 <small>任意</small></label>
-                    <input className="inp" id="pc-req-when" placeholder="例：今月中・今週末など" style={{ maxWidth: '400px' }} />
-                  </div>
-                  <button type="button" className="req-submit-btn" id="pc-req-submit" onClick={() => void submitRequestForm('pc')}>
-                    投稿する
+            {/* REQUESTS 求む掲示板 */}
+            <div id="pc-pg-requests" className="reqb-page" style={{ display: 'none' }}>
+              <div className="reqb-inner">
+                <header className="reqb-hero">
+                  <h1 className="reqb-title">求む掲示板</h1>
+                  <p className="reqb-sub">欲しいものを地域の人に伝えよう</p>
+                  <button type="button" className="reqb-btn-primary" onClick={() => openReqPostModal('pc')}>
+                    ＋ 投稿する
                   </button>
-                </section>
-                <div className="req-filters-row">
-                  <label className="req-filter-lbl">
-                    カテゴリ
-                    <select
-                      className="inp req-filter-sel"
-                      id="pc-req-filter-cat"
-                      defaultValue="all"
-                      onChange={(e) => {
-                        reqListCatFilter = e.target.value
-                        renderRequestLists()
-                      }}
-                    >
-                      <option value="all">すべて</option>
-                      {REQUEST_FORM_CATEGORIES.map((c) => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="req-filter-lbl">
-                    エリア
-                    <select
-                      className="inp req-filter-sel"
-                      id="pc-req-filter-area"
-                      defaultValue={REQ_AREA_FILTER_ALL}
-                      onChange={(e) => {
-                        reqListAreaFilter = e.target.value
-                        renderRequestLists()
-                      }}
-                    >
-                      <option value={REQ_AREA_FILTER_ALL}>すべて</option>
-                      <option value={REQ_AREA_FILTER_NAGANO}>長野県全域</option>
-                      {NAGANO_MUNICIPALITIES.map((m) => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </label>
+                </header>
+                <p className="reqb-filt-lbl">カテゴリ</p>
+                <div id="pc-req-cat-tags" className="reqb-cat-scroll" />
+                <div className="reqb-area-row">
+                  <label className="reqb-area-lbl" htmlFor="pc-req-filter-area">エリア</label>
+                  <select
+                    className="inp reqb-area-sel"
+                    id="pc-req-filter-area"
+                    defaultValue={REQ_AREA_FILTER_ALL}
+                    onChange={(e) => {
+                      reqListAreaFilter = e.target.value
+                      renderRequestLists()
+                    }}
+                  >
+                    <option value={REQ_AREA_FILTER_ALL}>すべて</option>
+                    <option value={REQ_AREA_FILTER_NAGANO}>長野県全域</option>
+                    {NAGANO_MUNICIPALITIES.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
                 </div>
-                <div id="pc-req-list" className="req-list" />
+                <div id="pc-req-list" className="reqb-grid" />
+              </div>
+              <div id="pc-req-modal-root" className="reqb-modal-root" aria-hidden="true">
+                <button type="button" className="reqb-modal-backdrop" aria-label="閉じる" onClick={() => closeReqPostModal('pc')} />
+                <div className="reqb-modal-panel" role="dialog" aria-modal="true" aria-labelledby="pc-req-modal-title" onClick={(e) => e.stopPropagation()}>
+                  <div className="reqb-modal-head">
+                    <h2 id="pc-req-modal-title" className="reqb-modal-title">掲示板に投稿</h2>
+                    <button type="button" className="reqb-modal-x" aria-label="閉じる" onClick={() => closeReqPostModal('pc')}>
+                      ×
+                    </button>
+                  </div>
+                  <div className="reqb-modal-body">
+                    <div className="reqb-field">
+                      <label className="reqb-lbl" htmlFor="pc-req-modal-desc">
+                        何が欲しいですか？ <em>*</em> <small>（100文字まで）</small>
+                      </label>
+                      <textarea
+                        id="pc-req-modal-desc"
+                        className="reqb-txta"
+                        maxLength={100}
+                        rows={4}
+                        placeholder="例：柿が5個ほど欲しいです"
+                      />
+                    </div>
+                    <div className="reqb-field">
+                      <span className="reqb-lbl">カテゴリ <em>*</em></span>
+                      <input type="hidden" id="pc-req-modal-cat" defaultValue="veg" />
+                      <div id="pc-req-modal-cat-grid" className="reqb-catpick-grid">
+                        {POST_CATEGORY_PICKS.map((c) => (
+                          <button
+                            key={c.key}
+                            type="button"
+                            className={`reqb-catpick${c.key === 'veg' ? ' on' : ''}`}
+                            data-value={c.key}
+                            onClick={() => setReqModalCategory('pc', c.key)}
+                          >
+                            <span className="reqb-catpick-emoji" aria-hidden>{c.emoji}</span>
+                            <span className="reqb-catpick-lbl">{c.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="reqb-field">
+                      <label className="reqb-lbl" htmlFor="pc-req-modal-when">いつまでに欲しいですか？ <small>（任意）</small></label>
+                      <input
+                        id="pc-req-modal-when"
+                        className="inp reqb-inp"
+                        placeholder="例：今月中・10月までに・急ぎではない"
+                      />
+                    </div>
+                    <div className="reqb-field">
+                      <label className="reqb-lbl" htmlFor="pc-req-modal-price">希望価格 <small>（任意）</small></label>
+                      <input
+                        id="pc-req-modal-price"
+                        className="inp reqb-inp"
+                        placeholder="例：無料希望・100円以内・相談可"
+                      />
+                    </div>
+                    <div className="reqb-field">
+                      <label className="reqb-lbl" htmlFor="pc-req-modal-city">お住まいのエリア <em>*</em></label>
+                      <div className="reqb-loc-row">
+                        <span className="reqb-pref">{NAGANO_PREF}</span>
+                        <select id="pc-req-modal-city" className="inp reqb-inp reqb-city-sel">
+                          <option value="">市区町村を選択</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button type="button" className="reqb-btn-primary reqb-btn-block" id="pc-req-modal-submit" onClick={() => void submitRequestForm('pc')}>
+                      掲示板に載せる
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -5482,158 +5489,24 @@ export default function Page() {
           </div>
         </div>
 
-        {/* REQUESTS（欲しいもの） */}
+        {/* REQUESTS 求む掲示板 */}
         <div className="scn" id="ms-requests">
           <div className="m-tbar">
             <span className="m-logo">MEGURU</span>
-            <span style={{ fontSize: '.72rem', color: 'var(--mu)', fontWeight: 500, marginLeft: '6px' }}>欲しいもの</span>
+            <span className="m-title" style={{ marginLeft: '8px' }}>求む掲示板</span>
           </div>
-          <div className="m-body" style={{ paddingBottom: '20px' }}>
-            <section className="req-form-panel req-form-panel--mob" style={{ margin: '0 12px 16px' }}>
-              <p style={{ fontSize: '.82rem', fontWeight: 600, color: '#2D5A27', marginBottom: '12px' }}>リクエストを投稿</p>
-              <div className="fg">
-                <label className="lbl">カテゴリ <em>*</em></label>
-                <select className="inp" id="m-req-cat" defaultValue="veg" onChange={() => updateRequestFormExtraVisibility('mob')}>
-                  {REQUEST_FORM_CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div id="m-req-extra-produce" className="req-extra-block" style={{ display: 'none' }}>
-                <div className="fg">
-                  <label className="lbl">数量 <em>*</em></label>
-                  <div className="price-row" style={{ flexWrap: 'wrap' }}>
-                    <input type="number" className="inp" id="m-req-ex-prod-qty" inputMode="decimal" placeholder="例：3" min="0" step="any" />
-                    <select className="inp" id="m-req-ex-prod-unit" style={{ maxWidth: '120px' }}>
-                      <option value="kg">kg</option>
-                      <option value="g">g</option>
-                      <option value="袋">袋</option>
-                      <option value="箱">箱</option>
-                      <option value="束">束</option>
-                      <option value="個">個</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="fg">
-                  <label className="lbl">状態の希望 <em>*</em></label>
-                  <select className="inp" id="m-req-ex-prod-cond">
-                    <option value="なんでも">なんでも</option>
-                    <option value="新鮮なもの">新鮮なもの</option>
-                    <option value="加工済みでも可">加工済みでも可</option>
-                  </select>
-                </div>
-                <div className="fg">
-                  <label className="lbl">農薬 <em>*</em></label>
-                  <select className="inp" id="m-req-ex-prod-pest">
-                    <option value="気にしない">気にしない</option>
-                    <option value="無農薬希望">無農薬希望</option>
-                  </select>
-                </div>
-              </div>
-              <div id="m-req-extra-wood" className="req-extra-block" style={{ display: 'none' }}>
-                <div className="fg">
-                  <label className="lbl">量の目安 <em>*</em></label>
-                  <input className="inp" id="m-req-ex-wood-amt" placeholder="例：軽トラ1台分" />
-                </div>
-                <div className="fg">
-                  <label className="lbl">乾燥済み希望 <em>*</em></label>
-                  <select className="inp" id="m-req-ex-wood-dry">
-                    <option value="希望する">希望する</option>
-                    <option value="どちらでも">どちらでも</option>
-                  </select>
-                </div>
-              </div>
-              <div id="m-req-extra-other" className="req-extra-block" style={{ display: 'none' }}>
-                <div className="fg">
-                  <label className="lbl">種類 <em>*</em></label>
-                  <select className="inp" id="m-req-ex-oth-kind">
-                    <option value="漬物">漬物</option>
-                    <option value="味噌">味噌</option>
-                    <option value="ジャム">ジャム</option>
-                    <option value="その他">その他</option>
-                  </select>
-                </div>
-                <div className="fg">
-                  <label className="lbl">数量目安 <small>任意</small></label>
-                  <input className="inp" id="m-req-ex-oth-qty" placeholder="例：瓶2つ分" />
-                </div>
-              </div>
-              <div id="m-req-extra-land" className="req-extra-block" style={{ display: 'none' }}>
-                <div className="fg">
-                  <label className="lbl">希望面積 <em>*</em></label>
-                  <div className="price-row" style={{ flexWrap: 'wrap' }}>
-                    <input type="number" className="inp" id="m-req-ex-land-area" inputMode="decimal" placeholder="数値" min="0" step="any" />
-                    <select className="inp" id="m-req-ex-land-aunit" style={{ maxWidth: '100px' }}>
-                      <option value="㎡">㎡</option>
-                      <option value="畝">畝</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="fg">
-                  <label className="lbl">用途 <em>*</em></label>
-                  <select className="inp" id="m-req-ex-land-use">
-                    <option value="農業">農業</option>
-                    <option value="家庭菜園">家庭菜園</option>
-                    <option value="薪割り場">薪割り場</option>
-                    <option value="その他">その他</option>
-                  </select>
-                </div>
-                <div className="fg">
-                  <label className="lbl">希望契約期間 <em>*</em></label>
-                  <select className="inp" id="m-req-ex-land-period">
-                    <option value="単発">単発</option>
-                    <option value="年間">年間</option>
-                    <option value="応相談">応相談</option>
-                  </select>
-                </div>
-              </div>
-              <div className="fg">
-                <label className="lbl">欲しいもの・詳細 <em>*</em></label>
-                <textarea className="txta" id="m-req-desc" placeholder="品目・数量の目安など" style={{ minHeight: '88px' }} />
-              </div>
-              <div className="fg">
-                <label className="lbl">エリア <em>*</em></label>
-                <div className="req-mob-loc-row">
-                  <span className="req-pref-fixed">{NAGANO_PREF}</span>
-                  <select className="inp loc-sel" id="m-req-loc-city" style={{ width: '100%', marginTop: '8px' }}>
-                    <option value="">市区町村を選択</option>
-                  </select>
-                </div>
-              </div>
-              <div className="fg">
-                <label className="lbl">希望価格 <small>任意</small></label>
-                <input className="inp" id="m-req-price" placeholder="例：無料希望など" />
-              </div>
-              <div className="fg">
-                <label className="lbl">受け取り希望時期 <small>任意</small></label>
-                <input className="inp" id="m-req-when" placeholder="例：今月中など" />
-              </div>
-              <button type="button" className="req-submit-btn" id="m-req-submit" onClick={() => void submitRequestForm('mob')}>
-                投稿する
+          <div className="m-body reqb-m-body">
+            <div className="reqb-inner reqb-inner--mob">
+              <p className="reqb-sub reqb-sub--mob">欲しいものを地域の人に伝えよう</p>
+              <button type="button" className="reqb-btn-primary reqb-btn-primary--mob" onClick={() => openReqPostModal('mob')}>
+                ＋ 投稿する
               </button>
-            </section>
-            <div className="req-filters-row req-filters-row--mob" style={{ padding: '0 12px 12px' }}>
-              <label className="req-filter-lbl">
-                カテゴリ
+              <p className="reqb-filt-lbl">カテゴリ</p>
+              <div id="m-req-cat-tags" className="reqb-cat-scroll" />
+              <div className="reqb-area-row">
+                <label className="reqb-area-lbl" htmlFor="m-req-filter-area">エリア</label>
                 <select
-                  className="inp req-filter-sel"
-                  id="m-req-filter-cat"
-                  defaultValue="all"
-                  onChange={(e) => {
-                    reqListCatFilter = e.target.value
-                    renderRequestLists()
-                  }}
-                >
-                  <option value="all">すべて</option>
-                  {REQUEST_FORM_CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="req-filter-lbl">
-                エリア
-                <select
-                  className="inp req-filter-sel"
+                  className="inp reqb-area-sel"
                   id="m-req-filter-area"
                   defaultValue={REQ_AREA_FILTER_ALL}
                   onChange={(e) => {
@@ -5647,9 +5520,80 @@ export default function Page() {
                     <option key={m} value={m}>{m}</option>
                   ))}
                 </select>
-              </label>
+              </div>
+              <div id="m-req-list" className="reqb-grid reqb-grid--mob" />
             </div>
-            <div id="m-req-list" className="req-list" style={{ padding: '0 12px 24px' }} />
+            <div id="m-req-modal-root" className="reqb-modal-root" aria-hidden="true">
+              <button type="button" className="reqb-modal-backdrop" aria-label="閉じる" onClick={() => closeReqPostModal('mob')} />
+              <div className="reqb-modal-panel reqb-modal-panel--mob" role="dialog" aria-modal="true" aria-labelledby="m-req-modal-title" onClick={(e) => e.stopPropagation()}>
+                <div className="reqb-modal-head">
+                  <h2 id="m-req-modal-title" className="reqb-modal-title">掲示板に投稿</h2>
+                  <button type="button" className="reqb-modal-x" aria-label="閉じる" onClick={() => closeReqPostModal('mob')}>
+                    ×
+                  </button>
+                </div>
+                <div className="reqb-modal-body">
+                  <div className="reqb-field">
+                    <label className="reqb-lbl" htmlFor="m-req-modal-desc">
+                      何が欲しいですか？ <em>*</em> <small>（100文字まで）</small>
+                    </label>
+                    <textarea
+                      id="m-req-modal-desc"
+                      className="reqb-txta"
+                      maxLength={100}
+                      rows={4}
+                      placeholder="例：柿が5個ほど欲しいです"
+                    />
+                  </div>
+                  <div className="reqb-field">
+                    <span className="reqb-lbl">カテゴリ <em>*</em></span>
+                    <input type="hidden" id="m-req-modal-cat" defaultValue="veg" />
+                    <div id="m-req-modal-cat-grid" className="reqb-catpick-grid">
+                      {POST_CATEGORY_PICKS.map((c) => (
+                        <button
+                          key={c.key}
+                          type="button"
+                          className={`reqb-catpick${c.key === 'veg' ? ' on' : ''}`}
+                          data-value={c.key}
+                          onClick={() => setReqModalCategory('mob', c.key)}
+                        >
+                          <span className="reqb-catpick-emoji" aria-hidden>{c.emoji}</span>
+                          <span className="reqb-catpick-lbl">{c.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="reqb-field">
+                    <label className="reqb-lbl" htmlFor="m-req-modal-when">いつまでに欲しいですか？ <small>（任意）</small></label>
+                    <input
+                      id="m-req-modal-when"
+                      className="inp reqb-inp"
+                      placeholder="例：今月中・10月までに・急ぎではない"
+                    />
+                  </div>
+                  <div className="reqb-field">
+                    <label className="reqb-lbl" htmlFor="m-req-modal-price">希望価格 <small>（任意）</small></label>
+                    <input
+                      id="m-req-modal-price"
+                      className="inp reqb-inp"
+                      placeholder="例：無料希望・100円以内・相談可"
+                    />
+                  </div>
+                  <div className="reqb-field">
+                    <label className="reqb-lbl" htmlFor="m-req-modal-city">お住まいのエリア <em>*</em></label>
+                    <div className="reqb-loc-row">
+                      <span className="reqb-pref">{NAGANO_PREF}</span>
+                      <select id="m-req-modal-city" className="inp reqb-inp reqb-city-sel">
+                        <option value="">市区町村を選択</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button type="button" className="reqb-btn-primary reqb-btn-block" id="m-req-modal-submit" onClick={() => void submitRequestForm('mob')}>
+                    掲示板に載せる
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
           <div className="m-nav m-nav--balanced" id="mn-requests">
             <div className="m-nav-cluster m-nav-cluster--l">
