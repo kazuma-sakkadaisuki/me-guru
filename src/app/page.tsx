@@ -411,7 +411,7 @@ function updateSbChatUnreadBadge() {
 /** CHATS 更新後、お知らせ画面を開いていればリストを再描画 */
 function refreshNotifListsIfOpen() {
   const pcNotif = document.getElementById('pc-pg-notif')
-  if (pcNotif && pcNotif.style.display !== 'none') renderPcNotifs()
+  if (pcNotif && pcNotif.classList.contains('pc-pg--active')) renderPcNotifs()
   if (document.getElementById('ms-notif')?.classList.contains('active')) renderMobNotifs()
 }
 
@@ -682,8 +682,10 @@ function pcGo(page: string) {
     window.location.href = '/login'
     return
   }
-  PC_PAGES.forEach(p => { const el = document.getElementById('pc-pg-'+p); if (el) el.style.display='none' })
-  const el = document.getElementById('pc-pg-'+page); if (el) el.style.display=''
+  PC_PAGES.forEach((p) => {
+    const el = document.getElementById('pc-pg-' + p)
+    if (el) el.classList.toggle('pc-pg--active', p === page)
+  })
   if (!['listing','chatlist','mylistings','requests'].includes(page)) document.getElementById('pc-panel')?.classList.add('hidden')
   document.querySelectorAll('.pc-nav-tab').forEach(t => t.classList.remove('on'))
   if (page !== 'userprofile') {
@@ -708,7 +710,7 @@ function pcGo(page: string) {
     ;(sid ? document.getElementById(sid) : document.getElementById('sb-all'))?.classList.add('on')
   }
   if (page==='notif') renderPcNotifs()
-  if (page==='mypage') { updateMypage('pc'); (document.getElementById('pc-pg-mypage') as HTMLElement).style.display='' }
+  if (page === 'mypage') updateMypage('pc')
   if (page==='chatlist') renderChatList('pc')
   if (page === 'requests') {
     initRequestLocSelects()
@@ -2410,28 +2412,26 @@ function renderRequestLists() {
       r.created_at
         ? new Date(r.created_at).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })
         : '—'
-    const metaBits: string[] = []
-    if (r.hope_timing && r.hope_timing.trim()) {
-      metaBits.push(`<span class="reqb-card-meta-i">いつまでに：${escChatHtml(r.hope_timing.trim())}</span>`)
-    }
-    if (r.hope_price && r.hope_price.trim()) {
-      metaBits.push(`<span class="reqb-card-meta-i">希望価格：${escChatHtml(r.hope_price.trim())}</span>`)
-    }
-    const metaHtml = metaBits.length ? `<div class="reqb-card-meta">${metaBits.join('')}</div>` : ''
+    const timing = r.hope_timing && r.hope_timing.trim() ? escChatHtml(r.hope_timing.trim()) : '—'
+    const price = r.hope_price && r.hope_price.trim() ? escChatHtml(r.hope_price.trim()) : '—'
+    const area = escChatHtml(r.area || '—')
+    const poster = r.posterName ? escChatHtml(chatPartnerNameFromProfile(r.posterName)) : 'ユーザー'
     let actions = ''
     if (!isMine && CURRENT_USER_ID) {
       actions = `<button type="button" class="req-offer-btn" onclick="offerForRequest('${r.id}','${mode}')">提供できます</button>`
     } else if (isMine) {
       actions = `<button type="button" class="req-del-btn" onclick="deleteRequest('${r.id}','${mode}')">削除</button>`
     }
-    const poster = r.posterName ? escChatHtml(chatPartnerNameFromProfile(r.posterName)) : 'ユーザー'
     return `<article class="reqb-card" data-id="${r.id}">
       <span class="reqb-card-badge">${escChatHtml(catLabel)}</span>
       <p class="reqb-card-body">${escChatHtml(desc)}</p>
-      ${metaHtml}
-      <div class="reqb-card-foot">
-        <span class="reqb-card-foot-line">${escChatHtml(r.area || '—')} · ${poster} · ${escChatHtml(posted)}</span>
-      </div>
+      <dl class="reqb-card-dl">
+        <div class="reqb-card-dl-row"><dt>いつまでに</dt><dd>${timing}</dd></div>
+        <div class="reqb-card-dl-row"><dt>希望価格</dt><dd>${price}</dd></div>
+        <div class="reqb-card-dl-row"><dt>エリア</dt><dd>${area}</dd></div>
+        <div class="reqb-card-dl-row"><dt>投稿者</dt><dd>${poster}</dd></div>
+        <div class="reqb-card-dl-row"><dt>投稿日時</dt><dd>${escChatHtml(posted)}</dd></div>
+      </dl>
       <div class="reqb-card-actions">${actions}</div>
     </article>`
   }
@@ -4044,7 +4044,7 @@ function updateAllUserRefs() {
     if (mSl) mSl.textContent = USER.area
   }
   const pgDetail = document.getElementById('pc-pg-detail')
-  if (pgDetail && typeof window !== 'undefined' && window.getComputedStyle(pgDetail).display !== 'none') {
+  if (pgDetail && pgDetail.classList.contains('pc-pg--active')) {
     applyPcDetailContactCta()
   }
 }
@@ -4330,7 +4330,7 @@ export default function Page() {
       mDoSearch()
       renderHomeRequestPreview()
       const pgDetail = document.getElementById('pc-pg-detail')
-      if (pgDetail && window.getComputedStyle(pgDetail).display !== 'none') {
+      if (pgDetail && pgDetail.classList.contains('pc-pg--active')) {
         applyPcDetailContactCta()
       }
     }, 0)
@@ -4438,7 +4438,7 @@ export default function Page() {
           <main className="pc-main" id="pc-main">
 
             {/* LISTING */}
-            <div id="pc-pg-listing">
+            <div id="pc-pg-listing" className="pc-pg pc-pg--active">
               <div className="pc-ph">
                 <div>
                   <h1 className="pc-ph-title">
@@ -4481,7 +4481,7 @@ export default function Page() {
             </div>
 
             {/* REQUESTS 求む掲示板 */}
-            <div id="pc-pg-requests" className="reqb-page" style={{ display: 'none' }}>
+            <div id="pc-pg-requests" className="pc-pg reqb-page">
               <div className="reqb-inner">
                 <header className="reqb-hero">
                   <h1 className="reqb-title">求む掲示板</h1>
@@ -4586,7 +4586,7 @@ export default function Page() {
             </div>
 
             {/* USER PROFILE（出品者・自分） */}
-            <div id="pc-pg-userprofile" style={{display:'none'}}>
+            <div id="pc-pg-userprofile" className="pc-pg">
               <div className="pc-det-topbar" style={{marginBottom:'8px'}}>
                 <button type="button" className="pc-det-back" onClick={() => pcGo('listing')} aria-label="戻る">
                   <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
@@ -4618,7 +4618,7 @@ export default function Page() {
             </div>
 
             {/* POST */}
-            <div id="pc-pg-post" style={{ display: 'none' }}>
+            <div id="pc-pg-post" className="pc-pg">
               <div className="pc-ph">
                 <div>
                   <h1 className="pc-ph-title">余りものを出品する</h1>
@@ -4889,7 +4889,7 @@ export default function Page() {
             </div>
 
             {/* DETAIL */}
-            <div id="pc-pg-detail" style={{display:'none'}}>
+            <div id="pc-pg-detail" className="pc-pg">
               <div className="pc-det-page">
                 {/* 戻るバー */}
                 <div className="pc-det-topbar">
@@ -4989,7 +4989,7 @@ export default function Page() {
             </div>
 
             {/* COMPLETE */}
-            <div id="pc-pg-complete" style={{display:'none'}}>
+            <div id="pc-pg-complete" className="pc-pg">
               <div className="pc-complete">
                 <div className="pc-comp-ring">🌿</div>
                 <h2 className="pc-comp-title">出品しました！</h2>
@@ -5026,13 +5026,13 @@ export default function Page() {
             </div>
 
             {/* NOTIF */}
-            <div id="pc-pg-notif" style={{display:'none'}}>
+            <div id="pc-pg-notif" className="pc-pg">
               <div className="pc-ph"><div><h1 className="pc-ph-title">お知らせ</h1></div></div>
               <div id="pc-notif-list"></div>
             </div>
 
             {/* MYPAGE */}
-            <div id="pc-pg-mypage" style={{display:'none'}}>
+            <div id="pc-pg-mypage" className="pc-pg">
               <div className="pc-mypage-header">
                 <div className="pc-mp-avt" id="pc-mp-avt-el" style={{overflow:'hidden'}}>🧑</div>
                 <div>
@@ -5059,25 +5059,25 @@ export default function Page() {
             </div>
 
             {/* CHAT LIST */}
-            <div id="pc-pg-chatlist" style={{display:'none'}}>
+            <div id="pc-pg-chatlist" className="pc-pg">
               <div className="pc-ph"><div><h1 className="pc-ph-title">やりとり</h1><p className="pc-ph-sub">相手を選んでチャットを開始</p></div></div>
               <div id="pc-chatlist-items" style={{border:'1px solid var(--bd)',borderRadius:'12px',overflow:'hidden',maxWidth:'600px'}}></div>
             </div>
 
             {/* MY LISTINGS */}
-            <div id="pc-pg-mylistings" style={{display:'none'}}>
+            <div id="pc-pg-mylistings" className="pc-pg">
               <div className="pc-ph"><div><h1 className="pc-ph-title" id="pc-mylistings-title">出品中のもの</h1></div></div>
               <div className="pc-grid" id="pc-mylistings-grid"></div>
             </div>
 
             {/* TX HISTORY */}
-            <div id="pc-pg-txhistory" style={{display:'none'}}>
+            <div id="pc-pg-txhistory" className="pc-pg">
               <div className="pc-ph"><div><h1 className="pc-ph-title">取引履歴</h1></div></div>
               <div id="pc-tx-list" style={{maxWidth:'620px'}}></div>
             </div>
 
             {/* PROF EDIT */}
-            <div id="pc-pg-profedit" style={{display:'none'}}>
+            <div id="pc-pg-profedit" className="pc-pg">
               <div className="pc-ph">
                 <div><h1 className="pc-ph-title" style={{fontFamily:'var(--sf)'}}>プロフィール編集</h1></div>
                 <button type="button" style={{padding:'9px 22px',background:'#C4581A',color:'#fff',border:'none',borderRadius:'8px',fontSize:'.84rem',fontWeight:700,letterSpacing:'.06em'}} onClick={() => void saveProfile()}>保存する</button>
@@ -5159,7 +5159,7 @@ export default function Page() {
             </div>
 
             {/* SETTINGS */}
-            <div id="pc-pg-settings" style={{ display: 'none' }}>
+            <div id="pc-pg-settings" className="pc-pg">
               <div className="pc-ph">
                 <div><h1 className="pc-ph-title" style={{ fontFamily: 'var(--sf)' }}>設定</h1></div>
               </div>
@@ -5201,7 +5201,7 @@ export default function Page() {
             </div>
 
             {/* MEGURUについて */}
-            <div id="pc-pg-about" style={{ display: 'none', background: '#F8F4EE', minHeight: '100%' }}>
+            <div id="pc-pg-about" className="pc-pg" style={{ background: '#F8F4EE', minHeight: '100%' }}>
               <div className="pc-ph">
                 <div><h1 className="pc-ph-title" style={{ fontFamily: 'var(--sf)' }}>MEGURUについて</h1></div>
               </div>
