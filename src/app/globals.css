@@ -186,29 +186,29 @@ a.pc-nav-tab:visited { color: var(--mu); }
 .pc-pg { display: none; }
 .pc-pg.pc-pg--active { display: block; }
 
-/* ホーム内タブ（余りもの / 求む掲示板） */
+/* ホーム内タブ（余りもの / 求む掲示板）テキストのみ・幅いっぱい */
 .pc-home-main-tabs,
 .m-home-main-tabs {
   display: flex;
-  gap: 10px;
+  gap: 0;
   width: 100%;
-  max-width: 720px;
-  margin: 0 0 22px;
+  max-width: none;
+  margin: 0 0 20px;
   box-sizing: border-box;
 }
 .m-home-main-tabs.home-main-tabs--mob {
-  max-width: none;
-  margin: 0 0 14px;
-  padding: 10px 12px 0;
+  margin: 0 0 12px;
+  padding: 10px 0 0;
 }
 .home-main-tab {
-  flex: 1 1 0;
+  width: 50%;
+  flex: 0 0 50%;
   min-width: 0;
-  display: inline-flex;
+  box-sizing: border-box;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
+  padding: 14px 0;
   border-radius: 12px;
   font-size: 1rem;
   font-weight: 700;
@@ -216,9 +216,8 @@ a.pc-nav-tab:visited { color: var(--mu); }
   letter-spacing: 0.03em;
   cursor: pointer;
   border: 1px solid #2d5a27;
-  background: transparent;
+  background: #fff;
   color: #2d5a27;
-  box-sizing: border-box;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 .home-main-tab--active,
@@ -227,18 +226,16 @@ a.pc-nav-tab:visited { color: var(--mu); }
   border-color: #2d5a27;
   color: #fff;
 }
-.home-main-tab-ico {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-  display: block;
-}
-.home-main-tab .home-main-tab-ico path {
-  fill: currentColor;
-  stroke: none;
+.pc-home-main-tabs .home-main-tab + .home-main-tab,
+.m-home-main-tabs .home-main-tab + .home-main-tab {
+  margin-left: -1px;
 }
 .home-sub--hidden {
   display: none !important;
+}
+.pc-body--requests-tab .pc-main {
+  flex: 1;
+  min-width: 0;
 }
 .m-home-reqb-wrap {
   background: #f8f4ee;
@@ -249,13 +246,8 @@ a.pc-nav-tab:visited { color: var(--mu); }
 }
 @media (max-width: 380px) {
   .home-main-tabs--mob .home-main-tab {
-    padding: 10px 12px;
-    font-size: 0.88rem;
-    gap: 6px;
-  }
-  .home-main-tabs--mob .home-main-tab-ico {
-    width: 18px;
-    height: 18px;
+    font-size: 0.9rem;
+    padding: 12px 0;
   }
 }
 
@@ -2021,94 +2013,89 @@ select.inp.prof-muni-sel {
   font-weight: 700;
   color: #fff;
   background: #2d5a27;
-  padding: 4px 10px;
+  padding: 5px 11px;
   border-radius: 6px;
   letter-spacing: 0.03em;
   margin-bottom: 10px;
 }
 .reqb-card-body {
-  font-size: 1.02rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: var(--ink);
-  line-height: 1.5;
-  margin: 0 0 8px;
+  line-height: 1.55;
+  margin: 0 0 10px;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-word;
 }
-.reqb-card-dl {
-  margin: 0 0 10px;
-  padding: 0;
-  font-family: var(--ss);
-}
-.reqb-card-dl-row {
-  display: grid;
-  grid-template-columns: 5.2em 1fr;
-  gap: 6px 10px;
-  align-items: baseline;
-  margin-bottom: 5px;
-  font-size: 0.78rem;
-}
-.reqb-card-dl-row dt {
-  margin: 0;
-  font-weight: 700;
-  color: #2d5a27;
-  letter-spacing: 0.02em;
-}
-.reqb-card-dl-row dd {
-  margin: 0;
-  color: #555;
-  font-weight: 500;
-  line-height: 1.45;
-  word-break: break-word;
-}
-.reqb-card-meta {
+.reqb-card-meta-grid {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 10px;
-}
-.reqb-card-meta-i {
+  margin: 0 0 12px;
   font-size: 0.72rem;
-  color: #888;
   font-weight: 500;
-  line-height: 1.4;
-}
-.reqb-card-foot {
-  margin-top: auto;
-  padding-top: 4px;
-}
-.reqb-card-foot-line {
-  font-size: 0.72rem;
-  color: var(--mu);
+  color: #888;
   line-height: 1.45;
   word-break: break-word;
 }
+.reqb-card-meta-lbl {
+  color: #9a9a9a;
+  font-weight: 600;
+  margin-right: 4px;
+}
+.reqb-card-foot {
+  margin-top: auto;
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.reqb-card-author {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #888;
+  text-align: right;
+  line-height: 1.4;
+  max-width: 100%;
+  word-break: break-word;
+}
 .reqb-card-actions {
-  margin-top: 12px;
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 .reqb-card-actions .req-offer-btn {
-  padding: 8px 14px;
-  font-size: 0.76rem;
+  padding: 9px 16px;
+  font-size: 0.8rem;
   font-weight: 700;
-  border-radius: 8px;
+  border-radius: 10px;
+  background: #c4581a;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-family: var(--ss);
+}
+.reqb-card-actions .req-offer-btn:hover {
+  filter: brightness(1.06);
 }
 .reqb-card-actions .req-del-btn {
-  padding: 8px 14px;
-  font-size: 0.76rem;
+  padding: 6px 12px;
+  font-size: 0.68rem;
   font-weight: 600;
   border-radius: 8px;
-  color: #666;
+  color: #777;
   border: 1px solid #ccc;
-  background: #f5f5f5;
+  background: #f0f0f0;
+  cursor: pointer;
+  font-family: var(--ss);
 }
 .reqb-card-actions .req-del-btn:hover {
-  background: #eaeaea;
+  background: #e4e4e4;
 }
 
 /* モーダル */

@@ -259,7 +259,7 @@ function renderHomeRequestPreview() {
     const catLabel = REQUEST_CAT_LABELS[r.category] || r.category
     const sum = escChatHtml(requestSummaryFromDescription(r.description, 42))
     const area = escChatHtml(r.area || '')
-    const poster = r.posterName ? escChatHtml(chatPartnerNameFromProfile(r.posterName)) : 'ユーザー'
+    const poster = escChatHtml(requestPosterDisplayName(r.posterName))
     return `<article class="home-req-card home-req-card--compact">
       <span class="home-req-card-badge">${escChatHtml(catLabel)}</span>
       <p class="home-req-card-sum">${sum}</p>
@@ -455,6 +455,13 @@ function isEmailLike(s: string): boolean {
 function chatPartnerNameFromProfile(name: string | null | undefined): string {
   const t = (name || '').trim()
   if (!t || isEmailLike(t)) return '出品者'
+  return t
+}
+
+/** 求む掲示板の投稿者表示（profiles.name。空・メール形式は「ユーザー」— 出品者マスクは使わない） */
+function requestPosterDisplayName(name: string | null | undefined): string {
+  const t = (name || '').trim()
+  if (!t || isEmailLike(t)) return 'ユーザー'
   return t
 }
 
@@ -728,8 +735,9 @@ function pcGo(page: string) {
 function applyPcHomeSubTabPanels(tab: 'items' | 'requests') {
   document.getElementById('pc-home-sub-items')?.classList.toggle('home-sub--hidden', tab !== 'items')
   document.getElementById('pc-home-sub-requests')?.classList.toggle('home-sub--hidden', tab !== 'requests')
-  const sideCats = document.getElementById('pc-sidebar-cats')
-  if (sideCats) sideCats.style.display = tab === 'items' ? '' : 'none'
+  const sidebar = document.getElementById('pc-sidebar')
+  if (sidebar) sidebar.style.display = tab === 'items' ? '' : 'none'
+  document.querySelector('.pc-body')?.classList.toggle('pc-body--requests-tab', tab === 'requests')
   document.getElementById('pc-home-tab-items')?.classList.toggle('home-main-tab--active', tab === 'items')
   document.getElementById('pc-home-tab-requests')?.classList.toggle('home-main-tab--active', tab === 'requests')
   document.getElementById('pc-home-tab-items')?.setAttribute('aria-selected', tab === 'items' ? 'true' : 'false')
@@ -2471,7 +2479,7 @@ function renderRequestLists() {
     const timing = r.hope_timing && r.hope_timing.trim() ? escChatHtml(r.hope_timing.trim()) : '—'
     const price = r.hope_price && r.hope_price.trim() ? escChatHtml(r.hope_price.trim()) : '—'
     const area = escChatHtml(r.area || '—')
-    const poster = r.posterName ? escChatHtml(chatPartnerNameFromProfile(r.posterName)) : 'ユーザー'
+    const poster = escChatHtml(requestPosterDisplayName(r.posterName))
     let actions = ''
     if (!isMine && CURRENT_USER_ID) {
       actions = `<button type="button" class="req-offer-btn" onclick="offerForRequest('${r.id}','${mode}')">提供できます</button>`
@@ -2481,14 +2489,15 @@ function renderRequestLists() {
     return `<article class="reqb-card" data-id="${r.id}">
       <span class="reqb-card-badge">${escChatHtml(catLabel)}</span>
       <p class="reqb-card-body">${escChatHtml(desc)}</p>
-      <dl class="reqb-card-dl">
-        <div class="reqb-card-dl-row"><dt>いつまでに</dt><dd>${timing}</dd></div>
-        <div class="reqb-card-dl-row"><dt>希望価格</dt><dd>${price}</dd></div>
-        <div class="reqb-card-dl-row"><dt>エリア</dt><dd>${area}</dd></div>
-        <div class="reqb-card-dl-row"><dt>投稿者</dt><dd>${poster}</dd></div>
-        <div class="reqb-card-dl-row"><dt>投稿日時</dt><dd>${escChatHtml(posted)}</dd></div>
-      </dl>
-      <div class="reqb-card-actions">${actions}</div>
+      <div class="reqb-card-meta-grid">
+        <span class="reqb-card-meta-item"><span class="reqb-card-meta-lbl">いつまでに</span> ${timing}</span>
+        <span class="reqb-card-meta-item"><span class="reqb-card-meta-lbl">希望価格</span> ${price}</span>
+        <span class="reqb-card-meta-item"><span class="reqb-card-meta-lbl">エリア</span> ${area}</span>
+      </div>
+      <div class="reqb-card-foot">
+        <div class="reqb-card-author">${poster} · ${escChatHtml(posted)}</div>
+        <div class="reqb-card-actions">${actions}</div>
+      </div>
     </article>`
   }
   const empty = '<p class="req-empty">まだリクエストがありません</p>'
@@ -2505,9 +2514,7 @@ async function loadRequestsFromSupabase() {
     const supabase = createClient()
     const { data, error } = await supabase
       .from('requests')
-      .select(
-        `id, user_id, category, description, area, created_at, "希望価格", "希望時期", profiles (name)`
-      )
+      .select(`id, user_id, category, description, area, created_at, "希望価格", "希望時期"`)
       .order('created_at', { ascending: false })
     if (error) {
       console.error('[meguru] loadRequests:', error.message, error.code)
@@ -2517,21 +2524,30 @@ async function loadRequestsFromSupabase() {
       return
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    meguruRequestsCache = (data || []).map((row: any) => {
-      const rawProf = row.profiles as { name: string | null } | { name: string | null }[] | null | undefined
-      const prof = Array.isArray(rawProf) ? rawProf[0] : rawProf
-      return {
-        id: row.id as string,
-        user_id: row.user_id as string,
-        category: row.category as string,
-        description: row.description as string,
-        area: row.area as string,
-        created_at: row.created_at as string,
-        hope_price: (row['希望価格'] as string | null) ?? null,
-        hope_timing: (row['希望時期'] as string | null) ?? null,
-        posterName: prof?.name ?? undefined,
+    const rows = (data || []) as any[]
+    const userIds = [...new Set(rows.map((r) => r.user_id as string | undefined).filter(Boolean))] as string[]
+    const nameByUserId = new Map<string, string>()
+    if (userIds.length) {
+      const { data: profRows, error: profErr } = await supabase.from('profiles').select('id, name').in('id', userIds)
+      if (profErr) console.error('[meguru] loadRequests profiles:', profErr.message)
+      if (profRows) {
+        for (const p of profRows as { id: string; name: string | null }[]) {
+          const nm = (p.name || '').trim()
+          if (nm) nameByUserId.set(p.id, nm)
+        }
       }
-    })
+    }
+    meguruRequestsCache = rows.map((row: any) => ({
+      id: row.id as string,
+      user_id: row.user_id as string,
+      category: row.category as string,
+      description: row.description as string,
+      area: row.area as string,
+      created_at: row.created_at as string,
+      hope_price: (row['希望価格'] as string | null) ?? null,
+      hope_timing: (row['希望時期'] as string | null) ?? null,
+      posterName: nameByUserId.get(row.user_id as string) || undefined,
+    }))
     renderRequestLists()
     renderHomeRequestPreview()
   } catch (e) {
@@ -2677,7 +2693,7 @@ async function offerForRequest(requestId: string, mode: string) {
       chatId = newChat.id as string
     }
     const key = `sb_${chatId}`
-    const partnerName = chatPartnerNameFromProfile(req.posterName ?? null)
+    const partnerName = requestPosterDisplayName(req.posterName ?? null)
     const catLine = `求む：${REQUEST_CAT_LABELS[req.category] || req.category}`
     const descMain = splitRequestDescription(req.description || '').main
     if (!CHATS[key]) {
@@ -4444,7 +4460,7 @@ export default function Page() {
         <div className="pc-body">
 
           {/* Sidebar */}
-          <aside className="pc-sidebar">
+          <aside className="pc-sidebar" id="pc-sidebar">
             <div id="pc-sidebar-cats" className="pc-sidebar-cats">
             <p className="sb-section">カテゴリ</p>
             <button className="sb-item on" id="sb-all"   onClick={(e) => pcSbCat(e.currentTarget, 'all')}>
@@ -4505,13 +4521,7 @@ export default function Page() {
                   aria-selected="true"
                   onClick={() => setPcHomeSubTab('items')}
                 >
-                  <svg className="home-main-tab-ico" viewBox="0 0 24 24" aria-hidden>
-                    <path
-                      fill="currentColor"
-                      d="M12 20.5c-3.8-2.2-6.2-6.5-5.2-10.8 1-4.5 5.5-6.5 9.5-4.5 2 1 3.3 2.8 4 4.7.7-2 2-3.6 3.8-4.7 4-2 8.5 0 9.5 4.5 1 4.3-1.4 8.6-5.2 10.8H12z"
-                    />
-                  </svg>
-                  <span>余りもの</span>
+                  余りもの
                 </button>
                 <button
                   type="button"
@@ -4521,13 +4531,7 @@ export default function Page() {
                   aria-selected="false"
                   onClick={() => setPcHomeSubTab('requests')}
                 >
-                  <svg className="home-main-tab-ico" viewBox="0 0 24 24" aria-hidden>
-                    <path
-                      fill="currentColor"
-                      d="M9.5 7.2a2.35 2.35 0 1 1 4.7 0 2.35 2.35 0 0 1-4.7 0ZM6.2 21.5V12c0-.6.5-1.1 1.2-1.1h5.2c.7 0 1.2.5 1.2 1.1v9.5H6.2Zm7.4-11.6h.15L18.4 4c.3-.4.9-.5 1.3-.1.4.3.5.9.2 1.3l-4.1 5.7h-2.2V9.9Z"
-                    />
-                  </svg>
-                  <span>求む掲示板</span>
+                  求む掲示板
                 </button>
               </div>
 
@@ -5473,13 +5477,7 @@ export default function Page() {
                 aria-selected="true"
                 onClick={() => setMobHomeSubTab('items')}
               >
-                <svg className="home-main-tab-ico" viewBox="0 0 24 24" aria-hidden>
-                  <path
-                    fill="currentColor"
-                    d="M12 20.5c-3.8-2.2-6.2-6.5-5.2-10.8 1-4.5 5.5-6.5 9.5-4.5 2 1 3.3 2.8 4 4.7.7-2 2-3.6 3.8-4.7 4-2 8.5 0 9.5 4.5 1 4.3-1.4 8.6-5.2 10.8H12z"
-                  />
-                </svg>
-                <span>余りもの</span>
+                余りもの
               </button>
               <button
                 type="button"
@@ -5489,13 +5487,7 @@ export default function Page() {
                 aria-selected="false"
                 onClick={() => setMobHomeSubTab('requests')}
               >
-                <svg className="home-main-tab-ico" viewBox="0 0 24 24" aria-hidden>
-                  <path
-                    fill="currentColor"
-                    d="M9.5 7.2a2.35 2.35 0 1 1 4.7 0 2.35 2.35 0 0 1-4.7 0ZM6.2 21.5V12c0-.6.5-1.1 1.2-1.1h5.2c.7 0 1.2.5 1.2 1.1v9.5H6.2Zm7.4-11.6h.15L18.4 4c.3-.4.9-.5 1.3-.1.4.3.5.9.2 1.3l-4.1 5.7h-2.2V9.9Z"
-                  />
-                </svg>
-                <span>求む掲示板</span>
+                求む掲示板
               </button>
             </div>
 
