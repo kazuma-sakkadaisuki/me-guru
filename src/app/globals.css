@@ -186,6 +186,79 @@ a.pc-nav-tab:visited { color: var(--mu); }
 .pc-pg { display: none; }
 .pc-pg.pc-pg--active { display: block; }
 
+/* ホーム内タブ（余りもの / 求む掲示板） */
+.pc-home-main-tabs,
+.m-home-main-tabs {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 0 22px;
+  box-sizing: border-box;
+}
+.m-home-main-tabs.home-main-tabs--mob {
+  max-width: none;
+  margin: 0 0 14px;
+  padding: 10px 12px 0;
+}
+.home-main-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: var(--sf);
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  border: 1px solid #2d5a27;
+  background: transparent;
+  color: #2d5a27;
+  box-sizing: border-box;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.home-main-tab--active,
+.home-main-tab.home-main-tab--active {
+  background: #2d5a27;
+  border-color: #2d5a27;
+  color: #fff;
+}
+.home-main-tab-ico {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: block;
+}
+.home-main-tab .home-main-tab-ico path {
+  fill: currentColor;
+  stroke: none;
+}
+.home-sub--hidden {
+  display: none !important;
+}
+.m-home-reqb-wrap {
+  background: #f8f4ee;
+  min-height: 80px;
+}
+.m-home-reqb-wrap .reqb-inner--mob {
+  padding-bottom: 28px;
+}
+@media (max-width: 380px) {
+  .home-main-tabs--mob .home-main-tab {
+    padding: 10px 12px;
+    font-size: 0.88rem;
+    gap: 6px;
+  }
+  .home-main-tabs--mob .home-main-tab-ico {
+    width: 18px;
+    height: 18px;
+  }
+}
+
 /* PC right panel */
 .pc-panel {
   width:360px; flex-shrink:0;
@@ -543,43 +616,39 @@ a.pc-nav-tab:visited { color: var(--mu); }
 .m-nt-post:hover .fab { transform:scale(1.08); background:var(--k2); }
 .m-nt-post span { font-size:.58rem; font-weight:700; color:var(--k); margin-top:3px; }
 
-/* ボトムナビ：ホーム・さがす | 中央FAB | 求む・チャット・マイページ */
-.m-nav.m-nav--balanced {
-  width: 100%;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding-left: 4px;
-  padding-right: 4px;
-}
-.m-nav-cluster--l,
-.m-nav-cluster--r {
-  flex: 1 1 0;
-  display: flex;
-  justify-content: space-evenly;
-  align-items: flex-end;
-  min-width: 0;
-}
-.m-nav-fab {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  width: 56px;
-  padding-bottom: 2px;
-}
-.m-nav--balanced .m-nav-cluster .m-nt {
-  flex: 1;
-  min-width: 0;
-  padding-left: 2px;
-  padding-right: 2px;
-}
+/* ボトムナビ：5列（ホーム・さがす・FAB・チャット・マイページ） */
 .m-nt-post.m-nt-post--fab {
   flex: 0 0 auto;
   width: 100%;
   align-items: center;
 }
 .m-nt-post.m-nt-post--fab .fab {
+  margin-top: -14px;
+}
+
+.m-nav.m-nav--five {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0;
+  padding: 6px 4px max(16px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+.m-nav--five > .m-nt {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 5px 2px;
+}
+.m-nav--five > .m-nt-post.m-nt-post--fab {
+  flex: 0 0 56px;
+  width: 56px;
+  max-width: 56px;
+  padding: 0 0 2px;
+  align-items: center;
+}
+.m-nav--five > .m-nt-post.m-nt-post--fab .fab {
   margin-top: -14px;
 }
 

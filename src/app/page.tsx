@@ -664,6 +664,9 @@ let selectedCity = ''
 let activeDistricts: string[] = []
 let filterMessage = ''
 let PROFILE_VIEW_USER_ID: string | null = null
+/** PC・モバイルホーム内の「余りもの / 求む掲示板」サブタブ */
+let pcHomeSubTab: 'items' | 'requests' = 'items'
+let mobHomeSubTab: 'items' | 'requests' = 'items'
 
 /* ── TOAST ── */
 let _tt: ReturnType<typeof setTimeout>
@@ -675,7 +678,7 @@ function showToast(msg: string) {
 }
 
 /* ── PC NAV ── */
-const PC_PAGES = ['listing','requests','post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','settings','about','detail','userprofile']
+const PC_PAGES = ['listing','post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','settings','about','detail','userprofile']
 const PC_PAGES_NEED_AUTH = ['post','complete','notif','mypage','chatlist','mylistings','txhistory','profedit','settings','about','userprofile']
 function pcGo(page: string) {
   if (PC_PAGES_NEED_AUTH.includes(page) && !CURRENT_USER_ID) {
@@ -686,7 +689,7 @@ function pcGo(page: string) {
     const el = document.getElementById('pc-pg-' + p)
     if (el) el.classList.toggle('pc-pg--active', p === page)
   })
-  if (!['listing','chatlist','mylistings','requests'].includes(page)) document.getElementById('pc-panel')?.classList.add('hidden')
+  if (!['listing','chatlist','mylistings'].includes(page)) document.getElementById('pc-panel')?.classList.add('hidden')
   document.querySelectorAll('.pc-nav-tab').forEach(t => t.classList.remove('on'))
   if (page !== 'userprofile') {
     const tabId = page === 'complete' ? 'pct-post' : 'pct-' + page
@@ -712,17 +715,75 @@ function pcGo(page: string) {
   if (page==='notif') renderPcNotifs()
   if (page === 'mypage') updateMypage('pc')
   if (page==='chatlist') renderChatList('pc')
-  if (page === 'requests') {
+  if (page==='txhistory') renderTxHistory('pc')
+  if (page === 'settings') hydrateSettingsScreen()
+  if (page === 'post') showPostCategoryStep('pc')
+  if (page === 'listing') {
+    pcHomeSubTab = 'items'
+    applyPcHomeSubTabPanels('items')
+  }
+  const main = document.getElementById('pc-main'); if (main) main.scrollTop=0
+}
+
+function applyPcHomeSubTabPanels(tab: 'items' | 'requests') {
+  document.getElementById('pc-home-sub-items')?.classList.toggle('home-sub--hidden', tab !== 'items')
+  document.getElementById('pc-home-sub-requests')?.classList.toggle('home-sub--hidden', tab !== 'requests')
+  const sideCats = document.getElementById('pc-sidebar-cats')
+  if (sideCats) sideCats.style.display = tab === 'items' ? '' : 'none'
+  document.getElementById('pc-home-tab-items')?.classList.toggle('home-main-tab--active', tab === 'items')
+  document.getElementById('pc-home-tab-requests')?.classList.toggle('home-main-tab--active', tab === 'requests')
+  document.getElementById('pc-home-tab-items')?.setAttribute('aria-selected', tab === 'items' ? 'true' : 'false')
+  document.getElementById('pc-home-tab-requests')?.setAttribute('aria-selected', tab === 'requests' ? 'true' : 'false')
+  if (tab === 'requests') {
     initRequestLocSelects()
     syncRequestFilterSelects()
     updateRequestFormExtraVisibility('pc')
     void loadRequestsFromSupabase()
   }
-  if (page==='txhistory') renderTxHistory('pc')
-  if (page === 'settings') hydrateSettingsScreen()
-  if (page === 'post') showPostCategoryStep('pc')
-  const main = document.getElementById('pc-main'); if (main) main.scrollTop=0
 }
+
+function setPcHomeSubTab(tab: 'items' | 'requests') {
+  pcHomeSubTab = tab
+  applyPcHomeSubTabPanels(tab)
+}
+
+function applyMobHomeSubTabPanels(tab: 'items' | 'requests') {
+  document.getElementById('m-home-sub-items')?.classList.toggle('home-sub--hidden', tab !== 'items')
+  document.getElementById('m-home-sub-requests')?.classList.toggle('home-sub--hidden', tab !== 'requests')
+  document.getElementById('m-home-tab-items')?.classList.toggle('home-main-tab--active', tab === 'items')
+  document.getElementById('m-home-tab-requests')?.classList.toggle('home-main-tab--active', tab === 'requests')
+  document.getElementById('m-home-tab-items')?.setAttribute('aria-selected', tab === 'items' ? 'true' : 'false')
+  document.getElementById('m-home-tab-requests')?.setAttribute('aria-selected', tab === 'requests' ? 'true' : 'false')
+  if (tab === 'requests') {
+    initRequestLocSelects()
+    syncRequestFilterSelects()
+    updateRequestFormExtraVisibility('mob')
+    void loadRequestsFromSupabase()
+  }
+}
+
+function setMobHomeSubTab(tab: 'items' | 'requests') {
+  mobHomeSubTab = tab
+  applyMobHomeSubTabPanels(tab)
+}
+
+function syncMobHomeSubTabUI() {
+  applyMobHomeSubTabPanels(mobHomeSubTab)
+}
+
+/** ホームの「求む掲示板」タブへ（ボトムナビから求むを廃止したため） */
+function openMobHomeRequestsTab() {
+  mobHomeSubTab = 'requests'
+  const active = document.querySelector('#mob-root .scn.active')
+  if (active?.id === 'ms-home') {
+    applyMobHomeSubTabPanels('requests')
+    return
+  }
+  const homeBtn = document.querySelector('#mob-root [data-t="ms-home"]') as HTMLElement | null
+  if (homeBtn) mTab(homeBtn)
+  else applyMobHomeSubTabPanels('requests')
+}
+
 function pcSubPage(p: string) {
   pcGo(p)
   if (p === 'mylistings') renderMyListings('pc', '出品中のもの', ITEMS.filter((i) => i.mine))
@@ -1062,13 +1123,8 @@ function mNav(id: string) {
   if (!next) return
   next.classList.remove('back'); next.classList.add('active')
   if (id==='ms-chatlist') renderChatList('mob')
-  if (id === 'ms-requests') {
-    document.querySelectorAll('#mob-root .m-nt').forEach((b) => b.classList.remove('on'))
-    document.querySelectorAll('[data-t="ms-requests"]').forEach((b) => b.classList.add('on'))
-    initRequestLocSelects()
-    syncRequestFilterSelects()
-    updateRequestFormExtraVisibility('mob')
-    void loadRequestsFromSupabase()
+  if (id === 'ms-home') {
+    syncMobHomeSubTabUI()
   }
   if (id === 'ms-search') {
     document.querySelectorAll('#mob-root .m-nt').forEach((b) => b.classList.remove('on'))
@@ -4329,6 +4385,8 @@ export default function Page() {
       applyMobFilter()
       mDoSearch()
       renderHomeRequestPreview()
+      applyPcHomeSubTabPanels(pcHomeSubTab)
+      applyMobHomeSubTabPanels(mobHomeSubTab)
       const pgDetail = document.getElementById('pc-pg-detail')
       if (pgDetail && pgDetail.classList.contains('pc-pg--active')) {
         applyPcDetailContactCta()
@@ -4349,9 +4407,6 @@ export default function Page() {
             <button className="pc-nav-tab on" id="pct-listing" onClick={() => pcGo('listing')}>
               <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
               一覧
-            </button>
-            <button type="button" className="pc-nav-tab" id="pct-requests" onClick={() => pcGo('requests')}>
-              求む
             </button>
             <button className="pc-nav-tab" id="pct-post" onClick={() => pcGo('post')}>
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -4390,6 +4445,7 @@ export default function Page() {
 
           {/* Sidebar */}
           <aside className="pc-sidebar">
+            <div id="pc-sidebar-cats" className="pc-sidebar-cats">
             <p className="sb-section">カテゴリ</p>
             <button className="sb-item on" id="sb-all"   onClick={(e) => pcSbCat(e.currentTarget, 'all')}>
               <span className="sbi"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>すべて
@@ -4418,6 +4474,7 @@ export default function Page() {
             <button className="sb-item"    id="sb-misc" onClick={(e) => pcSbCat(e.currentTarget, 'misc')}>
               <span className="sbi"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>なんでも
             </button>
+            </div>
             <p className="sb-section">マイページ</p>
             <button type="button" className="sb-item sb-item--chat" onClick={() => pcGo('chatlist')}>
               <span className="sbi"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>やりとり
@@ -4437,8 +4494,44 @@ export default function Page() {
           {/* Main */}
           <main className="pc-main" id="pc-main">
 
-            {/* LISTING */}
+            {/* LISTING（余りもの / 求む掲示板 のホーム内タブ） */}
             <div id="pc-pg-listing" className="pc-pg pc-pg--active">
+              <div className="pc-home-main-tabs" role="tablist" aria-label="ホーム表示の切替">
+                <button
+                  type="button"
+                  role="tab"
+                  id="pc-home-tab-items"
+                  className="home-main-tab home-main-tab--active"
+                  aria-selected="true"
+                  onClick={() => setPcHomeSubTab('items')}
+                >
+                  <svg className="home-main-tab-ico" viewBox="0 0 24 24" aria-hidden>
+                    <path
+                      fill="currentColor"
+                      d="M12 20.5c-3.8-2.2-6.2-6.5-5.2-10.8 1-4.5 5.5-6.5 9.5-4.5 2 1 3.3 2.8 4 4.7.7-2 2-3.6 3.8-4.7 4-2 8.5 0 9.5 4.5 1 4.3-1.4 8.6-5.2 10.8H12z"
+                    />
+                  </svg>
+                  <span>余りもの</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id="pc-home-tab-requests"
+                  className="home-main-tab"
+                  aria-selected="false"
+                  onClick={() => setPcHomeSubTab('requests')}
+                >
+                  <svg className="home-main-tab-ico" viewBox="0 0 24 24" aria-hidden>
+                    <path
+                      fill="currentColor"
+                      d="M9.5 7.2a2.35 2.35 0 1 1 4.7 0 2.35 2.35 0 0 1-4.7 0ZM6.2 21.5V12c0-.6.5-1.1 1.2-1.1h5.2c.7 0 1.2.5 1.2 1.1v9.5H6.2Zm7.4-11.6h.15L18.4 4c.3-.4.9-.5 1.3-.1.4.3.5.9.2 1.3l-4.1 5.7h-2.2V9.9Z"
+                    />
+                  </svg>
+                  <span>求む掲示板</span>
+                </button>
+              </div>
+
+              <div id="pc-home-sub-items" className="pc-home-sub-panel">
               <div className="pc-ph">
                 <div>
                   <h1 className="pc-ph-title">
@@ -4470,18 +4563,17 @@ export default function Page() {
               <div className="filter-msg" id="pc-filter-msg" style={{display:'none'}}></div>
               <div id="pc-home-req-section" className="pc-home-req-section" style={{ display: 'none' }}>
                 <div className="pc-home-req-head">
-                  <span className="pc-home-req-title">🙋 求められています</span>
-                  <button type="button" className="pc-home-req-more" onClick={() => pcGo('requests')}>
+                  <span className="pc-home-req-title">求められています</span>
+                  <button type="button" className="pc-home-req-more" onClick={() => setPcHomeSubTab('requests')}>
                     もっと見る →
                   </button>
                 </div>
                 <div id="pc-home-req-strip" className="pc-home-req-strip" />
               </div>
               <div className="pc-grid" id="pc-grid"></div>
-            </div>
+              </div>
 
-            {/* REQUESTS 求む掲示板 */}
-            <div id="pc-pg-requests" className="pc-pg reqb-page">
+              <div id="pc-home-sub-requests" className="pc-home-sub-panel home-sub--hidden reqb-page">
               <div className="reqb-inner">
                 <header className="reqb-hero">
                   <h1 className="reqb-title">求む掲示板</h1>
@@ -4582,6 +4674,7 @@ export default function Page() {
                     </button>
                   </div>
                 </div>
+              </div>
               </div>
             </div>
 
@@ -5371,6 +5464,42 @@ export default function Page() {
             </div>
           </div>
           <div className="m-body">
+            <div className="m-home-main-tabs home-main-tabs--mob" role="tablist" aria-label="ホーム表示の切替">
+              <button
+                type="button"
+                role="tab"
+                id="m-home-tab-items"
+                className="home-main-tab home-main-tab--active"
+                aria-selected="true"
+                onClick={() => setMobHomeSubTab('items')}
+              >
+                <svg className="home-main-tab-ico" viewBox="0 0 24 24" aria-hidden>
+                  <path
+                    fill="currentColor"
+                    d="M12 20.5c-3.8-2.2-6.2-6.5-5.2-10.8 1-4.5 5.5-6.5 9.5-4.5 2 1 3.3 2.8 4 4.7.7-2 2-3.6 3.8-4.7 4-2 8.5 0 9.5 4.5 1 4.3-1.4 8.6-5.2 10.8H12z"
+                  />
+                </svg>
+                <span>余りもの</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="m-home-tab-requests"
+                className="home-main-tab"
+                aria-selected="false"
+                onClick={() => setMobHomeSubTab('requests')}
+              >
+                <svg className="home-main-tab-ico" viewBox="0 0 24 24" aria-hidden>
+                  <path
+                    fill="currentColor"
+                    d="M9.5 7.2a2.35 2.35 0 1 1 4.7 0 2.35 2.35 0 0 1-4.7 0ZM6.2 21.5V12c0-.6.5-1.1 1.2-1.1h5.2c.7 0 1.2.5 1.2 1.1v9.5H6.2Zm7.4-11.6h.15L18.4 4c.3-.4.9-.5 1.3-.1.4.3.5.9.2 1.3l-4.1 5.7h-2.2V9.9Z"
+                  />
+                </svg>
+                <span>求む掲示板</span>
+              </button>
+            </div>
+
+            <div id="m-home-sub-items" className="m-home-sub-panel">
             <div className="m-banner">
               <div style={{display:'flex',alignItems:'center',gap:'4px',marginBottom:'6px'}}>
                 <button id="m-area-btn" className="area-name-btn-mob" onClick={showAreaModal}>
@@ -5401,101 +5530,17 @@ export default function Page() {
             <div className="filter-msg" id="m-filter-msg" style={{display:'none'}}></div>
             <div id="m-home-req-section" className="m-home-req-section" style={{ display: 'none' }}>
               <div className="m-home-req-head">
-                <span className="m-home-req-title">🙋 求められています</span>
-                <button type="button" className="m-home-req-more" onClick={() => mNav('ms-requests')}>
+                <span className="m-home-req-title">求められています</span>
+                <button type="button" className="m-home-req-more" onClick={() => openMobHomeRequestsTab()}>
                   もっと見る →
                 </button>
               </div>
               <div id="m-home-req-strip" className="m-home-req-strip" />
             </div>
             <div className="m-grid" id="m-home-grid"></div>
-          </div>
-          <div className="m-nav m-nav--balanced" id="mn-home">
-            <div className="m-nav-cluster m-nav-cluster--l">
-              <button className="m-nt on" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
-              <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
             </div>
-            <div className="m-nav-fab">
-              <button type="button" className="m-nt-post m-nt-post--fab" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
-            </div>
-            <div className="m-nav-cluster m-nav-cluster--r">
-              <button type="button" className="m-nt" data-t="ms-requests" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M8 10h8M8 14h5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg><span>求む</span></button>
-              <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
-                <span className="m-nt-ico-wrap">
-                  <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  <span className="m-nav-chat-unread-dot" aria-hidden="true" />
-                </span>
-                <span>チャット</span>
-              </button>
-              <button className="m-nt" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
-            </div>
-          </div>
-        </div>
 
-        {/* SEARCH（ホームと同構造: トップバー → スクロール本体 → ボトムナビ） */}
-        <div className="scn" id="ms-search">
-          <div className="m-tbar">
-            <span className="m-logo">MEGURU</span>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: '7px' }}>
-              <button type="button" className="ibtn" onClick={() => (document.getElementById('m-search-inp') as HTMLInputElement | null)?.focus()} title="検索">
-                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
-              </button>
-              <button type="button" className="ibtn" onClick={() => mNav('ms-notif')} title="通知">
-                <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                <span className="ndot m-bell-ndot" style={{ display: 'none' }} aria-hidden />
-              </button>
-            </div>
-          </div>
-          <div className="m-body">
-            <div className="m-sbar-wrap">
-              <div className="m-sfull" style={{ width: '100%', boxSizing: 'border-box' }}>
-                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
-                <input id="m-search-inp" placeholder="柿、薪、野菜、地名など…" onChange={mDoSearch} autoComplete="off" />
-              </div>
-            </div>
-            <div className="m-chips" id="m-search-cats"></div>
-            <div style={{ display: 'flex', alignItems: 'center', padding: '3px 12px 9px', gap: '8px' }}>
-              <p className="m-sec-title" id="m-search-title" style={{ margin: 0, padding: 0, flex: 1 }}>すべての余りもの</p>
-              <select id="m-search-sort-sel" className="sort-sel sort-sel-mob" defaultValue="new" onChange={(e) => mobSort(e.target.value)}>
-                <option value="new">新着順</option>
-                <option value="free">無料のみ</option>
-                <option value="cheap">安い順</option>
-                <option value="expensive">高い順</option>
-                <option value="soon">受取が近い順</option>
-              </select>
-            </div>
-            <div className="filter-msg" id="m-search-filter-msg" style={{ display: 'none' }}></div>
-            <div className="m-grid" id="m-search-grid"></div>
-          </div>
-          <div className="m-nav m-nav--balanced" id="mn-search">
-            <div className="m-nav-cluster m-nav-cluster--l">
-              <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
-              <button className="m-nt on" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
-            </div>
-            <div className="m-nav-fab">
-              <button type="button" className="m-nt-post m-nt-post--fab" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
-            </div>
-            <div className="m-nav-cluster m-nav-cluster--r">
-              <button type="button" className="m-nt" data-t="ms-requests" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M8 10h8M8 14h5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg><span>求む</span></button>
-              <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
-                <span className="m-nt-ico-wrap">
-                  <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  <span className="m-nav-chat-unread-dot" aria-hidden="true" />
-                </span>
-                <span>チャット</span>
-              </button>
-              <button className="m-nt" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
-            </div>
-          </div>
-        </div>
-
-        {/* REQUESTS 求む掲示板 */}
-        <div className="scn" id="ms-requests">
-          <div className="m-tbar">
-            <span className="m-logo">MEGURU</span>
-            <span className="m-title" style={{ marginLeft: '8px' }}>求む掲示板</span>
-          </div>
-          <div className="m-body reqb-m-body">
+            <div id="m-home-sub-requests" className="m-home-sub-panel home-sub--hidden m-home-reqb-wrap">
             <div className="reqb-inner reqb-inner--mob">
               <p className="reqb-sub reqb-sub--mob">欲しいものを地域の人に伝えよう</p>
               <button type="button" className="reqb-btn-primary reqb-btn-primary--mob" onClick={() => openReqPostModal('mob')}>
@@ -5594,26 +5639,70 @@ export default function Page() {
                 </div>
               </div>
             </div>
+            </div>
           </div>
-          <div className="m-nav m-nav--balanced" id="mn-requests">
-            <div className="m-nav-cluster m-nav-cluster--l">
-              <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
-              <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
-            </div>
-            <div className="m-nav-fab">
-              <button type="button" className="m-nt-post m-nt-post--fab" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
-            </div>
-            <div className="m-nav-cluster m-nav-cluster--r">
-              <button type="button" className="m-nt on" data-t="ms-requests" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M8 10h8M8 14h5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg><span>求む</span></button>
-              <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
-                <span className="m-nt-ico-wrap">
-                  <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  <span className="m-nav-chat-unread-dot" aria-hidden="true" />
-                </span>
-                <span>チャット</span>
+          <div className="m-nav m-nav--five" id="mn-home">
+            <button className="m-nt on" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
+            <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
+            <button type="button" className="m-nt-post m-nt-post--fab" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
+            <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
+              <span className="m-nt-ico-wrap">
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span className="m-nav-chat-unread-dot" aria-hidden="true" />
+              </span>
+              <span>チャット</span>
+            </button>
+            <button className="m-nt" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
+          </div>
+        </div>
+
+        {/* SEARCH（ホームと同構造: トップバー → スクロール本体 → ボトムナビ） */}
+        <div className="scn" id="ms-search">
+          <div className="m-tbar">
+            <span className="m-logo">MEGURU</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '7px' }}>
+              <button type="button" className="ibtn" onClick={() => (document.getElementById('m-search-inp') as HTMLInputElement | null)?.focus()} title="検索">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
               </button>
-              <button className="m-nt" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
+              <button type="button" className="ibtn" onClick={() => mNav('ms-notif')} title="通知">
+                <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                <span className="ndot m-bell-ndot" style={{ display: 'none' }} aria-hidden />
+              </button>
             </div>
+          </div>
+          <div className="m-body">
+            <div className="m-sbar-wrap">
+              <div className="m-sfull" style={{ width: '100%', boxSizing: 'border-box' }}>
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+                <input id="m-search-inp" placeholder="柿、薪、野菜、地名など…" onChange={mDoSearch} autoComplete="off" />
+              </div>
+            </div>
+            <div className="m-chips" id="m-search-cats"></div>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '3px 12px 9px', gap: '8px' }}>
+              <p className="m-sec-title" id="m-search-title" style={{ margin: 0, padding: 0, flex: 1 }}>すべての余りもの</p>
+              <select id="m-search-sort-sel" className="sort-sel sort-sel-mob" defaultValue="new" onChange={(e) => mobSort(e.target.value)}>
+                <option value="new">新着順</option>
+                <option value="free">無料のみ</option>
+                <option value="cheap">安い順</option>
+                <option value="expensive">高い順</option>
+                <option value="soon">受取が近い順</option>
+              </select>
+            </div>
+            <div className="filter-msg" id="m-search-filter-msg" style={{ display: 'none' }}></div>
+            <div className="m-grid" id="m-search-grid"></div>
+          </div>
+          <div className="m-nav m-nav--five" id="mn-search">
+            <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
+            <button className="m-nt on" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
+            <button type="button" className="m-nt-post m-nt-post--fab" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
+            <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
+              <span className="m-nt-ico-wrap">
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span className="m-nav-chat-unread-dot" aria-hidden="true" />
+              </span>
+              <span>チャット</span>
+            </button>
+            <button className="m-nt" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
           </div>
         </div>
 
@@ -5652,25 +5741,18 @@ export default function Page() {
             </div>
             <div style={{padding:'24px 14px',textAlign:'center'}}><p style={{fontSize:'.69rem',color:'var(--mu)',fontWeight:300,lineHeight:2.2}}>MEGURU v1.0.0 · 長野県駒ヶ根市 · 2025<br /><span style={{color:'var(--g)',fontWeight:500}}>農村の余りものを、誰かの暮らしへ。</span></p></div>
           </div>
-          <div className="m-nav m-nav--balanced">
-            <div className="m-nav-cluster m-nav-cluster--l">
-              <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
-              <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
-            </div>
-            <div className="m-nav-fab">
-              <button type="button" className="m-nt-post m-nt-post--fab" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
-            </div>
-            <div className="m-nav-cluster m-nav-cluster--r">
-              <button type="button" className="m-nt" data-t="ms-requests" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M8 10h8M8 14h5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg><span>求む</span></button>
-              <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
-                <span className="m-nt-ico-wrap">
-                  <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  <span className="m-nav-chat-unread-dot" aria-hidden="true" />
-                </span>
-                <span>チャット</span>
-              </button>
-              <button className="m-nt on" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
-            </div>
+          <div className="m-nav m-nav--five">
+            <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
+            <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
+            <button type="button" className="m-nt-post m-nt-post--fab" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
+            <button type="button" className="m-nt" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
+              <span className="m-nt-ico-wrap">
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span className="m-nav-chat-unread-dot" aria-hidden="true" />
+              </span>
+              <span>チャット</span>
+            </button>
+            <button className="m-nt on" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
           </div>
         </div>
 
@@ -6093,25 +6175,18 @@ export default function Page() {
         <div className="scn" id="ms-chatlist">
           <div className="m-tbar"><span className="m-logo">MEGURU</span><span style={{fontSize:'.7rem',color:'var(--mu)',fontWeight:300,marginLeft:'5px'}}>やりとり</span></div>
           <div className="m-body" id="m-chatlist-body"></div>
-          <div className="m-nav m-nav--balanced">
-            <div className="m-nav-cluster m-nav-cluster--l">
-              <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
-              <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
-            </div>
-            <div className="m-nav-fab">
-              <button type="button" className="m-nt-post m-nt-post--fab" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
-            </div>
-            <div className="m-nav-cluster m-nav-cluster--r">
-              <button type="button" className="m-nt" data-t="ms-requests" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.7"/><path d="M8 10h8M8 14h5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg><span>求む</span></button>
-              <button type="button" className="m-nt on" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
-                <span className="m-nt-ico-wrap">
-                  <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  <span className="m-nav-chat-unread-dot" aria-hidden="true" />
-                </span>
-                <span>チャット</span>
-              </button>
-              <button className="m-nt" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
-            </div>
+          <div className="m-nav m-nav--five">
+            <button className="m-nt" data-t="ms-home" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>ホーム</span></button>
+            <button className="m-nt" data-t="ms-search" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg><span>さがす</span></button>
+            <button type="button" className="m-nt-post m-nt-post--fab" onClick={() => mNav('ms-post')}><div className="fab"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>出品</span></button>
+            <button type="button" className="m-nt on" data-t="ms-chatlist" onClick={(e) => mTab(e.currentTarget)}>
+              <span className="m-nt-ico-wrap">
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span className="m-nav-chat-unread-dot" aria-hidden="true" />
+              </span>
+              <span>チャット</span>
+            </button>
+            <button className="m-nt" data-t="ms-mypage" onClick={(e) => mTab(e.currentTarget)}><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>マイページ</span></button>
           </div>
         </div>
 
