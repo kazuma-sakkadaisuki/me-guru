@@ -1399,6 +1399,20 @@ function openLineShareForCurrentItem() {
   window.open(lineUrl, '_blank', 'noopener,noreferrer')
 }
 
+/** PC 商品詳細：連絡する（他人の出品）／自分の出品メモの表示を curItem に合わせる */
+function applyPcDetailContactCta() {
+  const chat = document.getElementById('pc-det-chat-btn') as HTMLElement | null
+  const own = document.getElementById('pc-det-own-note') as HTMLElement | null
+  if (!chat) return
+  if (curItem.mine) {
+    chat.style.display = 'none'
+    if (own) own.classList.add('is-visible')
+  } else {
+    if (own) own.classList.remove('is-visible')
+    chat.style.removeProperty('display')
+  }
+}
+
 /* ── DETAIL ── */
 function openDetail(id: number, mode: string) {
   curItem = ITEMS.find(x=>x.id===id)||ITEMS[0]
@@ -1430,7 +1444,7 @@ function openDetail(id: number, mode: string) {
     // SOLD状態の反映
     const pcSoldBanner=document.getElementById('pc-det-sold-banner'); if(pcSoldBanner) pcSoldBanner.style.display=curItem.sold?'flex':'none'
     const showWantPc = !curItem.mine && !curItem.sold
-    const pcChatBtn=document.getElementById('pc-det-chat-btn'); if(pcChatBtn) pcChatBtn.style.display='flex'
+    applyPcDetailContactCta()
     const pcPanelWant = document.querySelector('#pc-panel .p-chat') as HTMLElement | null
     if (pcPanelWant) pcPanelWant.style.display = showWantPc ? 'flex' : 'none'
     const rateUid = curItem.mine ? CURRENT_USER_ID : curItem.userId
@@ -3950,6 +3964,10 @@ function updateAllUserRefs() {
     const mSl = document.getElementById('m-d-sloc')
     if (mSl) mSl.textContent = USER.area
   }
+  const pgDetail = document.getElementById('pc-pg-detail')
+  if (pgDetail && typeof window !== 'undefined' && window.getComputedStyle(pgDetail).display !== 'none') {
+    applyPcDetailContactCta()
+  }
 }
 
 /* ── PROFILE ── */
@@ -4230,6 +4248,10 @@ export default function Page() {
       applyMobFilter()
       mDoSearch()
       renderHomeRequestPreview()
+      const pgDetail = document.getElementById('pc-pg-detail')
+      if (pgDetail && window.getComputedStyle(pgDetail).display !== 'none') {
+        applyPcDetailContactCta()
+      }
     }, 0)
     return () => clearTimeout(id)
   }, [userEmail, homeListReady])
@@ -4917,6 +4939,9 @@ export default function Page() {
                           <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                           連絡する
                         </button>
+                        <div className="pc-det-own-note" id="pc-det-own-note" role="status">
+                          自分の出品です
+                        </div>
                         <button type="button" className="pc-det-line-share" id="pc-det-line-share-btn" onClick={() => openLineShareForCurrentItem()}>
                           <svg className="pc-det-line-share-ico" viewBox="0 0 24 24" aria-hidden>
                             <path
