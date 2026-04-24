@@ -1430,7 +1430,7 @@ function openDetail(id: number, mode: string) {
     // SOLD状態の反映
     const pcSoldBanner=document.getElementById('pc-det-sold-banner'); if(pcSoldBanner) pcSoldBanner.style.display=curItem.sold?'flex':'none'
     const showWantPc = !curItem.mine && !curItem.sold
-    const pcChatBtn=document.getElementById('pc-det-chat-btn'); if(pcChatBtn) pcChatBtn.style.display=showWantPc?'flex':'none'
+    const pcChatBtn=document.getElementById('pc-det-chat-btn'); if(pcChatBtn) pcChatBtn.style.display='flex'
     const pcPanelWant = document.querySelector('#pc-panel .p-chat') as HTMLElement | null
     if (pcPanelWant) pcPanelWant.style.display = showWantPc ? 'flex' : 'none'
     const rateUid = curItem.mine ? CURRENT_USER_ID : curItem.userId
