@@ -2628,11 +2628,11 @@ function renderRequestLists() {
     const poster = escChatHtml(requestPosterDisplayName(r.posterName))
     let actions = ''
     if (r.is_closed) {
-      actions = '<span class="req-closed-lbl">取引完了</span>'
-    } else if (!isMine && CURRENT_USER_ID) {
-      actions = `<button type="button" class="req-offer-btn" onclick="offerForRequest('${r.id}','${mode}')">提供できます</button>`
+      actions = '<span class="req-closed-end">募集終了</span>'
     } else if (isMine) {
       actions = `<button type="button" class="req-del-btn" onclick="deleteRequest('${r.id}','${mode}')">削除</button>`
+    } else {
+      actions = `<button type="button" class="req-offer-btn" onclick="offerForRequest('${r.id}','${mode}')">提供できます</button>`
     }
     return `<article class="reqb-card" data-id="${r.id}">
       <span class="reqb-card-badge">${escChatHtml(catLabel)}</span>
@@ -2805,7 +2805,7 @@ async function offerForRequest(requestId: string, mode: string) {
   }
   if (req.user_id === CURRENT_USER_ID) return
   if (req.is_closed) {
-    showToast('この募集は取引完了済みです')
+    showToast('この募集は終了しています')
     return
   }
   const supabase = createClient()

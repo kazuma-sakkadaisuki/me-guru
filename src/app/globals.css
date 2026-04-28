@@ -2070,18 +2070,22 @@ select.inp.prof-muni-sel {
   gap: 8px;
 }
 .reqb-card-actions .req-offer-btn {
-  padding: 9px 16px;
-  font-size: 0.8rem;
+  padding: 12px 16px;
+  font-size: 0.86rem;
   font-weight: 700;
+  letter-spacing: 0.06em;
   border-radius: 10px;
-  background: #c4581a;
+  background: var(--k);
   color: #fff;
   border: none;
   cursor: pointer;
   font-family: var(--ss);
+  box-shadow: 0 3px 13px rgba(196, 88, 26, 0.28);
+  transition: background 0.18s, filter 0.18s;
 }
 .reqb-card-actions .req-offer-btn:hover {
-  filter: brightness(1.06);
+  background: var(--k2);
+  filter: none;
 }
 .reqb-card-actions .req-del-btn {
   padding: 6px 12px;
@@ -2296,6 +2300,14 @@ select.inp.prof-muni-sel {
   font-weight: 700;
   color: #fff;
   background: #2d5a27;
+}
+.reqb-card-actions .req-closed-end {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--mu);
+  letter-spacing: 0.02em;
+  padding: 8px 0;
 }
 .panel-hero-ph {
   font-size: 0.85rem;
