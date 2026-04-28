@@ -9,8 +9,12 @@ create table if not exists public.requests (
   area text not null,
   "希望価格" text,
   "希望時期" text,
+  is_closed boolean not null default false,
   created_at timestamp with time zone default now()
 );
+
+-- 既存テーブル向け（新規 create には上記を含む）
+alter table public.requests add column if not exists is_closed boolean not null default false;
 
 alter table public.requests enable row level security;
 
@@ -22,6 +26,10 @@ create policy "自分のリクエストを作成" on public.requests for insert 
 
 drop policy if exists "自分のリクエストを削除" on public.requests;
 create policy "自分のリクエストを削除" on public.requests for delete using (auth.uid() = user_id);
+
+drop policy if exists "自分のリクエストを更新" on public.requests;
+create policy "自分のリクエストを更新" on public.requests
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- リクエスト経由のチャット: item_id を NULL 許可 + request_id を追加
 alter table public.chats add column if not exists request_id uuid references public.requests(id) on delete cascade;

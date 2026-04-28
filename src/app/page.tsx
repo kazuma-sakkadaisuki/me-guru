@@ -9,14 +9,14 @@ import { NAGANO_MUNICIPALITIES, NAGANO_PREF } from '@/lib/nagano-municipalities'
 
 /* ── DATA ── */
 const ITEMS = [
-  {id:1,name:'渋柿 約15kg',cat:'fruit',price:'¥500',unit:'/ 箱',emoji:'🍊',bg:'bk',loc:'駒ヶ根市赤穂',badge:'new',seller:'鈴木さん（農家・65歳）',sloc:'駒ヶ根市赤穂 · 取引3回',savt:'👴',desc:'毎年収穫しきれず落ちてしまう渋柿です。今年は豊作で特にたくさんあります。干し柿にすると最高においしいですよ。',mine:false,chatKey:'suzuki'},
-  {id:2,name:'規格外きゅうり どっさり',cat:'veg',price:'¥200',unit:'/ 袋',emoji:'🥒',bg:'bg',loc:'駒ヶ根市中沢',badge:'',seller:'山田さん（農家・52歳）',sloc:'駒ヶ根市中沢 · 取引7回',savt:'👩',desc:'形が不揃いですが味は抜群です！朝採れたてをすぐ出品しています。',mine:false,chatKey:'yamada'},
-  {id:3,name:'薪 乾燥済み 軽トラ1台分',cat:'wood',price:'¥3,000',unit:'/ 台',emoji:'🪵',bg:'bb',loc:'駒ヶ根市福岡',badge:'',seller:'伊藤さん（林業・58歳）',sloc:'駒ヶ根市福岡 · 取引5回',savt:'👨',desc:'山の整備で出た薪です。1年以上乾燥させてあるので燃えがいいです。',mine:false,chatKey:'ito'},
-  {id:4,name:'山栗 採れたて 約2kg',cat:'herb',price:'無料',unit:'引取のみ',emoji:'🌰',bg:'by',loc:'駒ヶ根市東伊那',badge:'free',seller:'小林さん（主婦・45歳）',sloc:'駒ヶ根市東伊那 · 取引2回',savt:'👩',desc:'庭の栗から採れた栗です。豊作でとりきれません。無料でどうぞ！',mine:false,chatKey:'kobayashi'},
-  {id:5,name:'ピーマン 規格外まとめて',cat:'veg',price:'¥100',unit:'/ 袋',emoji:'🫑',bg:'bg',loc:'駒ヶ根市北割',badge:'',seller:'中村さん（農家・60歳）',sloc:'駒ヶ根市北割 · 取引4回',savt:'👴',desc:'形が悪いだけで味は全く変わりません。たくさんあるので複数袋でもOK。',mine:false,chatKey:'nakamura'},
-  {id:6,name:'竹 伐採済み 好きなだけ',cat:'wood',price:'無料',unit:'',emoji:'🎋',bg:'bb',loc:'駒ヶ根市小町屋',badge:'free',seller:'松田さん（自営業・48歳）',sloc:'駒ヶ根市小町屋 · 取引1回',savt:'👨',desc:'庭の竹を伐採しました。工作や柵など使い道のある方ぜひ。',mine:false,chatKey:'matsuda'},
-  {id:7,name:'さつまいも 大量',cat:'veg',price:'¥400',unit:'/ 袋',emoji:'🍠',bg:'bk',loc:'駒ヶ根市飯坂',badge:'new',seller:'高橋さん（農家・70歳）',sloc:'駒ヶ根市飯坂 · 取引9回',savt:'👴',desc:'今年のさつまいもが豊作でした。甘くておいしいですよ。袋いっぱい詰めます。',mine:false,chatKey:'takahashi'},
-  {id:8,name:'青じそ 庭に余ってます',cat:'herb',price:'¥100',unit:'/ 束',emoji:'🌿',bg:'bg',loc:'駒ヶ根市赤穂',badge:'',seller:'田中 拓也（あなた）',sloc:'駒ヶ根市赤穂',savt:'🧑',desc:'庭に青じそがたくさん生えています。料理に使ってください。',mine:true,chatKey:''},
+  {id:1,name:'渋柿 約15kg',cat:'fruit',price:'¥500',unit:'/ 箱',emoji:'',bg:'bk',loc:'駒ヶ根市赤穂',badge:'new',seller:'鈴木さん（農家・65歳）',sloc:'駒ヶ根市赤穂 · 取引3回',savt:'',desc:'毎年収穫しきれず落ちてしまう渋柿です。今年は豊作で特にたくさんあります。干し柿にすると最高においしいですよ。',mine:false,chatKey:'suzuki'},
+  {id:2,name:'規格外きゅうり どっさり',cat:'veg',price:'¥200',unit:'/ 袋',emoji:'',bg:'bg',loc:'駒ヶ根市中沢',badge:'',seller:'山田さん（農家・52歳）',sloc:'駒ヶ根市中沢 · 取引7回',savt:'',desc:'形が不揃いですが味は抜群です！朝採れたてをすぐ出品しています。',mine:false,chatKey:'yamada'},
+  {id:3,name:'薪 乾燥済み 軽トラ1台分',cat:'wood',price:'¥3,000',unit:'/ 台',emoji:'',bg:'bb',loc:'駒ヶ根市福岡',badge:'',seller:'伊藤さん（林業・58歳）',sloc:'駒ヶ根市福岡 · 取引5回',savt:'',desc:'山の整備で出た薪です。1年以上乾燥させてあるので燃えがいいです。',mine:false,chatKey:'ito'},
+  {id:4,name:'山栗 採れたて 約2kg',cat:'herb',price:'無料',unit:'引取のみ',emoji:'',bg:'by',loc:'駒ヶ根市東伊那',badge:'free',seller:'小林さん（主婦・45歳）',sloc:'駒ヶ根市東伊那 · 取引2回',savt:'',desc:'庭の栗から採れた栗です。豊作でとりきれません。無料でどうぞ！',mine:false,chatKey:'kobayashi'},
+  {id:5,name:'ピーマン 規格外まとめて',cat:'veg',price:'¥100',unit:'/ 袋',emoji:'',bg:'bg',loc:'駒ヶ根市北割',badge:'',seller:'中村さん（農家・60歳）',sloc:'駒ヶ根市北割 · 取引4回',savt:'',desc:'形が悪いだけで味は全く変わりません。たくさんあるので複数袋でもOK。',mine:false,chatKey:'nakamura'},
+  {id:6,name:'竹 伐採済み 好きなだけ',cat:'wood',price:'無料',unit:'',emoji:'',bg:'bb',loc:'駒ヶ根市小町屋',badge:'free',seller:'松田さん（自営業・48歳）',sloc:'駒ヶ根市小町屋 · 取引1回',savt:'',desc:'庭の竹を伐採しました。工作や柵など使い道のある方ぜひ。',mine:false,chatKey:'matsuda'},
+  {id:7,name:'さつまいも 大量',cat:'veg',price:'¥400',unit:'/ 袋',emoji:'',bg:'bk',loc:'駒ヶ根市飯坂',badge:'new',seller:'高橋さん（農家・70歳）',sloc:'駒ヶ根市飯坂 · 取引9回',savt:'',desc:'今年のさつまいもが豊作でした。甘くておいしいですよ。袋いっぱい詰めます。',mine:false,chatKey:'takahashi'},
+  {id:8,name:'青じそ 庭に余ってます',cat:'herb',price:'¥100',unit:'/ 束',emoji:'',bg:'bg',loc:'駒ヶ根市赤穂',badge:'',seller:'田中 拓也（あなた）',sloc:'駒ヶ根市赤穂',savt:'',desc:'庭に青じそがたくさん生えています。料理に使ってください。',mine:true,chatKey:''},
 ]
 
 type ChatMsg = { from: string; text?: string; time?: string; id?: string; createdAt?: string }
@@ -38,6 +38,10 @@ type Chat = {
   itemSupabaseId?: string
   /** 欲しいものリクエスト経由チャット */
   requestSupabaseId?: string
+  /** 求む投稿が取引完了で閉じたか（requests.is_closed） */
+  requestClosed?: boolean
+  /** チャットヘッダー・一覧用「求む：…」一行 */
+  requestSubtitle?: string
 }
 
 type MeguruRequest = {
@@ -50,40 +54,52 @@ type MeguruRequest = {
   hope_price: string | null
   hope_timing: string | null
   posterName?: string
+  is_closed?: boolean
 }
 type Item = typeof ITEMS[0] & { imgSrc?: string; images?: string[]; sold?: boolean; expiry?: string; supabaseId?: string; userId?: string }
 
 const CHATS: Record<string, Chat> = {
-  suzuki:{name:'鈴木さん',sub:'駒ヶ根市赤穂',avt:'👴',ie:'🍊',in_:'渋柿 約15kg',ip:'¥500 / 箱',unread:0,itemId:1,lastAt:Date.now()-3600000,msgs:[{from:'them',text:'はじめまして！渋柿に興味もっていただいてありがとうございます。',time:'10:23'},{from:'me',text:'干し柿を作るので気になりました。どのくらいの量ありますか？',time:'10:31'},{from:'them',text:'今年は豊作で20箱くらいあります！好きなだけどうぞ😊',time:'10:35'},{from:'me',text:'2箱お願いしたいです。今週末に取りに行けますがいかがでしょうか？',time:'10:40'},{from:'ds'},{from:'them',text:'土曜の午前でOKです！駒ヶ根市赤穂〇〇番地です。',time:'10:52'},{from:'me',text:'土曜10時ごろにお伺いします🙏',time:'10:55'}]},
-  tanaka:{name:'田中さん',sub:'駒ヶ根市中沢',avt:'👩',ie:'🥒',in_:'規格外きゅうり',ip:'¥200 / 袋',unread:2,itemId:2,lastAt:Date.now()-180000,msgs:[{from:'them',text:'こんにちは！きゅうりをぜひ分けていただけますか？',time:'昨日'},{from:'me',text:'もちろんです！何袋ほど必要ですか？',time:'昨日'},{from:'them',text:'3袋いただけると助かります！',time:'昨日'},{from:'them',text:'土曜日の午前中にお伺いします！',time:'3分前'}]},
-  sato:{name:'佐藤さん',sub:'駒ヶ根市飯坂',avt:'👱',ie:'🍊',in_:'渋柿 約15kg',ip:'¥500 / 箱',unread:1,itemId:1,lastAt:Date.now()-1080000,msgs:[{from:'them',text:'はじめまして！渋柿をぜひ分けていただけますか？',time:'18分前'}]},
-  yamamoto:{name:'山本さん',sub:'駒ヶ根市福岡',avt:'👨',ie:'🪵',in_:'薪 乾燥済み',ip:'¥3,000 / 台',unread:0,itemId:3,lastAt:Date.now()-86400000,msgs:[{from:'me',text:'薪の取引ありがとうございました！またよろしくお願いします。',time:'昨日'},{from:'them',text:'こちらこそありがとうございました！また余ったら出品しますね。',time:'昨日'}]},
+  suzuki:{name:'鈴木さん',sub:'駒ヶ根市赤穂',avt:'',ie:'',in_:'渋柿 約15kg',ip:'¥500 / 箱',unread:0,itemId:1,lastAt:Date.now()-3600000,msgs:[{from:'them',text:'はじめまして！渋柿に興味もっていただいてありがとうございます。',time:'10:23'},{from:'me',text:'干し柿を作るので気になりました。どのくらいの量ありますか？',time:'10:31'},{from:'them',text:'今年は豊作で20箱くらいあります。好きなだけどうぞ。',time:'10:35'},{from:'me',text:'2箱お願いしたいです。今週末に取りに行けますがいかがでしょうか？',time:'10:40'},{from:'ds'},{from:'them',text:'土曜の午前でOKです！駒ヶ根市赤穂〇〇番地です。',time:'10:52'},{from:'me',text:'土曜10時ごろにお伺いします。',time:'10:55'}]},
+  tanaka:{name:'田中さん',sub:'駒ヶ根市中沢',avt:'',ie:'',in_:'規格外きゅうり',ip:'¥200 / 袋',unread:2,itemId:2,lastAt:Date.now()-180000,msgs:[{from:'them',text:'こんにちは！きゅうりをぜひ分けていただけますか？',time:'昨日'},{from:'me',text:'もちろんです！何袋ほど必要ですか？',time:'昨日'},{from:'them',text:'3袋いただけると助かります！',time:'昨日'},{from:'them',text:'土曜日の午前中にお伺いします！',time:'3分前'}]},
+  sato:{name:'佐藤さん',sub:'駒ヶ根市飯坂',avt:'',ie:'',in_:'渋柿 約15kg',ip:'¥500 / 箱',unread:1,itemId:1,lastAt:Date.now()-1080000,msgs:[{from:'them',text:'はじめまして！渋柿をぜひ分けていただけますか？',time:'18分前'}]},
+  yamamoto:{name:'山本さん',sub:'駒ヶ根市福岡',avt:'',ie:'',in_:'薪 乾燥済み',ip:'¥3,000 / 台',unread:0,itemId:3,lastAt:Date.now()-86400000,msgs:[{from:'me',text:'薪の取引ありがとうございました！またよろしくお願いします。',time:'昨日'},{from:'them',text:'こちらこそありがとうございました！また余ったら出品しますね。',time:'昨日'}]},
 }
-const TXHISTORY = [
-  {emoji:'🍊',name:'渋柿 15kg（2箱）',meta:'鈴木さん · 駒ヶ根市赤穂',price:'¥1,000',status:'完了',date:'2025/10/12'},
-  {emoji:'🪵',name:'薪 軽トラ1台分',meta:'伊藤さん · 駒ヶ根市福岡',price:'¥3,000',status:'完了',date:'2025/10/5'},
-  {emoji:'🥒',name:'きゅうり 3袋',meta:'山田さん · 駒ヶ根市中沢',price:'¥600',status:'進行中',date:'本日'},
-  {emoji:'🌰',name:'山栗 約2kg',meta:'小林さん · 駒ヶ根市東伊那',price:'無料',status:'完了',date:'2025/9/28'},
+type TxHistoryRow = {
+  stripe: 'bk' | 'bb' | 'bg' | 'by'
+  tag: string
+  name: string
+  meta: string
+  price: string
+  status: string
+  date: string
+  /** 求む取引など、同一チャットの二重表示防止用 */
+  chatSbId?: string
+}
+const TXHISTORY: TxHistoryRow[] = [
+  { stripe: 'bk', tag: '余', name: '渋柿 15kg（2箱）', meta: '鈴木さん · 駒ヶ根市赤穂', price: '¥1,000', status: '完了', date: '2025/10/12' },
+  { stripe: 'bb', tag: '余', name: '薪 軽トラ1台分', meta: '伊藤さん · 駒ヶ根市福岡', price: '¥3,000', status: '完了', date: '2025/10/5' },
+  { stripe: 'bg', tag: '余', name: 'きゅうり 3袋', meta: '山田さん · 駒ヶ根市中沢', price: '¥600', status: '進行中', date: '本日' },
+  { stripe: 'by', tag: '余', name: '山栗 約2kg', meta: '小林さん · 駒ヶ根市東伊那', price: '無料', status: '完了', date: '2025/9/28' },
 ]
 const CATMAP: Record<string,string> = {
-  fruit: '🍎 果物',
-  veg: '🥕 野菜',
-  rice: '🌾 米・穀物',
-  wood: '🪵 薪・木材',
-  herb: '🌿 山菜',
-  other: '🏺 加工品',
-  misc: '📦 なんでも',
-  land: '🏡 土地・農地',
+  fruit: '果物',
+  veg: '野菜',
+  rice: '米・穀物',
+  wood: '薪・木材',
+  herb: '山菜',
+  other: '加工品',
+  misc: 'なんでも',
+  land: '土地・農地',
 }
 const EMOJIMAP: Record<string,string> = {
-  fruit: '🍎',
-  veg: '🥕',
-  rice: '🌾',
-  wood: '🪵',
-  herb: '🌿',
-  other: '🏺',
-  misc: '📦',
-  land: '🏡',
+  fruit: '',
+  veg: '',
+  rice: '',
+  wood: '',
+  herb: '',
+  other: '',
+  misc: '',
+  land: '',
 }
 const BGMAP: Record<string,string> = {
   fruit: 'bk',
@@ -96,15 +112,15 @@ const BGMAP: Record<string,string> = {
   land: 'bb',
 }
 
-const POST_CATEGORY_PICKS: { key: string; emoji: string; label: string }[] = [
-  { key: 'veg', emoji: '🥕', label: '野菜' },
-  { key: 'fruit', emoji: '🍎', label: '果物' },
-  { key: 'rice', emoji: '🌾', label: '米・穀物' },
-  { key: 'other', emoji: '🏺', label: '加工品' },
-  { key: 'wood', emoji: '🪵', label: '薪・木材' },
-  { key: 'herb', emoji: '🌿', label: '山菜' },
-  { key: 'land', emoji: '🏡', label: '土地・農地' },
-  { key: 'misc', emoji: '📦', label: 'なんでも' },
+const POST_CATEGORY_PICKS: { key: string; label: string }[] = [
+  { key: 'veg', label: '野菜' },
+  { key: 'fruit', label: '果物' },
+  { key: 'rice', label: '米・穀物' },
+  { key: 'other', label: '加工品' },
+  { key: 'wood', label: '薪・木材' },
+  { key: 'herb', label: '山菜' },
+  { key: 'land', label: '土地・農地' },
+  { key: 'misc', label: 'なんでも' },
 ]
 
 /** 求む掲示板：カテゴリ（DBの category に保存する value） */
@@ -159,6 +175,12 @@ function requestSummaryFromDescription(raw: string, maxLen: number): string {
   const t = main.replace(/\s+/g, ' ').trim()
   if (t.length <= maxLen) return t
   return `${t.slice(0, maxLen)}…`
+}
+
+function formatRequestMumSubtitleFromDescription(raw: string): string {
+  const { main } = splitRequestDescription(raw || '')
+  const body = requestSummaryFromDescription(main || raw, 100)
+  return `求む：${body}`
 }
 
 type RequestExtraGroup = 'produce' | 'wood' | 'other' | 'land' | 'none'
@@ -442,6 +464,49 @@ function escChatHtml(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+function chatPartnerInitial(name: string): string {
+  const n = name.replace(/（[^）]*）/g, '').trim()
+  if (!n) return '他'
+  const cp = n.codePointAt(0)
+  if (cp === undefined) return '他'
+  return String.fromCodePoint(cp)
+}
+
+function applyChatPartnerSubEl(el: HTMLElement | null, chat: Chat) {
+  if (!el) return
+  if (chat.requestSupabaseId && chat.requestSubtitle) {
+    el.innerHTML = `${escChatHtml(chat.sub)}<br><span class="chat-req-mum">${escChatHtml(chat.requestSubtitle)}</span>`
+  } else {
+    el.textContent = chat.sub
+  }
+}
+
+function chatAvatarDisplayText(chat: Chat): string {
+  const t = (chat.avt || '').trim()
+  if (t) return t
+  return chatPartnerInitial(chat.name)
+}
+
+function applyChatHeader(mode: 'pc' | 'mob', chatId: string) {
+  const c = CHATS[chatId]
+  if (!c) return
+  const pre = mode === 'pc' ? 'pc' : 'm'
+  const avt = document.getElementById(`${pre}-chat-avt`)
+  if (avt) {
+    avt.textContent = chatAvatarDisplayText(c)
+    ;(avt as HTMLElement).style.fontSize = mode === 'pc' ? '.88rem' : '.82rem'
+    ;(avt as HTMLElement).style.fontWeight = '700'
+  }
+  const pname = document.getElementById(`${pre}-chat-pname`)
+  if (pname) pname.textContent = c.name
+  applyChatPartnerSubEl(document.getElementById(`${pre}-chat-psub`), c)
+  setCisIcon(`${pre}-cis-e`, chatId)
+  const cisn = document.getElementById(`${pre}-cis-n`)
+  if (cisn) cisn.textContent = c.in_
+  const cisp = document.getElementById(`${pre}-cis-p`)
+  if (cisp) cisp.textContent = c.ip
+}
+
 function escAttrUrl(u: string) {
   return u.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
 }
@@ -490,8 +555,8 @@ const CAT_CARD_ICONS: Record<string, string> = {
 }
 /** メッセージ以外の固定お知らせ（チャットとは別・タップでチャットは開かない） */
 const STATIC_NOTIF_DEFS: { id: string; icon: string; cls: string; title: string; sub: string; timeLabel: string }[] = [
-  { id: 'static:views', icon: '🍊', cls: 'ni-k', title: 'あなたの出品が注目されています', sub: '出品の閲覧やお問い合わせはチャット一覧からご確認ください。', timeLabel: '—' },
-  { id: 'static:welcome', icon: '📣', cls: 'ni-s', title: 'MEGURUへようこそ！', sub: '農村の余りものを地域でつなぐプラットフォームです。', timeLabel: '—' },
+  { id: 'static:views', icon: '', cls: 'ni-k', title: 'あなたの出品が注目されています', sub: '出品の閲覧やお問い合わせはチャット一覧からご確認ください。', timeLabel: '—' },
+  { id: 'static:welcome', icon: '', cls: 'ni-s', title: 'MEGURUへようこそ！', sub: '農村の余りものを地域でつなぐプラットフォームです。', timeLabel: '—' },
 ]
 
 type AppNotifRow = {
@@ -549,7 +614,7 @@ function buildMessageNotifRows(): AppNotifRow[] {
     const title = lastFromThem ? `${peer}からメッセージが届きました` : `${peer}とのチャット`
     return {
       nid: key,
-      icon: '💬',
+      icon: '',
       cls: 'ni-c',
       title,
       sub: `「${preview}」`,
@@ -1105,9 +1170,8 @@ const CHIP_SVG_PATHS: Record<string,string> = {
   misc:  '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
   land: '<path d="M3 21 L9 12 L14 16 L21 8 L21 21 Z" fill="#2D5A27"/><rect x="10" y="10" width="6" height="5" rx="0.5" fill="#C4581A"/><path d="M3 21 L21 21" stroke="#7A5230" stroke-width="1.2" fill="none"/>',
 }
-function chipSvg(cat: string): string {
-  const p = CHIP_SVG_PATHS[cat] ?? CHIP_SVG_PATHS.misc
-  return `<svg class="chip-icon" viewBox="0 0 24 24">${p}</svg>`
+function chipSvg(_cat: string): string {
+  return ''
 }
 
 /* ── PC CATS ── */
@@ -1249,13 +1313,13 @@ function cardHTML(it: Item, mode: string) {
   if (it.sold) {
     return `<div class="${cls} sold-card">
       <div class="${imgCls} ${it.bg}" style="position:relative;">${imgContent}<div class="sold-overlay"><span class="sold-overlay-text">SOLD</span></div></div>
-      <div class="${bodyCls}"><p class="${nameCls}">${it.name}</p><p class="${locCls}">📍 ${it.loc}</p><p class="${priceCls}">${it.price} <span>${it.unit}</span></p></div>
+      <div class="${bodyCls}"><p class="${nameCls}">${it.name}</p><p class="${locCls}">${it.loc}</p><p class="${priceCls}">${it.price} <span>${it.unit}</span></p></div>
     </div>`
   }
   const badge = it.badge==='new'?`<span class="bBadge bNew">NEW</span>`:it.badge==='free'?`<span class="bBadge bFree">無料</span>`:''
   return `<div class="${cls}" onclick="openDetail(${it.id},'${mode}')">
     <div class="${imgCls} ${it.bg}" style="position:relative;">${badge}${imgContent}</div>
-    <div class="${bodyCls}"><p class="${nameCls}">${it.name}</p><p class="${locCls}">📍 ${it.loc}</p><p class="${priceCls}">${it.price} <span>${it.unit}</span></p></div>
+    <div class="${bodyCls}"><p class="${nameCls}">${it.name}</p><p class="${locCls}">${it.loc}</p><p class="${priceCls}">${it.price} <span>${it.unit}</span></p></div>
   </div>`
 }
 function renderGrid(list: Item[], gridId: string, mode: string) {
@@ -1392,7 +1456,7 @@ async function hydrateUserProfilePage(mode: 'pc' | 'mob') {
         avEl.innerHTML = `<img src="${escAttrUrl(av)}" alt="" style="width:100%;height:100%;object-fit:cover;" />`
       } else {
         avEl.style.fontSize = '2.4rem'
-        avEl.textContent = '🧑'
+        avEl.textContent = chatPartnerInitial(name)
       }
     }
     const nm = document.getElementById('pc-up-name'); if (nm) nm.textContent = name
@@ -1409,7 +1473,7 @@ async function hydrateUserProfilePage(mode: 'pc' | 'mob') {
         avEl.innerHTML = `<img src="${escAttrUrl(av)}" alt="" style="width:100%;height:100%;object-fit:cover;" />`
       } else {
         avEl.style.fontSize = '2rem'
-        avEl.textContent = '🧑'
+        avEl.textContent = chatPartnerInitial(name)
       }
     }
     const nm = document.getElementById('m-up-name'); if (nm) nm.textContent = name
@@ -1453,7 +1517,7 @@ function buildLineShareMessageText(it: Item, itemPageUrl: string): string {
     it.price === '無料'
       ? '無料'
       : [it.price, (it.unit || '').trim()].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()
-  return `「【MEGURU】${it.name}\n${priceLine}｜${it.loc}\n農村の余りものプラットフォームMEGURUで見つけました🌿\n詳細はこちら→ ${itemPageUrl}」`
+  return `「【MEGURU】${it.name}\n${priceLine}｜${it.loc}\n農村の余りものプラットフォームMEGURUで見つけました。\n詳細はこちら→ ${itemPageUrl}」`
 }
 
 function openLineShareForCurrentItem() {
@@ -1486,7 +1550,10 @@ function openDetail(id: number, mode: string) {
   const setAvt = (el: HTMLElement|null) => {
     if (!el) return
     if (sellerAvtSrc) { el.style.fontSize='0'; el.innerHTML=`<img src="${sellerAvtSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />` }
-    else { el.style.fontSize=''; el.textContent = curItem.mine ? '🧑' : curItem.savt }
+    else {
+      el.style.fontSize = ''
+      el.textContent = chatPartnerInitial(curItem.mine ? USER.name : curItem.seller)
+    }
   }
 
   if (mode==='pc') {
@@ -1602,22 +1669,22 @@ function removeAllFavoriteStorageKeysForItem(it: Item) {
 
 function applyFavButtonState(mode: string, it: Item) {
   const on = isItemFavorited(it)
-  const heart = on ? '❤️' : '🤍'
+  const label = on ? '登録済' : 'お気に入り'
   if (mode === 'pc') {
     const d = document.getElementById('pc-det-fav-btn')
     if (d) {
-      d.textContent = heart
+      d.textContent = label
       d.classList.toggle('on', on)
     }
     const p = document.getElementById('pc-fav-btn')
     if (p) {
-      p.textContent = heart
+      p.textContent = label
       p.classList.toggle('on', on)
     }
   } else {
     const m = document.getElementById('m-fav-btn')
     if (m) {
-      m.textContent = heart
+      m.textContent = label
       m.classList.toggle('on', on)
     }
   }
@@ -1715,7 +1782,7 @@ const BG_STYLES: Record<string,string> = {
 function getChatLinkedItem(chat: Chat | null | undefined): Item | null {
   if (!chat) return null
   if (chat.itemSupabaseId) {
-    const bySb = ITEMS.find((i) => i.supabaseId === chat.itemSupabaseId)
+    const bySb = ITEMS.find((i) => (i as Item).supabaseId === chat.itemSupabaseId)
     if (bySb) return bySb
   }
   if (chat.itemId) return ITEMS.find((x) => x.id === chat.itemId) ?? null
@@ -1737,10 +1804,23 @@ function setCisIcon(elId: string, chatId: string) {
       .replace(/class="cat-icon" class="cat-icon"/, 'class="cat-icon"')
     el.innerHTML = svgIcon
     el.style.background = BG_STYLES[item.bg] ?? BG_STYLES.by
+  } else if (chat.requestSupabaseId) {
+    el.innerHTML = ''
+    el.style.background = '#F8F4EE'
+    el.style.fontSize = '1rem'
+    el.style.fontWeight = '800'
+    el.style.color = '#2D5A27'
+    el.style.display = 'flex'
+    el.style.alignItems = 'center'
+    el.style.justifyContent = 'center'
+    el.textContent = '求'
   } else {
-    el.style.fontSize = '1.4rem'
-    el.textContent = chat.ie
-    el.style.background = 'none'
+    el.innerHTML = ''
+    el.style.background = 'var(--pa)'
+    el.style.fontSize = '.75rem'
+    el.style.fontWeight = '700'
+    el.style.color = 'var(--mu)'
+    el.textContent = '商品'
   }
 }
 
@@ -1791,12 +1871,7 @@ function pcOpenChatFromDetail() {
   const cp=document.getElementById('pc-panel-chat')
   if (cp) { cp.style.display='flex'; cp.style.flexDirection='column'; cp.style.height='100%'; cp.style.overflow='hidden' }
   document.getElementById('pc-panel')?.classList.remove('hidden')
-  const avt=document.getElementById('pc-chat-avt'); if(avt) avt.textContent=c.avt
-  const pname=document.getElementById('pc-chat-pname'); if(pname) pname.textContent=c.name
-  const psub=document.getElementById('pc-chat-psub'); if(psub) psub.textContent=c.sub
-  setCisIcon('pc-cis-e', key)
-  const cisn=document.getElementById('pc-cis-n'); if(cisn) cisn.textContent=c.in_
-  const cisp=document.getElementById('pc-cis-p'); if(cisp) cisp.textContent=c.ip
+  applyChatHeader('pc', key)
   renderMsgs('pc')
   renderChatList('pc')
   updateCompleteBtn('pc')
@@ -1816,21 +1891,11 @@ function openChat(chatId: string, mode: string) {
     const pd=document.getElementById('pc-panel-detail'); if(pd) pd.style.display='none'
     const cp=document.getElementById('pc-panel-chat')
     if (cp) { cp.style.display='flex'; cp.style.flexDirection='column'; cp.style.height='100%'; cp.style.overflow='hidden' }
-    const avt=document.getElementById('pc-chat-avt'); if(avt) avt.textContent=c.avt
-    const pname=document.getElementById('pc-chat-pname'); if(pname) pname.textContent=c.name
-    const psub=document.getElementById('pc-chat-psub'); if(psub) psub.textContent=c.sub
-    setCisIcon('pc-cis-e', chatId)
-    const cisn=document.getElementById('pc-cis-n'); if(cisn) cisn.textContent=c.in_
-    const cisp=document.getElementById('pc-cis-p'); if(cisp) cisp.textContent=c.ip
+    applyChatHeader('pc', chatId)
     renderMsgs('pc')
     updateCompleteBtn('pc')
   } else {
-    const avt=document.getElementById('m-chat-avt'); if(avt) avt.textContent=c.avt
-    const pname=document.getElementById('m-chat-pname'); if(pname) pname.textContent=c.name
-    const psub=document.getElementById('m-chat-psub'); if(psub) psub.textContent=c.sub
-    setCisIcon('m-cis-e', chatId)
-    const cisn=document.getElementById('m-cis-n'); if(cisn) cisn.textContent=c.in_
-    const cisp=document.getElementById('m-cis-p'); if(cisp) cisp.textContent=c.ip
+    applyChatHeader('mob', chatId)
     renderMsgs('mob'); updateCompleteBtn('mob'); mNav('ms-chat')
   }
 }
@@ -1843,12 +1908,15 @@ function renderMsgs(mode: string) {
   const box=document.getElementById(mode==='pc'?'pc-chat-msgs':'m-chat-msgs')
   if (!box||!c) return
   box.innerHTML='<p class="chatDateDiv">今日</p>'
+  const themInitial = escChatHtml(chatPartnerInitial(c.name))
+  const meInitial = escChatHtml(chatPartnerInitial(USER.name || '自分'))
   c.msgs.forEach(m=>{
-    if (m.from==='ds') { box.innerHTML+=`<div class="dsWrap"><p class="dsLabel">📅 受け渡し日程を選ぶ</p><div class="dsOpts"><button class="dsOpt" onclick="pickDate(this)">土曜 午前</button><button class="dsOpt on" onclick="pickDate(this)">土曜 午後</button><button class="dsOpt" onclick="pickDate(this)">日曜 午前</button><button class="dsOpt" onclick="pickDate(this)">日曜 午後</button></div></div>`; return }
-    if (m.from==='system') { box.innerHTML+=`<div class="sys-msg"><span>🎉 ${escChatHtml(m.text || '')}</span></div>`; return }
+    if (m.from==='ds') { box.innerHTML+=`<div class="dsWrap"><p class="dsLabel">受け渡し日程を選ぶ</p><div class="dsOpts"><button class="dsOpt" onclick="pickDate(this)">土曜 午前</button><button class="dsOpt on" onclick="pickDate(this)">土曜 午後</button><button class="dsOpt" onclick="pickDate(this)">日曜 午前</button><button class="dsOpt" onclick="pickDate(this)">日曜 午後</button></div></div>`; return }
+    if (m.from==='system') { box.innerHTML+=`<div class="sys-msg"><span>${escChatHtml(m.text || '')}</span></div>`; return }
     const me=m.from==='me'
     const tx = escChatHtml(m.text || '')
-    box.innerHTML+=`<div class="mr${me?' me':''}"><div class="mAvt">${me?'🧑':CHATS[curChatId].avt}</div><div class="bbl">${tx}</div><span class="mTime">${m.time}</span></div>`
+    const avMark = me ? meInitial : themInitial
+    box.innerHTML+=`<div class="mr${me?' me':''}"><div class="mAvt"><span class="mAvt-txt">${avMark}</span></div><div class="bbl">${tx}</div><span class="mTime">${m.time}</span></div>`
   })
   setTimeout(()=>box.scrollTop=box.scrollHeight,50)
 }
@@ -1869,7 +1937,16 @@ function openTradeModal(mode: string) {
   const chat = CHATS[curChatId]
   if (!chat) return
   if (!chat.sellerId || CURRENT_USER_ID !== chat.sellerId) {
-    showToast('出品者のみ取引を完了できます')
+    showToast(chat.requestSupabaseId ? 'この募集の投稿者だけが取引を完了できます' : '出品者のみ取引を完了できます')
+    return
+  }
+  if (chat.requestSupabaseId) {
+    if (chat.requestClosed) {
+      showToast('すでに取引完了済みです')
+      return
+    }
+    tradeModalMode = mode
+    document.getElementById('trade-modal')?.classList.remove('hidden')
     return
   }
   const item = getChatLinkedItem(chat)
@@ -1882,7 +1959,14 @@ function requestCompleteTradePc() {
   const chat = CHATS[curChatId]
   if (!chat) return
   if (!chat.sellerId || CURRENT_USER_ID !== chat.sellerId) {
-    showToast('出品者のみ取引を完了できます')
+    showToast(chat.requestSupabaseId ? 'この募集の投稿者だけが取引を完了できます' : '出品者のみ取引を完了できます')
+    return
+  }
+  if (chat.requestSupabaseId) {
+    if (chat.requestClosed) return
+    if (!confirm('取引を完了しますか？相手と手渡しが完了した後に押してください。')) return
+    tradeModalMode = 'pc'
+    confirmCompleteTrade()
     return
   }
   const item = getChatLinkedItem(chat)
@@ -2007,7 +2091,7 @@ function applySellerRatingToDetail(avg: number, count: number, mode: string) {
   }
 }
 
-async function maybeOpenReviewModalAfterTrade(chat: Chat, item: Item, mode: string) {
+async function maybeOpenReviewModalAfterTrade(chat: Chat, item: Item | null, mode: string) {
   if (!chat.supabaseId || !CURRENT_USER_ID || !chat.buyerId || !chat.sellerId) {
     showToast('取引が完了しました！')
     return
@@ -2028,7 +2112,7 @@ async function maybeOpenReviewModalAfterTrade(chat: Chat, item: Item, mode: stri
     revieweeName: chat.name,
     revieweeId,
     chatUuid: chat.supabaseId,
-    itemUuid: item.supabaseId ?? null,
+    itemUuid: item?.supabaseId ?? null,
   }
   const desc = document.getElementById('review-modal-desc')
   if (desc) desc.textContent = `${chat.name}さんとの取引はいかがでしたか？1〜5で評価してください。`
@@ -2059,23 +2143,90 @@ async function submitReviewRating(rating: number) {
 
 function confirmCompleteTrade() {
   const chat = CHATS[curChatId]
-  if (!chat) { closeTradeModal(); return }
-  if (!chat.sellerId || CURRENT_USER_ID !== chat.sellerId) {
-    showToast('出品者のみ取引を完了できます')
+  if (!chat) {
     closeTradeModal()
     return
   }
-  const item = getChatLinkedItem(chat)
-  if (!item) { closeTradeModal(); return }
-  item.sold = true
+  if (!chat.sellerId || CURRENT_USER_ID !== chat.sellerId) {
+    showToast(chat.requestSupabaseId ? 'この募集の投稿者だけが取引を完了できます' : '出品者のみ取引を完了できます')
+    closeTradeModal()
+    return
+  }
   const t = new Date()
-  const time = t.getHours()+':'+String(t.getMinutes()).padStart(2,'0')
-  chat.msgs.push({from:'system', text:'取引が完了しました', time})
+  const time = t.getHours() + ':' + String(t.getMinutes()).padStart(2, '0')
+  const mode = tradeModalMode
+
+  if (chat.requestSupabaseId) {
+    if (chat.requestClosed) {
+      closeTradeModal()
+      return
+    }
+    chat.requestClosed = true
+    chat.lastAt = Date.now()
+    chat.msgs.push({ from: 'system', text: '取引が完了しました', time })
+    const reqRow = meguruRequestsCache.find((r) => r.id === chat.requestSupabaseId)
+    const rawDesc = (reqRow?.description || '').trim()
+    const title = rawDesc
+      ? formatRequestMumSubtitleFromDescription(rawDesc)
+      : chat.requestSubtitle || '求む：取引'
+    if (reqRow) reqRow.is_closed = true
+    TXHISTORY.unshift({
+      stripe: 'bg',
+      tag: '求',
+      name: title.length > 88 ? `${title.slice(0, 86)}…` : title,
+      meta: `${chat.name} · ${chat.sub}`,
+      price: '—',
+      status: '完了',
+      date: '本日',
+      chatSbId: chat.supabaseId,
+    })
+    renderMsgs(tradeModalMode)
+    renderTxHistory('pc')
+    renderTxHistory('mob')
+    renderChatList('pc')
+    renderChatList('mob')
+    updateCompleteBtn('pc')
+    updateCompleteBtn('mob')
+    updateMypage('pc')
+    updateMypage('mob')
+    closeTradeModal()
+    if (chat.requestSupabaseId) {
+      void createClient()
+        .from('requests')
+        .update({ is_closed: true })
+        .eq('id', chat.requestSupabaseId)
+        .then(({ error }) => {
+          if (error) console.warn('[meguru] requests is_closed:', error.message)
+        })
+    }
+    void loadRequestsFromSupabase()
+    void maybeOpenReviewModalAfterTrade(chat, null, mode)
+    return
+  }
+
+  const item = getChatLinkedItem(chat)
+  if (!item) {
+    closeTradeModal()
+    return
+  }
+  item.sold = true
+  chat.msgs.push({ from: 'system', text: '取引が完了しました', time })
   chat.lastAt = Date.now()
-  TXHISTORY.unshift({emoji:item.emoji, name:item.name, meta:`${chat.name} · ${chat.sub}`, price:item.price, status:'完了', date:'本日'})
+  const stripe =
+    item.bg === 'bb' ? 'bb' : item.bg === 'bk' ? 'bk' : item.bg === 'by' ? 'by' : 'bg'
+  TXHISTORY.unshift({
+    stripe,
+    tag: '余',
+    name: item.name,
+    meta: `${chat.name} · ${chat.sub}`,
+    price: item.price,
+    status: '完了',
+    date: '本日',
+  })
   saveItems()
   renderMsgs(tradeModalMode)
-  applyPcFilter(); applyMobFilter()
+  applyPcFilter()
+  applyMobFilter()
   renderTxHistory('pc')
   renderTxHistory('mob')
   renderChatList('pc')
@@ -2086,50 +2237,45 @@ function confirmCompleteTrade() {
   updateMypage('mob')
   closeTradeModal()
 
-  const mode = tradeModalMode
   if (item.supabaseId && CURRENT_USER_ID) {
     void createClient()
       .from('items')
       .update({ is_sold: true })
       .eq('id', item.supabaseId)
-      .then(({ error }) => { if (error) console.warn('[meguru] is_sold update:', error.message) })
+      .then(({ error }) => {
+        if (error) console.warn('[meguru] is_sold update:', error.message)
+      })
   }
 
   void maybeOpenReviewModalAfterTrade(chat, item, mode)
 }
 function updateCompleteBtn(mode: string) {
   const chat = CHATS[curChatId]
-  if (chat?.requestSupabaseId) {
-    if (mode === 'pc') {
-      const wrap = document.getElementById('pc-chat-trade-wrap')
-      if (wrap) wrap.style.display = 'none'
-      const cisSold = document.getElementById('pc-chat-cis-sold')
-      if (cisSold) cisSold.style.display = 'none'
-    } else {
-      const btn = document.getElementById('m-complete-btn') as HTMLButtonElement | null
-      if (btn) btn.style.display = 'none'
-    }
-    return
-  }
-  const item = chat ? getChatLinkedItem(chat) : null
-  const isSold = item?.sold ?? false
-  const isSeller = !!(chat?.sellerId && CURRENT_USER_ID === chat.sellerId)
+  if (!chat) return
+
+  const isRequestChat = !!chat.requestSupabaseId
+  const canPressComplete = !!(chat.sellerId && CURRENT_USER_ID === chat.sellerId)
+  const item = getChatLinkedItem(chat)
+  const itemSold = item?.sold ?? false
+  const requestDone = chat.requestClosed ?? false
+  const isDone = isRequestChat ? requestDone : itemSold
 
   if (mode === 'pc') {
     const cisSold = document.getElementById('pc-chat-cis-sold')
-    if (cisSold) cisSold.style.display = item?.sold ? 'inline-flex' : 'none'
+    if (cisSold) cisSold.style.display = isDone ? 'inline-flex' : 'none'
 
     const wrap = document.getElementById('pc-chat-trade-wrap')
     const badge = document.getElementById('pc-chat-sold-badge')
     const bar = document.getElementById('pc-trade-bar-btn-wrap')
     const btn = document.getElementById('pc-complete-btn') as HTMLButtonElement | null
     if (!wrap || !badge || !bar || !btn) return
-    if (!isSeller) {
+
+    if (!canPressComplete) {
       wrap.style.display = 'none'
       return
     }
     wrap.style.display = 'block'
-    if (isSold) {
+    if (isDone) {
       badge.style.display = 'block'
       bar.style.display = 'none'
     } else {
@@ -2144,12 +2290,12 @@ function updateCompleteBtn(mode: string) {
 
   const btn = document.getElementById('m-complete-btn') as HTMLButtonElement | null
   if (!btn) return
-  if (!isSeller) {
+  if (!canPressComplete) {
     btn.style.display = 'none'
     return
   }
   btn.style.display = ''
-  if (isSold) {
+  if (isDone) {
     btn.textContent = '取引済み'
     btn.className = 'trade-bar-btn done'
     btn.disabled = true
@@ -2217,7 +2363,7 @@ function mapSupabaseItem(row: any, userId: string | null): Item {
     cat: row.category || 'misc',
     price: row.price || '無料',
     unit: row.unit ? `/ ${row.unit}` : '',
-    emoji: EMOJIMAP[row.category] || '📦',
+    emoji: EMOJIMAP[row.category] || '',
     bg: BGMAP[row.category] || 'by',
     loc: row.location || '駒ヶ根市',
     badge: row.is_free ? 'free' : 'new',
@@ -2228,7 +2374,7 @@ function mapSupabaseItem(row: any, userId: string | null): Item {
       return isEmailLike(t) ? '出品者' : t
     })(),
     sloc: row.profiles?.area ? `${row.profiles.area}` : '駒ヶ根市',
-    savt: '🧑',
+    savt: '',
     desc: row.description || '詳細は出品者にお問い合わせください。',
     mine: row.user_id === userId,
     chatKey: '',
@@ -2481,7 +2627,9 @@ function renderRequestLists() {
     const area = escChatHtml(r.area || '—')
     const poster = escChatHtml(requestPosterDisplayName(r.posterName))
     let actions = ''
-    if (!isMine && CURRENT_USER_ID) {
+    if (r.is_closed) {
+      actions = '<span class="req-closed-lbl">取引完了</span>'
+    } else if (!isMine && CURRENT_USER_ID) {
       actions = `<button type="button" class="req-offer-btn" onclick="offerForRequest('${r.id}','${mode}')">提供できます</button>`
     } else if (isMine) {
       actions = `<button type="button" class="req-del-btn" onclick="deleteRequest('${r.id}','${mode}')">削除</button>`
@@ -2514,7 +2662,7 @@ async function loadRequestsFromSupabase() {
     const supabase = createClient()
     const { data, error } = await supabase
       .from('requests')
-      .select(`id, user_id, category, description, area, created_at, "希望価格", "希望時期"`)
+      .select(`id, user_id, category, description, area, created_at, is_closed, "希望価格", "希望時期"`)
       .order('created_at', { ascending: false })
     if (error) {
       console.error('[meguru] loadRequests:', error.message, error.code)
@@ -2547,6 +2695,7 @@ async function loadRequestsFromSupabase() {
       hope_price: (row['希望価格'] as string | null) ?? null,
       hope_timing: (row['希望時期'] as string | null) ?? null,
       posterName: nameByUserId.get(row.user_id as string) || undefined,
+      is_closed: !!(row.is_closed as boolean | undefined),
     }))
     renderRequestLists()
     renderHomeRequestPreview()
@@ -2655,6 +2804,10 @@ async function offerForRequest(requestId: string, mode: string) {
     return
   }
   if (req.user_id === CURRENT_USER_ID) return
+  if (req.is_closed) {
+    showToast('この募集は取引完了済みです')
+    return
+  }
   const supabase = createClient()
   try {
     let chatId: string
@@ -2694,16 +2847,16 @@ async function offerForRequest(requestId: string, mode: string) {
     }
     const key = `sb_${chatId}`
     const partnerName = requestPosterDisplayName(req.posterName ?? null)
-    const catLine = `求む：${REQUEST_CAT_LABELS[req.category] || req.category}`
-    const descMain = splitRequestDescription(req.description || '').main
+    const requestSubtitle = formatRequestMumSubtitleFromDescription(req.description || '')
+    const inLine = requestSubtitle.length > 72 ? `${requestSubtitle.slice(0, 70)}…` : requestSubtitle
     if (!CHATS[key]) {
       CHATS[key] = {
         name: partnerName,
         sub: req.area || NAGANO_PREF,
-        avt: '🧑',
-        ie: '🙋',
-        in_: catLine,
-        ip: descMain.length > 48 ? `${descMain.slice(0, 48)}…` : descMain,
+        avt: '',
+        ie: '',
+        in_: inLine,
+        ip: REQUEST_CAT_LABELS[req.category] || req.category,
         unread: 0,
         itemId: 0,
         lastAt: Date.now(),
@@ -2712,19 +2865,23 @@ async function offerForRequest(requestId: string, mode: string) {
         buyerId: CURRENT_USER_ID,
         sellerId: req.user_id,
         requestSupabaseId: requestId,
+        requestClosed: !!req.is_closed,
+        requestSubtitle,
       }
     } else {
       const row = CHATS[key]
       row.name = partnerName
       row.sub = req.area || NAGANO_PREF
-      row.ie = '🙋'
-      row.in_ = catLine
-      row.ip = descMain.length > 48 ? `${descMain.slice(0, 48)}…` : descMain
+      row.ie = ''
+      row.in_ = inLine
+      row.ip = REQUEST_CAT_LABELS[req.category] || req.category
       row.itemId = 0
       row.buyerId = CURRENT_USER_ID
       row.sellerId = req.user_id
       row.requestSupabaseId = requestId
       row.itemSupabaseId = undefined
+      row.requestClosed = !!req.is_closed
+      row.requestSubtitle = requestSubtitle
     }
     await loadMessagesForChat(chatId, key)
     openChat(key, mode)
@@ -2743,7 +2900,7 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
       .from('chats')
       .select(`id, created_at, buyer_id, seller_id, item_id, request_id,
         item:item_id(id, name, price, unit, category, images),
-        request:request_id(id, category, description, area)`)
+        request:request_id(id, category, description, area, is_closed)`)
       .or(`buyer_id.eq.${CURRENT_USER_ID},seller_id.eq.${CURRENT_USER_ID}`)
       .order('created_at', { ascending: false })
     if (error) {
@@ -2814,15 +2971,18 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
       const areaStr = (prof?.area && String(prof.area).trim()) || ''
       if (isRequestChat) {
         const catKey = req.category as string
-        const catLine = `求む：${REQUEST_CAT_LABELS[catKey] || catKey}`
-        const desc = splitRequestDescription((req.description as string) || '').main
+        const descRaw = (req.description as string) || ''
+        const descMain = splitRequestDescription(descRaw).main
+        const requestClosed = !!(req as { is_closed?: boolean }).is_closed
+        const requestSubtitle = formatRequestMumSubtitleFromDescription(descRaw)
+        const inLine = requestSubtitle.length > 72 ? `${requestSubtitle.slice(0, 70)}…` : requestSubtitle
         CHATS[key] = {
           name: chatPartnerNameFromProfile(prof?.name ?? null),
           sub: areaStr || (req.area as string) || NAGANO_PREF,
-          avt: '🧑',
-          ie: '🙋',
-          in_: catLine,
-          ip: desc.length > 48 ? `${desc.slice(0, 48)}…` : desc,
+          avt: '',
+          ie: '',
+          in_: inLine,
+          ip: REQUEST_CAT_LABELS[catKey] || catKey,
           unread,
           itemId: 0,
           lastAt: lastMsg ? new Date(lastMsg.created_at).getTime() : new Date(chat.created_at).getTime(),
@@ -2841,14 +3001,16 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
           sellerId: chat.seller_id,
           requestSupabaseId: req.id as string,
           itemSupabaseId: undefined,
+          requestClosed,
+          requestSubtitle,
         }
         continue
       }
       CHATS[key] = {
         name: chatPartnerNameFromProfile(prof?.name ?? null),
         sub: areaStr || '駒ヶ根市',
-        avt: '🧑',
-        ie: EMOJIMAP[item?.category] || '📦',
+        avt: '',
+        ie: '',
         in_: item?.name || '商品',
         ip: item?.price ? `${item.price}${item.unit ? ' / ' + item.unit : ''}` : '',
         unread,
@@ -2871,8 +3033,11 @@ async function loadChatsFromSupabase(): Promise<unknown[]> {
       }
     }
     console.log('[meguru] loadChats: loaded', chatsData.length, 'chats from Supabase')
+    mergeClosedRequestChatsIntoTxHistory()
     renderChatList('pc')
     renderChatList('mob')
+    renderTxHistory('pc')
+    renderTxHistory('mob')
     updateSbChatUnreadBadge()
     refreshNotifListsIfOpen()
     return chatsData
@@ -3097,7 +3262,7 @@ async function sendMsg(mode: string) {
   } else {
     // デモチャット: モック自動返信
     setTimeout(()=>{
-      const r=['ありがとうございます！楽しみにしています😊','わかりました、よろしくお願いします！','はい、大丈夫ですよ〜！','ご連絡ありがとうございます。','それで問題ないです！']
+      const r=['ありがとうございます。楽しみにしています。','わかりました、よろしくお願いします。','はい、大丈夫です。','ご連絡ありがとうございます。','それで問題ないです。']
       const t2=new Date(); const rt=t2.getHours()+':'+String(t2.getMinutes()).padStart(2,'0')
       CHATS[curChatId].msgs.push({from:'them',text:r[Math.floor(Math.random()*r.length)],time:rt}); CHATS[curChatId].lastAt=Date.now(); renderMsgs(mode); renderChatList('pc'); renderChatList('mob')
     },1300)
@@ -3106,7 +3271,9 @@ async function sendMsg(mode: string) {
 
 /* ── CHAT LIST ── */
 function renderChatList(mode: string) {
-  const html = getChatListEntries().sort(([, a], [, b]) => b.lastAt - a.lastAt).map(([k, c]) => {
+  const html = getChatListEntries()
+    .sort(([, a], [, b]) => b.lastAt - a.lastAt)
+    .map(([k, c]) => {
     const lastMsg = c.msgs.filter(m => !!m.text).pop()
     const rawLast = lastMsg
       ? (lastMsg.from === 'me' ? '自分：' + (lastMsg.text ?? '') : (lastMsg.text ?? ''))
@@ -3116,19 +3283,35 @@ function renderChatList(mode: string) {
     const badge = c.unread > 0 ? (c.unread > 99 ? '99+' : String(c.unread)) : ''
     const nameEsc = escChatHtml(c.name)
     const inEsc = escChatHtml(c.in_)
+    const avLetter = escChatHtml(chatPartnerInitial(c.name))
+    const ieEsc = escChatHtml(c.ie || '')
+    const ieHtml = ieEsc ? `<span class="cl-ie">${ieEsc}</span>` : ''
     if (mode === 'pc') {
-      return `<div class="cl-item${c.unread ? ' unread' : ''}" data-chat="${k}" onclick="openChat('${k}','pc')"><div class="cl-avt">${c.avt}${c.unread ? '<span class="cl-online"></span>' : ''}</div><div class="cl-body"><div class="cl-top"><span class="cl-name">${nameEsc}</span><span class="cl-time">${lastTime}</span></div><p class="cl-msg">${lastTxt}</p><div class="cl-item2"><span class="cl-ie">${c.ie}</span><span class="cl-in">${inEsc}</span></div></div>${badge ? `<span class="cl-badge">${badge}</span>` : ''}</div>`
+      return `<div class="cl-item${c.unread ? ' unread' : ''}" data-chat="${k}" onclick="openChat('${k}','pc')"><div class="cl-avt"><span class="cl-avt-txt">${avLetter}</span>${c.unread ? '<span class="cl-online"></span>' : ''}</div><div class="cl-body"><div class="cl-top"><span class="cl-name">${nameEsc}</span><span class="cl-time">${lastTime}</span></div><p class="cl-msg">${lastTxt}</p><div class="cl-item2">${ieHtml}<span class="cl-in">${inEsc}</span></div></div>${badge ? `<span class="cl-badge">${badge}</span>` : ''}</div>`
     }
-    return `<div class="m-cl-item${c.unread ? ' unread' : ''}" onclick="openChat('${k}','mob')"><div class="m-cl-avt">${c.avt}${c.unread ? '<span class="m-cl-online"></span>' : ''}</div><div class="m-cl-body"><div class="m-cl-top"><span class="m-cl-name">${nameEsc}</span><span class="m-cl-time">${lastTime}</span></div><p class="m-cl-msg">${lastTxt}</p><div class="cl-item2"><span class="cl-ie">${c.ie}</span><span class="cl-in">${inEsc}</span></div></div>${badge ? `<span class="m-cl-badge">${badge}</span>` : ''}</div>`
-  }).join('')
-  if (mode==='pc') { const el=document.getElementById('pc-chatlist-items'); if(el) el.innerHTML=html }
-  else { const el=document.getElementById('m-chatlist-body'); if(el) el.innerHTML=html }
+    return `<div class="m-cl-item${c.unread ? ' unread' : ''}" onclick="openChat('${k}','mob')"><div class="m-cl-avt"><span class="cl-avt-txt">${avLetter}</span>${c.unread ? '<span class="m-cl-online"></span>' : ''}</div><div class="m-cl-body"><div class="m-cl-top"><span class="m-cl-name">${nameEsc}</span><span class="m-cl-time">${lastTime}</span></div><p class="m-cl-msg">${lastTxt}</p><div class="cl-item2">${ieHtml}<span class="cl-in">${inEsc}</span></div></div>${badge ? `<span class="m-cl-badge">${badge}</span>` : ''}</div>`
+    })
+    .join('')
+  if (mode === 'pc') {
+    const el = document.getElementById('pc-chatlist-items')
+    if (el) el.innerHTML = html
+  } else {
+    const el = document.getElementById('m-chatlist-body')
+    if (el) el.innerHTML = html
+  }
   updateSbChatUnreadBadge()
 }
 
 /* ── NOTIF（メッセージ行は CHATS ＝ Supabase messages と同期） ── */
 function notifNidJs(nid: string): string {
   return nid.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+}
+function notifIconInner(n: AppNotifRow): string {
+  if (n.icon && String(n.icon).trim()) return escChatHtml(String(n.icon))
+  const c = (n.title || '通知').trim()
+  const cp = c.codePointAt(0)
+  const letter = cp !== undefined ? String.fromCodePoint(cp) : '知'
+  return `<span class="n-icon-txt">${escChatHtml(letter)}</span>`
 }
 function renderPcNotifs() {
   const el = document.getElementById('pc-notif-list')
@@ -3137,7 +3320,7 @@ function renderPcNotifs() {
   el.innerHTML = rows
     .map(
       (n) =>
-        `<div class="n-item${n.unread ? ' unread' : ''}" onclick="notifTap('${notifNidJs(n.nid)}','pc')"><div class="n-icon ${n.cls}">${n.icon}</div><div style="flex:1"><p class="n-title">${escChatHtml(n.title)}</p><p class="n-sub">${escChatHtml(n.sub)}</p></div><span class="n-time">${escChatHtml(n.time)}</span>${n.unread ? '<div class="n-dot"></div>' : ''}</div>`
+        `<div class="n-item${n.unread ? ' unread' : ''}" onclick="notifTap('${notifNidJs(n.nid)}','pc')"><div class="n-icon ${n.cls}">${notifIconInner(n)}</div><div style="flex:1"><p class="n-title">${escChatHtml(n.title)}</p><p class="n-sub">${escChatHtml(n.sub)}</p></div><span class="n-time">${escChatHtml(n.time)}</span>${n.unread ? '<div class="n-dot"></div>' : ''}</div>`
     )
     .join('')
 }
@@ -3148,7 +3331,7 @@ function renderMobNotifs() {
   el.innerHTML = rows
     .map(
       (n) =>
-        `<div class="m-n-item${n.unread ? ' unread' : ''}" onclick="notifTap('${notifNidJs(n.nid)}','mob')"><div class="m-n-icon ${n.cls}">${n.icon}</div><div style="flex:1"><p class="m-n-title">${escChatHtml(n.title)}</p><p class="m-n-sub">${escChatHtml(n.sub)}</p></div><span class="m-n-time">${escChatHtml(n.time)}</span>${n.unread ? '<div class="m-n-dot"></div>' : ''}</div>`
+        `<div class="m-n-item${n.unread ? ' unread' : ''}" onclick="notifTap('${notifNidJs(n.nid)}','mob')"><div class="m-n-icon ${n.cls}">${notifIconInner(n)}</div><div style="flex:1"><p class="m-n-title">${escChatHtml(n.title)}</p><p class="m-n-sub">${escChatHtml(n.sub)}</p></div><span class="m-n-time">${escChatHtml(n.time)}</span>${n.unread ? '<div class="m-n-dot"></div>' : ''}</div>`
     )
     .join('')
   updateSbChatUnreadBadge()
@@ -3187,10 +3370,42 @@ function renderMyListings(mode: string, title: string, list: Item[]) {
 }
 
 /* ── TX HISTORY ── */
+function mergeClosedRequestChatsIntoTxHistory() {
+  const seen = new Set(TXHISTORY.map((r) => r.chatSbId).filter(Boolean) as string[])
+  for (const c of Object.values(CHATS)) {
+    if (!c.requestSupabaseId || !c.requestClosed || !c.supabaseId) continue
+    if (seen.has(c.supabaseId)) continue
+    const reqRow = meguruRequestsCache.find((r) => r.id === c.requestSupabaseId)
+    const rawDesc = (reqRow?.description || '').trim()
+    const title = rawDesc
+      ? formatRequestMumSubtitleFromDescription(rawDesc)
+      : c.requestSubtitle || '求む：取引'
+    TXHISTORY.unshift({
+      stripe: 'bg',
+      tag: '求',
+      name: title.length > 88 ? `${title.slice(0, 86)}…` : title,
+      meta: `${c.name} · ${c.sub}`,
+      price: '—',
+      status: '完了',
+      date: new Date(c.lastAt).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }),
+      chatSbId: c.supabaseId,
+    })
+    seen.add(c.supabaseId)
+  }
+}
+
 function renderTxHistory(mode: string) {
-  const html=TXHISTORY.map(t=>`<div class="tx-item"><div class="tx-img ${t.emoji==='🍊'?'bk':t.emoji==='🪵'?'bb':'bg'}">${t.emoji}</div><div style="flex:1"><p class="tx-name">${t.name}</p><p class="tx-meta">${t.meta}</p><span class="tx-status ${t.status==='完了'?'ts-c':'ts-p'}">${t.status}</span></div><div style="text-align:right"><p class="tx-price">${t.price}</p><p style="font-size:.62rem;color:var(--mu);margin-top:3px">${t.date}</p></div></div>`).join('')
-  if (mode==='pc') { const el=document.getElementById('pc-tx-list'); if(el) el.innerHTML=html }
-  else { const el=document.getElementById('m-tx-body'); if(el) el.innerHTML=html }
+  const html = TXHISTORY.map(
+    (t) =>
+      `<div class="tx-item"><div class="tx-img ${t.stripe}"><span class="tx-img-tag">${escChatHtml(t.tag)}</span></div><div style="flex:1"><p class="tx-name">${escChatHtml(t.name)}</p><p class="tx-meta">${escChatHtml(t.meta)}</p><span class="tx-status ${t.status === '完了' ? 'ts-c' : 'ts-p'}">${escChatHtml(t.status)}</span></div><div style="text-align:right"><p class="tx-price">${escChatHtml(t.price)}</p><p style="font-size:.62rem;color:var(--mu);margin-top:3px">${escChatHtml(t.date)}</p></div></div>`
+  ).join('')
+  if (mode === 'pc') {
+    const el = document.getElementById('pc-tx-list')
+    if (el) el.innerHTML = html
+  } else {
+    const el = document.getElementById('m-tx-body')
+    if (el) el.innerHTML = html
+  }
 }
 
 /* ── POST FORM ── */
@@ -3474,10 +3689,10 @@ function formatPostedItemPriceLine(it: Item): string {
   return u ? `${it.price} ${u}`.trim() : it.price
 }
 
-/** 出品完了画面に商品名・価格を表示（リングは 🌿 固定・フォーム入力値をそのまま表示） */
+/** 出品完了画面に商品名・価格を表示 */
 function fillPostCompleteSnapshot(title: string, priceLine: string) {
   document.querySelectorAll('.pc-comp-ring, .m-comp-ring').forEach((el) => {
-    el.textContent = '🌿'
+    el.textContent = '掲'
   })
   const setLine = (id: string, text: string) => {
     const el = document.getElementById(id)
@@ -3714,13 +3929,13 @@ async function submitPost(mode: string) {
       cat,
       price: priceStr,
       unit: unitForDb ? `/ ${unitForDb}` : '',
-      emoji: EMOJIMAP[cat] || '📦',
+      emoji: EMOJIMAP[cat] || '',
       bg: BGMAP[cat] || 'by',
       loc: loc || getUserCity() || '駒ヶ根市',
       badge: isFree ? 'free' : 'new',
       seller: USER.name,
       sloc: USER.area,
-      savt: '🧑',
+      savt: '',
       desc: finalDesc,
       mine: true,
       chatKey: '',
@@ -4238,7 +4453,7 @@ export default function Page() {
     const supabase = createClient()
 
     // ── window に関数を公開（動的 HTML の onclick から呼ばれる）
-    const w = window as Record<string, unknown>
+    const w = window as unknown as Record<string, unknown>
     w.openDetail  = openDetail
     w.selCat      = selCat
     w.mHomeCat    = mHomeCat
@@ -4642,18 +4857,18 @@ export default function Page() {
                             data-value={c.key}
                             onClick={() => setReqModalCategory('pc', c.key)}
                           >
-                            <span className="reqb-catpick-emoji" aria-hidden>{c.emoji}</span>
                             <span className="reqb-catpick-lbl">{c.label}</span>
                           </button>
                         ))}
                       </div>
                     </div>
                     <div className="reqb-field">
-                      <label className="reqb-lbl" htmlFor="pc-req-modal-when">いつまでに欲しいですか？ <small>（任意）</small></label>
+                      <label className="reqb-lbl" htmlFor="pc-req-modal-when">いつまでに欲しいですか？（任意）</label>
                       <input
+                        type="date"
                         id="pc-req-modal-when"
                         className="inp reqb-inp"
-                        placeholder="例：今月中・10月までに・急ぎではない"
+                        min={new Date().toISOString().split('T')[0]}
                       />
                     </div>
                     <div className="reqb-field">
@@ -4691,7 +4906,7 @@ export default function Page() {
                 <h1 className="pc-ph-title" style={{margin:0,flex:1}}>プロフィール</h1>
               </div>
               <div className="pc-userprofile-head">
-                <div className="pc-up-avt" id="pc-up-avt">🧑</div>
+                <div className="pc-up-avt" id="pc-up-avt">未</div>
                 <div className="pc-up-meta">
                   <p className="pc-up-name" id="pc-up-name">—</p>
                   <p className="pc-up-tagline" id="pc-up-tagline" style={{ display: 'none', fontSize: '.84rem', color: '#C4581A', fontWeight: 600, marginTop: '5px', lineHeight: 1.5 }}>
@@ -4728,7 +4943,6 @@ export default function Page() {
                   <div className="post-cat-grid">
                     {POST_CATEGORY_PICKS.map((c) => (
                       <button key={c.key} type="button" className="post-cat-card" onClick={() => pickPostCategory('pc', c.key)}>
-                        <span className="post-cat-emoji" aria-hidden>{c.emoji}</span>
                         <span className="post-cat-label">{c.label}</span>
                       </button>
                     ))}
@@ -4970,7 +5184,7 @@ export default function Page() {
                   </div>
 
                   <div className="hint">
-                    <span style={{ fontSize: '.95rem', flexShrink: 0 }}>💡</span>
+                    <span style={{ fontSize: '.72rem', flexShrink: 0, fontWeight: 700, color: '#2D5A27' }}>ヒント</span>
                     <p>詳しい住所はチャットで直接決めてOKです。掲示板には住所は出ません。</p>
                   </div>
                   <div className="pc-post-actions">
@@ -5016,7 +5230,7 @@ export default function Page() {
                   <div className="pc-det-info">
                     {/* 出品者 */}
                     <div className="pc-det-seller">
-                      <div className="pc-det-avt-wrap" id="pc-det-avt">👴</div>
+                      <div className="pc-det-avt-wrap" id="pc-det-avt">鈴</div>
                       <div className="pc-det-seller-texts">
                         <p className="pc-det-seller-name" id="pc-det-sname">—</p>
                         <p className="pc-det-seller-sub" id="pc-det-sloc">—</p>
@@ -5037,7 +5251,7 @@ export default function Page() {
                     </div>
                     {/* アクション */}
                     <div className="pc-det-actions">
-                      <button type="button" className="pc-det-fav" id="pc-det-fav-btn" onClick={() => toggleFav('pc')}>🤍</button>
+                      <button type="button" className="pc-det-fav" id="pc-det-fav-btn" onClick={() => toggleFav('pc')}>お気に入り</button>
                       <div className="pc-det-actions-cta">
                         <button type="button" className="pc-det-chat pc-det-want" id="pc-det-chat-btn" onClick={() => void openChatWithSupabase('pc')}>
                           <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -5088,7 +5302,7 @@ export default function Page() {
             {/* COMPLETE */}
             <div id="pc-pg-complete" className="pc-pg">
               <div className="pc-complete">
-                <div className="pc-comp-ring">🌿</div>
+                <div className="pc-comp-ring">掲</div>
                 <h2 className="pc-comp-title">出品しました！</h2>
                 <p className="pc-comp-sub">地域の掲示板に載りました。欲しい人からチャットが届いたらお知らせします。</p>
                 <div className="pc-comp-card" style={{ textAlign: 'center', padding: '20px 18px' }}>
@@ -5131,7 +5345,7 @@ export default function Page() {
             {/* MYPAGE */}
             <div id="pc-pg-mypage" className="pc-pg">
               <div className="pc-mypage-header">
-                <div className="pc-mp-avt" id="pc-mp-avt-el" style={{overflow:'hidden'}}>🧑</div>
+                <div className="pc-mp-avt" id="pc-mp-avt-el" style={{overflow:'hidden'}}>未</div>
                 <div>
                   <p className="pc-mp-name" id="pc-mp-name-el">田中 拓也</p>
                   <p className="pc-mp-sub" id="pc-mp-area-el">駒ヶ根市赤穂 · 2025年から利用中</p>
@@ -5358,23 +5572,23 @@ export default function Page() {
             {/* Detail */}
             <div id="pc-panel-detail" style={{display:'flex',flexDirection:'column',height:'100%',overflow:'hidden'}}>
               <div className="panel-scroll" id="pc-panel-scroll">
-                <div className="panel-hero bk" id="pc-d-hero">🍊<div className="p-badges"><span className="p-badge pb-k" id="pc-d-b">NEW</span><span className="p-badge pb-g">手渡しOK</span></div></div>
+                <div className="panel-hero bk" id="pc-d-hero"><span className="panel-hero-ph">写真</span><div className="p-badges"><span className="p-badge pb-k" id="pc-d-b">NEW</span><span className="p-badge pb-g">手渡しOK</span></div></div>
                 <div className="panel-body">
-                  <div className="p-seller"><div className="p-avt" id="pc-d-avt">👴</div><div><p className="p-sname" id="pc-d-sname">鈴木さん</p><p className="p-sloc" id="pc-d-sloc">駒ヶ根市赤穂</p></div><span className="p-rating" id="pc-d-rating">★ —</span></div>
+                  <div className="p-seller"><div className="p-avt" id="pc-d-avt">鈴</div><div><p className="p-sname" id="pc-d-sname">鈴木さん</p><p className="p-sloc" id="pc-d-sloc">駒ヶ根市赤穂</p></div><span className="p-rating" id="pc-d-rating">★ —</span></div>
                   <h2 className="p-title" id="pc-d-title">渋柿 約15kg</h2>
                   <p className="p-price" id="pc-d-price">¥500 <small>/ 箱</small></p>
-                  <div className="p-tags"><span className="p-tag" id="pc-d-cat">🍊 果物</span><span className="p-tag">手渡しOK</span><span className="p-tag">今週末受取可</span></div>
+                  <div className="p-tags"><span className="p-tag" id="pc-d-cat">果物</span><span className="p-tag">手渡しOK</span><span className="p-tag">今週末受取可</span></div>
                   <p className="p-desc" id="pc-d-desc">—</p>
                   <div className="p-meta">
                     <div className="p-mi"><div className="p-ml">数量</div><div className="p-mv" id="pc-d-qty">—</div></div>
                     <div className="p-mi"><div className="p-ml">受け渡し</div><div className="p-mv">手渡し（駒ヶ根）</div></div>
-                    <div className="p-mi"><div className="p-ml">対応日</div><div className="p-mv">今週末〜</div></div>
+                    <div className="p-mi"><div className="p-ml">対応日</div><div className="p-mv">今週末以降</div></div>
                     <div className="p-mi"><div className="p-ml">出品日</div><div className="p-mv" id="pc-d-date">本日</div></div>
                   </div>
                 </div>
               </div>
               <div className="panel-actions">
-                <button className="p-fav" id="pc-fav-btn" onClick={() => toggleFav('pc')}>🤍</button>
+                <button className="p-fav" id="pc-fav-btn" onClick={() => toggleFav('pc')}>お気に入り</button>
                 <button type="button" className="p-chat p-want" onClick={() => void openChatWithSupabase('pc')}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>連絡する</button>
               </div>
             </div>
@@ -5382,7 +5596,7 @@ export default function Page() {
             <div id="pc-panel-chat" style={{display:'none',flexDirection:'column',height:'100%',overflow:'hidden'}}>
               <div className="pc-chat-head">
                 <button className="pc-back" onClick={pcBackToDetail}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
-                <div className="p-avt" id="pc-chat-avt">👴</div>
+                <div className="p-avt" id="pc-chat-avt">鈴</div>
                 <div style={{marginLeft:'7px',flex:1}}>
                   <p style={{fontFamily:'var(--sf)',fontSize:'.88rem',fontWeight:600,color:'var(--ink)'}} id="pc-chat-pname">鈴木さん</p>
                   <p style={{fontSize:'.63rem',color:'var(--mu)'}} id="pc-chat-psub">駒ヶ根市赤穂</p>
@@ -5390,7 +5604,7 @@ export default function Page() {
               </div>
               <div className="pc-chat-strip">
                 <div className="cis-wrap" style={{ flex: 1, minWidth: 0, alignItems: 'center', gap: '8px' }}>
-                  <span className="cis-e" id="pc-cis-e">🍊</span>
+                  <span className="cis-e" id="pc-cis-e" />
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <p className="cis-n" id="pc-cis-n" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>渋柿</p>
                     <p className="cis-p" id="pc-cis-p">¥500</p>
@@ -5594,18 +5808,18 @@ export default function Page() {
                           data-value={c.key}
                           onClick={() => setReqModalCategory('mob', c.key)}
                         >
-                          <span className="reqb-catpick-emoji" aria-hidden>{c.emoji}</span>
                           <span className="reqb-catpick-lbl">{c.label}</span>
                         </button>
                       ))}
                     </div>
                   </div>
                   <div className="reqb-field">
-                    <label className="reqb-lbl" htmlFor="m-req-modal-when">いつまでに欲しいですか？ <small>（任意）</small></label>
+                    <label className="reqb-lbl" htmlFor="m-req-modal-when">いつまでに欲しいですか？（任意）</label>
                     <input
+                      type="date"
                       id="m-req-modal-when"
                       className="inp reqb-inp"
-                      placeholder="例：今月中・10月までに・急ぎではない"
+                      min={new Date().toISOString().split('T')[0]}
                     />
                   </div>
                   <div className="reqb-field">
@@ -5708,7 +5922,7 @@ export default function Page() {
         <div className="scn" id="ms-mypage">
           <div className="m-body">
             <div className="m-mp-head">
-              <div className="m-mp-avt" id="m-mp-avt-el" style={{overflow:'hidden'}}>🧑</div>
+              <div className="m-mp-avt" id="m-mp-avt-el" style={{overflow:'hidden'}}>未</div>
               <p className="m-mp-name" id="m-mp-name-el">田中 拓也</p>
               <p className="m-mp-sub" id="m-mp-area-el">駒ヶ根市赤穂 · 2025年から利用中</p>
             </div>
@@ -5765,9 +5979,6 @@ export default function Page() {
                 <div className="post-cat-grid post-cat-grid--mob">
                   {POST_CATEGORY_PICKS.map((c) => (
                     <button key={c.key} type="button" className="post-cat-card" onClick={() => pickPostCategory('mob', c.key)}>
-                      <span className="post-cat-emoji" aria-hidden>
-                        {c.emoji}
-                      </span>
                       <span className="post-cat-label">{c.label}</span>
                     </button>
                   ))}
@@ -6009,7 +6220,7 @@ export default function Page() {
                 </div>
 
                 <div className="hint" style={{ marginBottom: '20px' }}>
-                  <span style={{ fontSize: '.95rem', flexShrink: 0 }}>💡</span>
+                  <span style={{ fontSize: '.72rem', flexShrink: 0, fontWeight: 700, color: '#2D5A27' }}>ヒント</span>
                   <p>詳しい住所はチャットで直接決めてOKです。掲示板には住所は出ません。</p>
                 </div>
                 <button
@@ -6041,7 +6252,7 @@ export default function Page() {
           <div className="m-tbar"><span className="m-logo">MEGURU</span></div>
           <div className="m-body">
             <div className="m-comp-wrap">
-              <div className="m-comp-ring">🌿</div>
+              <div className="m-comp-ring">掲</div>
               <h2 className="m-comp-title">出品しました！</h2>
               <p className="m-comp-sub">地域の掲示板に載りました。欲しい人からチャットが届いたらお知らせします。</p>
               <div className="m-comp-card" style={{ textAlign: 'center', padding: '18px 16px' }}>
@@ -6092,10 +6303,10 @@ export default function Page() {
               <div id="m-det-thumbs" className="m-det-thumbs" style={{display:'none'}}></div>
             </div>
             <div className="m-det-body">
-              <div className="m-d-seller"><div className="m-d-avt" id="m-d-avt">👴</div><div><p className="m-d-name" id="m-d-sname">鈴木さん</p><p className="m-d-loc" id="m-d-sloc">駒ヶ根市赤穂</p></div><span className="m-d-rating" id="m-det-rating">★ —</span></div>
+              <div className="m-d-seller"><div className="m-d-avt" id="m-d-avt">鈴</div><div><p className="m-d-name" id="m-d-sname">鈴木さん</p><p className="m-d-loc" id="m-d-sloc">駒ヶ根市赤穂</p></div><span className="m-d-rating" id="m-det-rating">★ —</span></div>
               <h2 className="m-d-title" id="m-d-title">渋柿 約15kg</h2>
               <p className="m-d-price" id="m-d-price">¥500 <small>/ 箱</small></p>
-              <div className="m-d-tags"><span className="m-d-tag" id="m-d-cat">🍊 果物</span><span className="m-d-tag">手渡しOK</span><span className="m-d-tag">今週末受取可</span></div>
+              <div className="m-d-tags"><span className="m-d-tag" id="m-d-cat">果物</span><span className="m-d-tag">手渡しOK</span><span className="m-d-tag">今週末受取可</span></div>
               <p className="m-d-desc" id="m-d-desc">—</p>
               <div id="m-det-land-wrap" style={{ display: 'none', margin: '0 0 12px' }}>
                 <div id="m-det-land-box" />
@@ -6104,7 +6315,7 @@ export default function Page() {
                 <div className="m-d-mi"><div className="m-d-ml">数量</div><div className="m-d-mv" id="m-d-qty">—</div></div>
                 <div className="m-d-mi"><div className="m-d-ml">受け渡し</div><div className="m-d-mv">手渡し（駒ヶ根）</div></div>
                 <div className="m-d-mi"><div className="m-d-ml">受取期限</div><div className="m-d-mv" id="m-det-expiry" style={{color:'var(--mu)'}}>未設定</div></div>
-                <div className="m-d-mi"><div className="m-d-ml">対応日</div><div className="m-d-mv">今週末〜</div></div>
+                <div className="m-d-mi"><div className="m-d-ml">対応日</div><div className="m-d-mv">今週末以降</div></div>
                 <div className="m-d-mi"><div className="m-d-ml">出品日</div><div className="m-d-mv" id="m-d-date">本日</div></div>
               </div>
             </div>
@@ -6114,7 +6325,7 @@ export default function Page() {
             <span>この商品は取引済みです</span>
           </div>
           <div className="m-det-actions">
-            <button type="button" className="m-fav" id="m-fav-btn" onClick={() => toggleFav('mob')}>🤍</button>
+            <button type="button" className="m-fav" id="m-fav-btn" onClick={() => toggleFav('mob')}>お気に入り</button>
             <div className="m-det-actions-cta">
               <button type="button" className="m-chat m-det-want" id="m-det-chat-btn" onClick={() => void openChatWithSupabase('mob')}>
                 <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -6141,7 +6352,7 @@ export default function Page() {
           </div>
           <div className="m-body" style={{padding:0}}>
             <div className="m-up-head">
-              <div className="m-up-avt" id="m-up-avt">🧑</div>
+              <div className="m-up-avt" id="m-up-avt">未</div>
               <p className="m-up-name" id="m-up-name">—</p>
               <p id="m-up-tagline" style={{ display: 'none', fontSize: '.8rem', color: '#C4581A', fontWeight: 600, marginTop: '6px', textAlign: 'center', lineHeight: 1.45, padding: '0 14px' }}>
                 —
@@ -6186,7 +6397,7 @@ export default function Page() {
         <div className="scn" id="ms-chat">
           <div className="m-chat-tbar">
             <button className="m-back" onClick={mBack}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
-            <div className="m-d-avt" id="m-chat-avt" style={{width:'32px',height:'32px',fontSize:'.88rem'}}>👴</div>
+            <div className="m-d-avt" id="m-chat-avt" style={{width:'32px',height:'32px',fontSize:'.88rem'}}>鈴</div>
             <div style={{marginLeft:'7px',flex:1}}>
               <p style={{fontFamily:'var(--sf)',fontSize:'.9rem',fontWeight:600,color:'var(--ink)'}} id="m-chat-pname">鈴木さん</p>
               <p style={{fontSize:'.63rem',color:'var(--mu)'}} id="m-chat-psub">駒ヶ根市赤穂</p>
@@ -6199,7 +6410,7 @@ export default function Page() {
               else showToast('プロフィールを表示できません')
             }}><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
           </div>
-          <div className="m-chat-strip"><div className="cis-wrap" style={{flex:1,minWidth:0}}><span className="cis-e" id="m-cis-e">🍊</span><div style={{minWidth:0}}><p className="cis-n" id="m-cis-n" style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>渋柿</p><p className="cis-p" id="m-cis-p">¥500</p></div></div></div>
+          <div className="m-chat-strip"><div className="cis-wrap" style={{flex:1,minWidth:0}}><span className="cis-e" id="m-cis-e" /><div style={{minWidth:0}}><p className="cis-n" id="m-cis-n" style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>渋柿</p><p className="cis-p" id="m-cis-p">¥500</p></div></div></div>
           <div className="m-chat-msgs" id="m-chat-msgs"></div>
           <div className="m-trade-bar">
             <button id="m-complete-btn" className="trade-bar-btn active" onClick={() => openTradeModal('mob')}>取引完了にする</button>
