@@ -349,6 +349,28 @@ a.pc-nav-tab:visited { color: var(--mu); }
 /* PC chat panel */
 .panel-chat-wrap { display:flex; flex-direction:column; height:100%; overflow:hidden; }
 .pc-chat-head { padding:13px 16px; border-bottom:1px solid var(--bd); display:flex; align-items:center; gap:9px; flex-shrink:0; }
+
+/* チャットヘッダー：余りもの / 求む掲示板 ラベル（テキストのみ） */
+.chat-head-title-block {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px 8px;
+}
+.chat-ptype-lbl {
+  flex-shrink:0;
+  display:inline-block;
+  font-size:11px;
+  font-weight:700;
+  line-height:1.35;
+  padding:2px 8px;
+  border-radius:4px;
+  color:#fff;
+  font-family:var(--ss);
+  letter-spacing:0.02em;
+}
+.chat-ptype-lbl--item { background:#2D5A27; }
+.chat-ptype-lbl--req { background:#C4581A; }
 .pc-back { width:30px; height:30px; border-radius:50%; background:var(--gp); border:none; display:flex; align-items:center; justify-content:center; transition:all .18s; flex-shrink:0; }
 .pc-back:hover { background:var(--g); color:#fff; }
 .pc-back svg { width:14px; height:14px; stroke:var(--g); fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
@@ -372,9 +394,26 @@ a.pc-nav-tab:visited { color: var(--mu); }
 .cl-avt  { width:44px; height:44px; border-radius:50%; background:var(--gp); display:flex; align-items:center; justify-content:center; font-size:1.35rem; flex-shrink:0; position:relative; }
 .cl-online { position:absolute; bottom:1px; right:1px; width:10px; height:10px; border-radius:50%; background:#4caf50; border:2px solid var(--cr); }
 .cl-body  { flex:1; min-width:0; }
-.cl-top   { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px; }
-.cl-name  { font-size:.86rem; font-weight:600; color:var(--ink); }
-.cl-time  { font-size:.62rem; color:var(--mu); }
+.cl-top   { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:2px; }
+.cl-top-left { display:flex; align-items:center; gap:6px; min-width:0; flex:1; }
+.cl-src-tag {
+  flex-shrink:0;
+  width:18px;
+  height:18px;
+  border-radius:4px;
+  font-size:10px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#fff;
+  line-height:1;
+  font-family:var(--ss);
+}
+.cl-src-tag--item { background:#2D5A27; }
+.cl-src-tag--req { background:#C4581A; }
+.cl-name  { font-size:.86rem; font-weight:600; color:var(--ink); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cl-time  { font-size:.62rem; color:var(--mu); flex-shrink:0; }
 .cl-msg   { font-size:.76rem; color:var(--mu); font-weight:300; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; margin-bottom:2px; }
 .cl-item2 { display:flex; align-items:center; gap:4px; }
 .cl-ie    { font-size:.78rem; }
@@ -729,9 +768,10 @@ a.pc-nav-tab:visited { color: var(--mu); }
 .m-cl-avt  { width:46px; height:46px; border-radius:50%; background:var(--gp); display:flex; align-items:center; justify-content:center; font-size:1.35rem; flex-shrink:0; position:relative; }
 .m-cl-online { position:absolute; bottom:1px; right:1px; width:10px; height:10px; border-radius:50%; background:#4caf50; border:2px solid var(--cr); }
 .m-cl-body  { flex:1; min-width:0; }
-.m-cl-top   { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px; }
-.m-cl-name  { font-size:.86rem; font-weight:600; color:var(--ink); }
-.m-cl-time  { font-size:.62rem; color:var(--mu); }
+.m-cl-top   { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:2px; }
+.m-cl-top-left { display:flex; align-items:center; gap:6px; min-width:0; flex:1; }
+.m-cl-name  { font-size:.86rem; font-weight:600; color:var(--ink); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.m-cl-time  { font-size:.62rem; color:var(--mu); flex-shrink:0; }
 .m-cl-msg   { font-size:.76rem; color:var(--mu); font-weight:300; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; margin-bottom:2px; }
 .m-cl-badge { background:var(--k); color:#fff; font-size:.6rem; font-weight:700; min-width:16px; height:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 4px; flex-shrink:0; }
 

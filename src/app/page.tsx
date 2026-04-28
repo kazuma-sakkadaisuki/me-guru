@@ -497,6 +497,12 @@ function applyChatHeader(mode: 'pc' | 'mob', chatId: string) {
     ;(avt as HTMLElement).style.fontSize = mode === 'pc' ? '.88rem' : '.82rem'
     ;(avt as HTMLElement).style.fontWeight = '700'
   }
+  const ptype = document.getElementById(`${pre}-chat-ptype-lbl`)
+  if (ptype) {
+    const isReq = !!c.requestSupabaseId
+    ptype.textContent = isReq ? '求む掲示板' : '余りもの'
+    ptype.className = `chat-ptype-lbl ${isReq ? 'chat-ptype-lbl--req' : 'chat-ptype-lbl--item'}`
+  }
   const pname = document.getElementById(`${pre}-chat-pname`)
   if (pname) pname.textContent = c.name
   applyChatPartnerSubEl(document.getElementById(`${pre}-chat-psub`), c)
@@ -3286,10 +3292,12 @@ function renderChatList(mode: string) {
     const avLetter = escChatHtml(chatPartnerInitial(c.name))
     const ieEsc = escChatHtml(c.ie || '')
     const ieHtml = ieEsc ? `<span class="cl-ie">${ieEsc}</span>` : ''
+    const srcTagClass = c.requestSupabaseId ? 'cl-src-tag cl-src-tag--req' : 'cl-src-tag cl-src-tag--item'
+    const srcTagText = c.requestSupabaseId ? '求' : '余'
     if (mode === 'pc') {
-      return `<div class="cl-item${c.unread ? ' unread' : ''}" data-chat="${k}" onclick="openChat('${k}','pc')"><div class="cl-avt"><span class="cl-avt-txt">${avLetter}</span>${c.unread ? '<span class="cl-online"></span>' : ''}</div><div class="cl-body"><div class="cl-top"><span class="cl-name">${nameEsc}</span><span class="cl-time">${lastTime}</span></div><p class="cl-msg">${lastTxt}</p><div class="cl-item2">${ieHtml}<span class="cl-in">${inEsc}</span></div></div>${badge ? `<span class="cl-badge">${badge}</span>` : ''}</div>`
+      return `<div class="cl-item${c.unread ? ' unread' : ''}" data-chat="${k}" onclick="openChat('${k}','pc')"><div class="cl-avt"><span class="cl-avt-txt">${avLetter}</span>${c.unread ? '<span class="cl-online"></span>' : ''}</div><div class="cl-body"><div class="cl-top"><div class="cl-top-left"><span class="${srcTagClass}" aria-hidden="true">${srcTagText}</span><span class="cl-name">${nameEsc}</span></div><span class="cl-time">${lastTime}</span></div><p class="cl-msg">${lastTxt}</p><div class="cl-item2">${ieHtml}<span class="cl-in">${inEsc}</span></div></div>${badge ? `<span class="cl-badge">${badge}</span>` : ''}</div>`
     }
-    return `<div class="m-cl-item${c.unread ? ' unread' : ''}" onclick="openChat('${k}','mob')"><div class="m-cl-avt"><span class="cl-avt-txt">${avLetter}</span>${c.unread ? '<span class="m-cl-online"></span>' : ''}</div><div class="m-cl-body"><div class="m-cl-top"><span class="m-cl-name">${nameEsc}</span><span class="m-cl-time">${lastTime}</span></div><p class="m-cl-msg">${lastTxt}</p><div class="cl-item2">${ieHtml}<span class="cl-in">${inEsc}</span></div></div>${badge ? `<span class="m-cl-badge">${badge}</span>` : ''}</div>`
+    return `<div class="m-cl-item${c.unread ? ' unread' : ''}" onclick="openChat('${k}','mob')"><div class="m-cl-avt"><span class="cl-avt-txt">${avLetter}</span>${c.unread ? '<span class="m-cl-online"></span>' : ''}</div><div class="m-cl-body"><div class="m-cl-top"><div class="m-cl-top-left"><span class="${srcTagClass}" aria-hidden="true">${srcTagText}</span><span class="m-cl-name">${nameEsc}</span></div><span class="m-cl-time">${lastTime}</span></div><p class="m-cl-msg">${lastTxt}</p><div class="cl-item2">${ieHtml}<span class="cl-in">${inEsc}</span></div></div>${badge ? `<span class="m-cl-badge">${badge}</span>` : ''}</div>`
     })
     .join('')
   if (mode === 'pc') {
@@ -5597,9 +5605,18 @@ export default function Page() {
               <div className="pc-chat-head">
                 <button className="pc-back" onClick={pcBackToDetail}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
                 <div className="p-avt" id="pc-chat-avt">鈴</div>
-                <div style={{marginLeft:'7px',flex:1}}>
-                  <p style={{fontFamily:'var(--sf)',fontSize:'.88rem',fontWeight:600,color:'var(--ink)'}} id="pc-chat-pname">鈴木さん</p>
-                  <p style={{fontSize:'.63rem',color:'var(--mu)'}} id="pc-chat-psub">駒ヶ根市赤穂</p>
+                <div style={{ marginLeft: '7px', flex: 1, minWidth: 0 }}>
+                  <div className="chat-head-title-block">
+                    <span id="pc-chat-ptype-lbl" className="chat-ptype-lbl chat-ptype-lbl--item">
+                      余りもの
+                    </span>
+                    <p style={{ fontFamily: 'var(--sf)', fontSize: '.88rem', fontWeight: 600, color: 'var(--ink)', margin: 0 }} id="pc-chat-pname">
+                      鈴木さん
+                    </p>
+                  </div>
+                  <p style={{ fontSize: '.63rem', color: 'var(--mu)', margin: '2px 0 0' }} id="pc-chat-psub">
+                    駒ヶ根市赤穂
+                  </p>
                 </div>
               </div>
               <div className="pc-chat-strip">
@@ -6397,10 +6414,19 @@ export default function Page() {
         <div className="scn" id="ms-chat">
           <div className="m-chat-tbar">
             <button className="m-back" onClick={mBack}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
-            <div className="m-d-avt" id="m-chat-avt" style={{width:'32px',height:'32px',fontSize:'.88rem'}}>鈴</div>
-            <div style={{marginLeft:'7px',flex:1}}>
-              <p style={{fontFamily:'var(--sf)',fontSize:'.9rem',fontWeight:600,color:'var(--ink)'}} id="m-chat-pname">鈴木さん</p>
-              <p style={{fontSize:'.63rem',color:'var(--mu)'}} id="m-chat-psub">駒ヶ根市赤穂</p>
+            <div className="m-d-avt" id="m-chat-avt" style={{ width: '32px', height: '32px', fontSize: '.88rem' }}>鈴</div>
+            <div style={{ marginLeft: '7px', flex: 1, minWidth: 0 }}>
+              <div className="chat-head-title-block">
+                <span id="m-chat-ptype-lbl" className="chat-ptype-lbl chat-ptype-lbl--item">
+                  余りもの
+                </span>
+                <p style={{ fontFamily: 'var(--sf)', fontSize: '.9rem', fontWeight: 600, color: 'var(--ink)', margin: 0 }} id="m-chat-pname">
+                  鈴木さん
+                </p>
+              </div>
+              <p style={{ fontSize: '.63rem', color: 'var(--mu)', margin: '2px 0 0' }} id="m-chat-psub">
+                駒ヶ根市赤穂
+              </p>
             </div>
             <button type="button" className="ibtn" title="プロフィール" onClick={() => {
               const c = CHATS[curChatId]
