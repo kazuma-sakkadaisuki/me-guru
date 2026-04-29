@@ -125,23 +125,6 @@ input, textarea, select { font-family:var(--ss); }
 a.pc-nav-tab { text-decoration: none; cursor: pointer; }
 a.pc-nav-tab:visited { color: var(--mu); }
 .pc-nav-right { margin-left:auto; display:flex; gap:10px; align-items:center; }
-.pc-nav-cta-pair { display:flex; align-items:center; gap:8px; }
-.pc-nav-req-post-btn {
-  border:1px solid #C4581A;
-  color:#C4581A;
-  background:transparent;
-  padding:8px 16px;
-  border-radius:6px;
-  font-size:14px;
-  cursor:pointer;
-  font-family:var(--ss);
-  transition:background .15s ease,color .15s ease,border-color .15s ease;
-}
-.pc-nav-req-post-btn:hover {
-  background:#C4581A;
-  color:#fff;
-  border-color:#C4581A;
-}
 .pc-btn-o {
   padding:8px 20px; border:1.5px solid var(--g); background:none;
   color:var(--g); font-size:.8rem; font-weight:500; border-radius:7px;

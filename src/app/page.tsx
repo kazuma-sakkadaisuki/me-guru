@@ -4614,6 +4614,9 @@ export default function Page() {
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               出品する
             </button>
+            <button type="button" className="pc-nav-tab" id="pct-req-post" onClick={() => pcHeaderOpenReqPost()}>
+              求む投稿
+            </button>
             <button className="pc-nav-tab" id="pct-notif" onClick={() => pcGo('notif')}>
               <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
               お知らせ
@@ -4638,12 +4641,7 @@ export default function Page() {
                 </button>
               : <button className="pc-btn-o" onClick={() => router.push('/login')}>ログイン</button>
             }
-            <div className="pc-nav-cta-pair">
-              <button type="button" className="pc-nav-req-post-btn" onClick={() => pcHeaderOpenReqPost()}>
-                求む投稿
-              </button>
-              <button className="pc-btn-f" onClick={() => pcGo('post')}>余りものを出品する →</button>
-            </div>
+            <button className="pc-btn-f" onClick={() => pcGo('post')}>余りものを出品する →</button>
           </div>
         </nav>
 
