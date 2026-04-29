@@ -797,6 +797,15 @@ function setPcHomeSubTab(tab: 'items' | 'requests') {
   applyPcHomeSubTabPanels(tab)
 }
 
+/** PCヘッダー「求む投稿」：一覧へ移し求むタブ表示のうえ投稿モーダルを開く（一覧表示中はタブを items に戻さないよう pcGo を省略） */
+function pcHeaderOpenReqPost() {
+  const listingEl = document.getElementById('pc-pg-listing')
+  const onListing = listingEl?.classList.contains('pc-pg--active')
+  if (!onListing) pcGo('listing')
+  setPcHomeSubTab('requests')
+  window.setTimeout(() => openReqPostModal('pc'), 0)
+}
+
 function applyMobHomeSubTabPanels(tab: 'items' | 'requests') {
   document.getElementById('m-home-sub-items')?.classList.toggle('home-sub--hidden', tab !== 'items')
   document.getElementById('m-home-sub-requests')?.classList.toggle('home-sub--hidden', tab !== 'requests')
@@ -4629,7 +4638,12 @@ export default function Page() {
                 </button>
               : <button className="pc-btn-o" onClick={() => router.push('/login')}>ログイン</button>
             }
-            <button className="pc-btn-f" onClick={() => pcGo('post')}>余りものを出品する →</button>
+            <div className="pc-nav-cta-pair">
+              <button type="button" className="pc-nav-req-post-btn" onClick={() => pcHeaderOpenReqPost()}>
+                求む投稿
+              </button>
+              <button className="pc-btn-f" onClick={() => pcGo('post')}>余りものを出品する →</button>
+            </div>
           </div>
         </nav>
 
