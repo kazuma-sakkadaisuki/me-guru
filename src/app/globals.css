@@ -144,23 +144,54 @@ a.pc-nav-tab:visited { color: var(--mu); }
 /* PC sidebar */
 .pc-sidebar {
   width:240px; flex-shrink:0;
-  border-right:1px solid var(--bd);
-  padding:22px 16px;
+  border-right:1px solid #e8e3dc;
+  padding:24px 16px 22px;
   background:#fff;
   position:sticky; top:60px;
   height:calc(100vh - 60px);
   overflow-y:auto;
   display:flex; flex-direction:column; gap:4px;
 }
-.sb-section { font-size:.62rem; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:var(--mu); padding:14px 10px 6px; }
+.sb-section {
+  font-size:10px;
+  letter-spacing:0.12em;
+  color:#999;
+  margin-bottom:4px;
+  padding-left:16px;
+  padding-top:14px;
+  font-weight:400;
+  text-transform:none;
+}
 .sb-item {
   display:flex; align-items:center; gap:0;
-  padding:10px 12px; border-radius:8px; border:none; background:none;
-  font-size:.86rem; color:var(--ink2); font-weight:400; text-align:left;
-  width:100%; transition:all .16s; letter-spacing:.03em;
+  padding:10px 16px;
+  border-radius:0;
+  border:none;
+  border-left:3px solid transparent;
+  background:transparent;
+  font-size:14px;
+  color:#555;
+  letter-spacing:0.04em;
+  font-weight:400;
+  text-align:left;
+  width:100%;
+  transition:all 0.15s ease;
+  cursor:pointer;
+  box-sizing:border-box;
 }
-.sb-item:hover { background:var(--gp); color:var(--g); }
-.sb-item.on    { background:var(--gp); color:var(--g); font-weight:600; }
+.sb-item:hover {
+  color:#2D5A27;
+  border-left-color:#2D5A27;
+  background:rgba(45,90,39,0.05);
+  padding-left:20px;
+}
+.sb-item.on {
+  color:#2D5A27;
+  font-weight:700;
+  border-left-color:#2D5A27;
+  background:rgba(45,90,39,0.08);
+  padding-left:20px;
+}
 .sb-item--chat { position:relative; padding-right:20px; }
 .sb-unread-dot {
   position:absolute; top:9px; right:10px; width:8px; height:8px; border-radius:50%;
@@ -185,11 +216,10 @@ a.pc-nav-tab:visited { color: var(--mu); }
 .pc-pg { display: none; }
 .pc-pg.pc-pg--active { display: block; }
 
-/* ホーム内タブ（余りもの / 求む掲示板）幅50%ずつ・枠で囲む */
+/* ホーム内タブ（余りもの / 求む掲示板）— グローバル button リセットや継承と競合しないよう子セレクタで明示 */
 .pc-home-main-tabs,
 .m-home-main-tabs {
   display: flex;
-  gap: 0;
   width: 100%;
   max-width: none;
   margin: 0 0 20px;
@@ -198,20 +228,26 @@ a.pc-nav-tab:visited { color: var(--mu); }
   border-radius: 10px;
   overflow: hidden;
   background: #fff;
+  position: relative;
+  z-index: 1;
 }
 .m-home-main-tabs.home-main-tabs--mob {
   margin: 0 0 12px;
   padding: 10px 0 0;
 }
-.home-main-tab {
-  width: 50%;
+.pc-home-main-tabs > button.home-main-tab,
+.m-home-main-tabs > button.home-main-tab {
+  -webkit-appearance: none;
+  appearance: none;
   flex: 0 0 50%;
+  width: 50%;
   min-width: 0;
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 14px 0;
+  height: 48px;
+  line-height: 48px;
+  text-align: center;
+  padding: 0;
+  margin: 0;
   border: none;
   border-radius: 0;
   font-size: 1rem;
@@ -221,16 +257,22 @@ a.pc-nav-tab:visited { color: var(--mu); }
   cursor: pointer;
   background: #fff;
   color: #333;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.home-main-tab + .home-main-tab {
+.pc-home-main-tabs > button.home-main-tab + button.home-main-tab,
+.m-home-main-tabs > button.home-main-tab + button.home-main-tab {
   border-left: 1px solid #ccc;
 }
-.home-main-tab--active,
-.home-main-tab.home-main-tab--active {
+.pc-home-main-tabs > button.home-main-tab.home-main-tab--active,
+.m-home-main-tabs > button.home-main-tab.home-main-tab--active {
   background: #2d5a27;
   color: #fff;
   font-weight: 700;
+}
+.pc-home-main-tabs > button.home-main-tab:not(.home-main-tab--active):hover,
+.m-home-main-tabs > button.home-main-tab:not(.home-main-tab--active):hover {
+  background: #f5f5f5;
+  color: #333;
 }
 .home-sub--hidden {
   display: none !important;
@@ -247,9 +289,8 @@ a.pc-nav-tab:visited { color: var(--mu); }
   padding-bottom: 28px;
 }
 @media (max-width: 380px) {
-  .home-main-tabs--mob .home-main-tab {
+  .home-main-tabs--mob > button.home-main-tab {
     font-size: 0.9rem;
-    padding: 12px 0;
   }
 }
 
