@@ -154,14 +154,13 @@ a.pc-nav-tab:visited { color: var(--mu); }
 }
 .sb-section { font-size:.62rem; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:var(--mu); padding:14px 10px 6px; }
 .sb-item {
-  display:flex; align-items:center; gap:11px;
+  display:flex; align-items:center; gap:0;
   padding:10px 12px; border-radius:8px; border:none; background:none;
   font-size:.86rem; color:var(--ink2); font-weight:400; text-align:left;
   width:100%; transition:all .16s; letter-spacing:.03em;
 }
 .sb-item:hover { background:var(--gp); color:var(--g); }
 .sb-item.on    { background:var(--gp); color:var(--g); font-weight:600; }
-.sb-item .sbi  { font-size:1.05rem; flex-shrink:0; }
 .sb-item--chat { position:relative; padding-right:20px; }
 .sb-unread-dot {
   position:absolute; top:9px; right:10px; width:8px; height:8px; border-radius:50%;
@@ -186,7 +185,7 @@ a.pc-nav-tab:visited { color: var(--mu); }
 .pc-pg { display: none; }
 .pc-pg.pc-pg--active { display: block; }
 
-/* ホーム内タブ（余りもの / 求む掲示板）テキストのみ・幅いっぱい */
+/* ホーム内タブ（余りもの / 求む掲示板）幅50%ずつ・枠で囲む */
 .pc-home-main-tabs,
 .m-home-main-tabs {
   display: flex;
@@ -195,6 +194,10 @@ a.pc-nav-tab:visited { color: var(--mu); }
   max-width: none;
   margin: 0 0 20px;
   box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
 }
 .m-home-main-tabs.home-main-tabs--mob {
   margin: 0 0 12px;
@@ -209,26 +212,25 @@ a.pc-nav-tab:visited { color: var(--mu); }
   align-items: center;
   justify-content: center;
   padding: 14px 0;
-  border-radius: 12px;
+  border: none;
+  border-radius: 0;
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 400;
   font-family: var(--sf);
   letter-spacing: 0.03em;
   cursor: pointer;
-  border: 1px solid #ccc;
   background: #fff;
   color: #333;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background 0.15s, color 0.15s;
+}
+.home-main-tab + .home-main-tab {
+  border-left: 1px solid #ccc;
 }
 .home-main-tab--active,
 .home-main-tab.home-main-tab--active {
   background: #2d5a27;
-  border-color: #2d5a27;
   color: #fff;
-}
-.pc-home-main-tabs .home-main-tab + .home-main-tab,
-.m-home-main-tabs .home-main-tab + .home-main-tab {
-  margin-left: -1px;
+  font-weight: 700;
 }
 .home-sub--hidden {
   display: none !important;
@@ -960,10 +962,6 @@ a.pc-nav-tab:visited { color: var(--mu); }
 /* Card category icons */
 .cat-icon { width:58px; height:58px; flex-shrink:0; }
 .m-card-img .cat-icon { width:44px; height:44px; }
-
-/* Sidebar SVG icons */
-.sb-item .sbi { font-size:0; display:flex; align-items:center; justify-content:center; flex-shrink:0; width:20px; height:20px; }
-.sb-item .sbi svg { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 
 /* PC nav tab SVG icons */
 .pc-nav-tab { display:flex; align-items:center; gap:5px; }
@@ -1753,148 +1751,6 @@ select.inp.prof-muni-sel {
 
 .req-extra-block {
   margin-bottom: 4px;
-}
-
-/* ホーム：求むプレビュー */
-.pc-home-req-section {
-  margin: 0 0 20px;
-  padding: 0 2px;
-}
-.pc-home-req-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-.pc-home-req-title {
-  font-size: 0.94rem;
-  font-weight: 700;
-  color: #2D5A27;
-  font-family: var(--ss);
-  letter-spacing: 0.02em;
-}
-.pc-home-req-more {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #C4581A;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: var(--ss);
-  padding: 6px 4px;
-  white-space: nowrap;
-}
-.pc-home-req-more:hover {
-  text-decoration: underline;
-}
-.pc-home-req-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-.m-home-req-section {
-  padding: 0 12px 12px;
-}
-.m-home-req-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.m-home-req-title {
-  font-size: 0.86rem;
-  font-weight: 700;
-  color: #2D5A27;
-  font-family: var(--ss);
-}
-.m-home-req-more {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #C4581A;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: var(--ss);
-  padding: 4px 0;
-  flex-shrink: 0;
-}
-.m-home-req-strip {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 4px;
-  scrollbar-width: thin;
-}
-.m-home-req-strip::-webkit-scrollbar {
-  height: 4px;
-}
-.home-req-card {
-  background: #fff;
-  border: 1px solid rgba(45, 90, 39, 0.12);
-  border-radius: 10px;
-  padding: 10px 11px;
-  font-family: var(--ss);
-  min-width: 0;
-}
-.m-home-req-strip .home-req-card {
-  flex: 0 0 calc(33.333% - 7px);
-  min-width: 108px;
-  max-width: 160px;
-}
-.home-req-card-cat {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #2D5A27;
-  margin-bottom: 6px;
-  letter-spacing: 0.03em;
-}
-.home-req-card-sum {
-  font-size: 0.76rem;
-  color: var(--ink);
-  line-height: 1.45;
-  margin-bottom: 6px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-word;
-}
-.home-req-card-area {
-  font-size: 0.68rem;
-  color: var(--mu);
-  margin-bottom: 4px;
-}
-.home-req-card-poster {
-  font-size: 0.65rem;
-  color: var(--ink2);
-  font-weight: 500;
-}
-.home-req-card--compact .home-req-card-badge {
-  display: inline-block;
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: #fff;
-  background: #2d5a27;
-  padding: 3px 8px;
-  border-radius: 6px;
-  margin-bottom: 6px;
-  letter-spacing: 0.02em;
-}
-.home-req-card--compact .home-req-card-sum {
-  font-size: 0.8rem;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-.home-req-card-sub {
-  font-size: 0.68rem;
-  color: var(--mu);
-  line-height: 1.4;
-  word-break: break-word;
 }
 
 /* ── 求む掲示板（reqb） ── */

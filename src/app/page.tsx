@@ -266,35 +266,6 @@ function validateRequestExtra(cat: string, mode: 'pc' | 'mob'): string | null {
   return null
 }
 
-function renderHomeRequestPreview() {
-  const top = meguruRequestsCache.slice(0, 3)
-  const pcSec = document.getElementById('pc-home-req-section')
-  const pcStrip = document.getElementById('pc-home-req-strip')
-  const mSec = document.getElementById('m-home-req-section')
-  const mStrip = document.getElementById('m-home-req-strip')
-  if (top.length === 0) {
-    if (pcSec) pcSec.style.display = 'none'
-    if (mSec) mSec.style.display = 'none'
-    return
-  }
-  const cardHtml = (r: MeguruRequest) => {
-    const catLabel = REQUEST_CAT_LABELS[r.category] || r.category
-    const sum = escChatHtml(requestSummaryFromDescription(r.description, 42))
-    const area = escChatHtml(r.area || '')
-    const poster = escChatHtml(requestPosterDisplayName(r.posterName))
-    return `<article class="home-req-card home-req-card--compact">
-      <span class="home-req-card-badge">${escChatHtml(catLabel)}</span>
-      <p class="home-req-card-sum">${sum}</p>
-      <p class="home-req-card-sub">${area} · ${poster}</p>
-    </article>`
-  }
-  const inner = top.map(cardHtml).join('')
-  if (pcStrip) pcStrip.innerHTML = inner
-  if (mStrip) mStrip.innerHTML = inner
-  if (pcSec) pcSec.style.display = ''
-  if (mSec) mSec.style.display = ''
-}
-
 type LandMeta = {
   landType?: string
   area?: string
@@ -848,19 +819,6 @@ function setMobHomeSubTab(tab: 'items' | 'requests') {
 
 function syncMobHomeSubTabUI() {
   applyMobHomeSubTabPanels(mobHomeSubTab)
-}
-
-/** ホームの「求む掲示板」タブへ（ボトムナビから求むを廃止したため） */
-function openMobHomeRequestsTab() {
-  mobHomeSubTab = 'requests'
-  const active = document.querySelector('#mob-root .scn.active')
-  if (active?.id === 'ms-home') {
-    applyMobHomeSubTabPanels('requests')
-    return
-  }
-  const homeBtn = document.querySelector('#mob-root [data-t="ms-home"]') as HTMLElement | null
-  if (homeBtn) mTab(homeBtn)
-  else applyMobHomeSubTabPanels('requests')
 }
 
 function pcSubPage(p: string) {
@@ -2674,7 +2632,6 @@ async function loadRequestsFromSupabase() {
       console.error('[meguru] loadRequests:', error.message, error.code)
       meguruRequestsCache = []
       renderRequestLists()
-      renderHomeRequestPreview()
       return
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2704,12 +2661,10 @@ async function loadRequestsFromSupabase() {
       is_closed: !!(row.is_closed as boolean | undefined),
     }))
     renderRequestLists()
-    renderHomeRequestPreview()
   } catch (e) {
     console.error('[meguru] loadRequestsFromSupabase:', e)
     meguruRequestsCache = []
     renderRequestLists()
-    renderHomeRequestPreview()
   }
 }
 
@@ -4623,7 +4578,6 @@ export default function Page() {
       applyPcFilter()
       applyMobFilter()
       mDoSearch()
-      renderHomeRequestPreview()
       applyPcHomeSubTabPanels(pcHomeSubTab)
       applyMobHomeSubTabPanels(mobHomeSubTab)
       const pgDetail = document.getElementById('pc-pg-detail')
@@ -4687,46 +4641,46 @@ export default function Page() {
             <div id="pc-sidebar-cats" className="pc-sidebar-cats">
             <p className="sb-section">カテゴリ</p>
             <button className="sb-item on" id="sb-all"   onClick={(e) => pcSbCat(e.currentTarget, 'all')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>すべて
+              すべて
             </button>
             <button className="sb-item"    id="sb-fruit" onClick={(e) => pcSbCat(e.currentTarget, 'fruit')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><circle cx="12" cy="14" r="7"/><path d="M12 7V4"/><path d="M9.5 4.5C10.5 3 13.5 3 14.5 4.5"/></svg></span>果物
+              果物
             </button>
             <button className="sb-item"    id="sb-veg"   onClick={(e) => pcSbCat(e.currentTarget, 'veg')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><path d="M8 9 Q12 7 16 9 Q15 17 12 23 Q9 17 8 9z"/><path d="M9 13 Q12 12 15 13"/><path d="M10 17 Q12 16 14 17"/><path d="M12 9 Q11 4 9 2 Q11 5 12 9"/><path d="M12 9 Q13 4 15 2 Q13 5 12 9"/><path d="M12 9 Q8 5 7 3 Q9 6 12 9"/><path d="M12 9 Q16 5 17 3 Q15 6 12 9"/></svg></span>野菜
+              野菜
             </button>
             <button className="sb-item"    id="sb-rice"  onClick={(e) => pcSbCat(e.currentTarget, 'rice')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><path d="M12 22 Q12 8 18 4 Q20 12 18 22 Q15 18 12 22z" fill="currentColor"/><path d="M12 22 Q12 8 6 4 Q4 12 6 22 Q9 18 12 22z" fill="currentColor" opacity="0.65"/></svg></span>米
+              米
             </button>
             <button className="sb-item"    id="sb-wood"  onClick={(e) => pcSbCat(e.currentTarget, 'wood')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><circle cx="7" cy="16" r="5.5"/><circle cx="7" cy="16" r="3"/><circle cx="17" cy="16" r="5.5"/><circle cx="17" cy="16" r="3"/><circle cx="12" cy="8" r="5.5"/><circle cx="12" cy="8" r="3"/></svg></span>薪・木材
+              薪・木材
             </button>
             <button className="sb-item"    id="sb-herb"  onClick={(e) => pcSbCat(e.currentTarget, 'herb')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><line x1="12" y1="22" x2="12" y2="14"/><path d="M12 16 Q6 14 4 9 Q6 5 10 8 Q11 12 12 16z"/><path d="M12 16 Q18 14 20 9 Q18 5 14 8 Q13 12 12 16z"/><path d="M12 12 Q10 6 12 2 Q14 6 12 12z"/></svg></span>山菜
+              山菜
             </button>
             <button className="sb-item"    id="sb-other" onClick={(e) => pcSbCat(e.currentTarget, 'other')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg></span>加工品
+              加工品
             </button>
             <button className="sb-item"    id="sb-land" onClick={(e) => pcSbCat(e.currentTarget, 'land')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><path d="M3 21 L9 11 L14 15 L21 6 L21 21 Z" fill="currentColor" opacity="0.2"/><path d="M3 21 L21 21" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg></span>土地・農地
+              土地・農地
             </button>
             <button className="sb-item"    id="sb-misc" onClick={(e) => pcSbCat(e.currentTarget, 'misc')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>なんでも
+              なんでも
             </button>
             </div>
             <p className="sb-section">マイページ</p>
             <button type="button" className="sb-item sb-item--chat" onClick={() => pcGo('chatlist')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>やりとり
+              やりとり
               <span className="sb-unread-dot" id="pc-sb-chat-unread" aria-hidden="true" />
             </button>
             <button className="sb-item" onClick={() => pcSubPage('mylistings')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>出品中のもの
+              出品中のもの
             </button>
             <button className="sb-item" onClick={() => pcSubPage('txhistory')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>取引履歴
+              取引履歴
             </button>
             <button className="sb-item" onClick={() => pcSubPage('profedit')}>
-              <span className="sbi"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>プロフィール編集
+              プロフィール編集
             </button>
           </aside>
 
@@ -4788,15 +4742,6 @@ export default function Page() {
                 <input id="pc-search-inp" placeholder="キーワードで検索…" onChange={pcSearch} autoComplete="off" />
               </div>
               <div className="filter-msg" id="pc-filter-msg" style={{display:'none'}}></div>
-              <div id="pc-home-req-section" className="pc-home-req-section" style={{ display: 'none' }}>
-                <div className="pc-home-req-head">
-                  <span className="pc-home-req-title">求められています</span>
-                  <button type="button" className="pc-home-req-more" onClick={() => setPcHomeSubTab('requests')}>
-                    もっと見る →
-                  </button>
-                </div>
-                <div id="pc-home-req-strip" className="pc-home-req-strip" />
-              </div>
               <div className="pc-grid" id="pc-grid"></div>
               </div>
 
@@ -5751,15 +5696,6 @@ export default function Page() {
               </select>
             </div>
             <div className="filter-msg" id="m-filter-msg" style={{display:'none'}}></div>
-            <div id="m-home-req-section" className="m-home-req-section" style={{ display: 'none' }}>
-              <div className="m-home-req-head">
-                <span className="m-home-req-title">求められています</span>
-                <button type="button" className="m-home-req-more" onClick={() => openMobHomeRequestsTab()}>
-                  もっと見る →
-                </button>
-              </div>
-              <div id="m-home-req-strip" className="m-home-req-strip" />
-            </div>
             <div className="m-grid" id="m-home-grid"></div>
             </div>
 
