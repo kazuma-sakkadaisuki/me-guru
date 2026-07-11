@@ -21,5 +21,7 @@ export async function uploadUserAvatar(
   })
   if (upErr) return { error: upErr.message }
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
-  return { publicUrl: data.publicUrl }
+  // パスは固定（{userId}/avatar.jpg）なので、写真を変更しても URL が同じだと
+  // ブラウザ／CDN が旧画像をキャッシュして反映されない。更新のたびに ?v= を付与して確実に差し替える。
+  return { publicUrl: `${data.publicUrl}?v=${Date.now()}` }
 }

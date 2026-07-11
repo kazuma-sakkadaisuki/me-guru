@@ -75,12 +75,9 @@ type TxHistoryRow = {
   /** 求む取引など、同一チャットの二重表示防止用 */
   chatSbId?: string
 }
-const TXHISTORY: TxHistoryRow[] = [
-  { stripe: 'bk', tag: '余', name: '渋柿 15kg（2箱）', meta: '鈴木さん · 駒ヶ根市赤穂', price: '¥1,000', status: '完了', date: '2025/10/12' },
-  { stripe: 'bb', tag: '余', name: '薪 軽トラ1台分', meta: '伊藤さん · 駒ヶ根市福岡', price: '¥3,000', status: '完了', date: '2025/10/5' },
-  { stripe: 'bg', tag: '余', name: 'きゅうり 3袋', meta: '山田さん · 駒ヶ根市中沢', price: '¥600', status: '進行中', date: '本日' },
-  { stripe: 'by', tag: '余', name: '山栗 約2kg', meta: '小林さん · 駒ヶ根市東伊那', price: '無料', status: '完了', date: '2025/9/28' },
-]
+// 実データは mergeClosedRequestChatsIntoTxHistory() で「完了した求む取引」から動的に追加される。
+// デモ用のダミー取引は本番で全ユーザーに他人の偽取引が表示されてしまうため空にする。
+const TXHISTORY: TxHistoryRow[] = []
 const CATMAP: Record<string,string> = {
   fruit: '果物',
   veg: '野菜',
@@ -628,6 +625,8 @@ const USER = {
   categories: [] as string[],
   availableTimes: [] as string[],
   tagline: '',
+  /** アカウント作成年（auth.user.created_at から設定。0 のうちは今年を表示） */
+  joinedYear: 0,
 }
 
 const PROF_NAME_MAX = 20
@@ -1642,24 +1641,19 @@ function removeAllFavoriteStorageKeysForItem(it: Item) {
 
 function applyFavButtonState(mode: string, it: Item) {
   const on = isItemFavorited(it)
-  const label = on ? '登録済' : 'お気に入り'
+  const label = on ? 'お気に入り登録済み' : 'お気に入りに追加'
+  const setBtn = (el: HTMLElement | null) => {
+    if (!el) return
+    el.classList.toggle('on', on)
+    el.setAttribute('aria-pressed', on ? 'true' : 'false')
+    el.setAttribute('aria-label', label)
+    el.setAttribute('title', label)
+  }
   if (mode === 'pc') {
-    const d = document.getElementById('pc-det-fav-btn')
-    if (d) {
-      d.textContent = label
-      d.classList.toggle('on', on)
-    }
-    const p = document.getElementById('pc-fav-btn')
-    if (p) {
-      p.textContent = label
-      p.classList.toggle('on', on)
-    }
+    setBtn(document.getElementById('pc-det-fav-btn'))
+    setBtn(document.getElementById('pc-fav-btn'))
   } else {
-    const m = document.getElementById('m-fav-btn')
-    if (m) {
-      m.textContent = label
-      m.classList.toggle('on', on)
-    }
+    setBtn(document.getElementById('m-fav-btn'))
   }
 }
 
@@ -3367,10 +3361,12 @@ function mergeClosedRequestChatsIntoTxHistory() {
 }
 
 function renderTxHistory(mode: string) {
-  const html = TXHISTORY.map(
-    (t) =>
-      `<div class="tx-item"><div class="tx-img ${t.stripe}"><span class="tx-img-tag">${escChatHtml(t.tag)}</span></div><div style="flex:1"><p class="tx-name">${escChatHtml(t.name)}</p><p class="tx-meta">${escChatHtml(t.meta)}</p><span class="tx-status ${t.status === '完了' ? 'ts-c' : 'ts-p'}">${escChatHtml(t.status)}</span></div><div style="text-align:right"><p class="tx-price">${escChatHtml(t.price)}</p><p style="font-size:.62rem;color:var(--mu);margin-top:3px">${escChatHtml(t.date)}</p></div></div>`
-  ).join('')
+  const html = TXHISTORY.length
+    ? TXHISTORY.map(
+        (t) =>
+          `<div class="tx-item"><div class="tx-img ${t.stripe}"><span class="tx-img-tag">${escChatHtml(t.tag)}</span></div><div style="flex:1"><p class="tx-name">${escChatHtml(t.name)}</p><p class="tx-meta">${escChatHtml(t.meta)}</p><span class="tx-status ${t.status === '完了' ? 'ts-c' : 'ts-p'}">${escChatHtml(t.status)}</span></div><div style="text-align:right"><p class="tx-price">${escChatHtml(t.price)}</p><p style="font-size:.62rem;color:var(--mu);margin-top:3px">${escChatHtml(t.date)}</p></div></div>`
+      ).join('')
+    : `<div class="empty-state" style="padding:40px 16px;text-align:center;color:var(--mu)"><p>まだ取引はありません。<br>気になる余りものに「連絡する」からやりとりを始めましょう。</p></div>`
   if (mode === 'pc') {
     const el = document.getElementById('pc-tx-list')
     if (el) el.innerHTML = html
@@ -4170,7 +4166,10 @@ function updateAllUserRefs() {
   })
   ;(['pc-mp-area-el', 'm-mp-area-el'] as const).forEach((id) => {
     const el = document.getElementById(id)
-    if (el) el.textContent = `${USER.area} · 2025年から利用中`
+    if (el) {
+      const yr = USER.joinedYear || new Date().getFullYear()
+      el.textContent = USER.area ? `${USER.area} · ${yr}年から利用中` : `${yr}年から利用中`
+    }
   })
   ;(['pc-mp-avt-el', 'm-mp-avt-el'] as const).forEach((id) => {
     const el = document.getElementById(id) as HTMLElement | null
@@ -4531,6 +4530,7 @@ export default function Page() {
       const userId = session.user.id
       CURRENT_USER_ID = userId
       CACHED_USER_EMAIL = session.user.email ?? null
+      if (session.user.created_at) USER.joinedYear = new Date(session.user.created_at).getFullYear()
       setUserEmail(CACHED_USER_EMAIL)
       ITEMS.splice(0, ITEMS.length)
 
@@ -5216,7 +5216,7 @@ export default function Page() {
                     </div>
                     {/* アクション */}
                     <div className="pc-det-actions">
-                      <button type="button" className="pc-det-fav" id="pc-det-fav-btn" onClick={() => toggleFav('pc')}>お気に入り</button>
+                      <button type="button" className="pc-det-fav" id="pc-det-fav-btn" onClick={() => toggleFav('pc')} aria-label="お気に入りに追加" aria-pressed="false" title="お気に入りに追加"><svg viewBox="0 0 24 24" className="fav-heart" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
                       <div className="pc-det-actions-cta">
                         <button type="button" className="pc-det-chat pc-det-want" id="pc-det-chat-btn" onClick={() => void openChatWithSupabase('pc')}>
                           <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -5313,7 +5313,7 @@ export default function Page() {
                 <div className="pc-mp-avt" id="pc-mp-avt-el" style={{overflow:'hidden'}}>未</div>
                 <div>
                   <p className="pc-mp-name" id="pc-mp-name-el">田中 拓也</p>
-                  <p className="pc-mp-sub" id="pc-mp-area-el">駒ヶ根市赤穂 · 2025年から利用中</p>
+                  <p className="pc-mp-sub" id="pc-mp-area-el"></p>
                 </div>
                 <div className="pc-mp-stats">
                   <div className="pc-mp-stat"><div className="pc-mp-stat-num" id="pc-mp-cnt">—</div><div className="pc-mp-stat-lbl">出品中</div></div>
@@ -5553,7 +5553,7 @@ export default function Page() {
                 </div>
               </div>
               <div className="panel-actions">
-                <button className="p-fav" id="pc-fav-btn" onClick={() => toggleFav('pc')}>お気に入り</button>
+                <button type="button" className="p-fav" id="pc-fav-btn" onClick={() => toggleFav('pc')} aria-label="お気に入りに追加" aria-pressed="false" title="お気に入りに追加"><svg viewBox="0 0 24 24" className="fav-heart" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
                 <button type="button" className="p-chat p-want" onClick={() => void openChatWithSupabase('pc')}><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>連絡する</button>
               </div>
             </div>
@@ -5889,7 +5889,7 @@ export default function Page() {
             <div className="m-mp-head">
               <div className="m-mp-avt" id="m-mp-avt-el" style={{overflow:'hidden'}}>未</div>
               <p className="m-mp-name" id="m-mp-name-el">田中 拓也</p>
-              <p className="m-mp-sub" id="m-mp-area-el">駒ヶ根市赤穂 · 2025年から利用中</p>
+              <p className="m-mp-sub" id="m-mp-area-el"></p>
             </div>
             <div className="m-mp-stats">
               <div className="m-mp-stat"><div className="m-mp-stat-n" id="m-mp-cnt">—</div><div className="m-mp-stat-l">出品中</div></div>
@@ -6290,7 +6290,7 @@ export default function Page() {
             <span>この商品は取引済みです</span>
           </div>
           <div className="m-det-actions">
-            <button type="button" className="m-fav" id="m-fav-btn" onClick={() => toggleFav('mob')}>お気に入り</button>
+            <button type="button" className="m-fav" id="m-fav-btn" onClick={() => toggleFav('mob')} aria-label="お気に入りに追加" aria-pressed="false" title="お気に入りに追加"><svg viewBox="0 0 24 24" className="fav-heart" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
             <div className="m-det-actions-cta">
               <button type="button" className="m-chat m-det-want" id="m-det-chat-btn" onClick={() => void openChatWithSupabase('mob')}>
                 <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
