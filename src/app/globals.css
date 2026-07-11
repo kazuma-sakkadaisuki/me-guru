@@ -614,8 +614,9 @@ a.pc-nav-tab:visited { color: var(--mu); }
 
 /* PC profile edit */
 .pc-prof-head { background:linear-gradient(135deg,var(--g),#3d7a34); padding:28px; border-radius:14px; display:flex; align-items:center; gap:18px; margin-bottom:24px; }
-.pc-prof-avt  { width:68px; height:68px; border-radius:50%; background:rgba(255,255,255,.22); display:flex; align-items:center; justify-content:center; font-size:2rem; border:3px solid rgba(255,255,255,.35); flex-shrink:0; position:relative; }
-.pc-prof-edit { position:absolute; bottom:0; right:0; width:22px; height:22px; border-radius:50%; background:var(--k); color:#fff; font-size:.65rem; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+.pc-prof-avt  { width:84px; height:84px; border-radius:50%; background:rgba(255,255,255,.22); display:flex; align-items:center; justify-content:center; font-size:2.2rem; border:3px solid rgba(255,255,255,.5); flex-shrink:0; position:relative; box-shadow:0 4px 16px rgba(0,0,0,.18); }
+.pc-prof-edit { position:absolute; bottom:1px; right:1px; width:30px; height:30px; border-radius:50%; background:var(--k); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; border:3px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,.3); transition:background .15s, transform .15s; }
+.pc-prof-avt:hover .pc-prof-edit { background:var(--k2); transform:scale(1.1); }
 .pc-prof-name { font-family:var(--sf); font-size:1.1rem; font-weight:700; color:#fff; }
 .pc-form-full { display:flex; flex-direction:column; gap:16px; max-width:560px; }
 

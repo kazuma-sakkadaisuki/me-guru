@@ -428,8 +428,8 @@ function getChatListEntries(): [string, Chat][] {
   return all.filter(([k]) => !k.startsWith('sb_'))
 }
 
-function escChatHtml(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+function escChatHtml(s: unknown) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
 
 function chatPartnerInitial(name: string): string {
@@ -481,8 +481,11 @@ function applyChatHeader(mode: 'pc' | 'mob', chatId: string) {
   if (cisp) cisp.textContent = c.ip
 }
 
-function escAttrUrl(u: string) {
-  return u.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+function escAttrUrl(u: unknown) {
+  const s = String(u ?? '')
+  // http/https と blob/data 画像のみ許可（javascript: 等のスキームを弾く）。それ以外は空にする。
+  if (!/^(https?:\/\/|blob:|data:image\/|\/)/i.test(s.trim())) return ''
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 /** profiles.name がメール形式のとき Item.seller をマスク（詳細・チャット等） */
@@ -1279,19 +1282,21 @@ function cardHTML(it: Item, mode: string) {
   const locCls = mode==='pc'?'pc-card-loc':'m-card-loc'
   const priceCls = mode==='pc'?'pc-card-price':'m-card-price'
   const icon = CAT_CARD_ICONS[it.cat] ?? CAT_CARD_ICONS.misc
-  const imgContent = it.imgSrc
-    ? `<img src="${it.imgSrc}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:inherit;" />`
+  const eName = escChatHtml(it.name), eLoc = escChatHtml(it.loc), ePrice = escChatHtml(it.price), eUnit = escChatHtml(it.unit)
+  const imgUrl = escAttrUrl(it.imgSrc)
+  const imgContent = imgUrl
+    ? `<img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:inherit;" />`
     : icon
   if (it.sold) {
     return `<div class="${cls} sold-card">
       <div class="${imgCls} ${it.bg}" style="position:relative;">${imgContent}<div class="sold-overlay"><span class="sold-overlay-text">SOLD</span></div></div>
-      <div class="${bodyCls}"><p class="${nameCls}">${it.name}</p><p class="${locCls}">${it.loc}</p><p class="${priceCls}">${it.price} <span>${it.unit}</span></p></div>
+      <div class="${bodyCls}"><p class="${nameCls}">${eName}</p><p class="${locCls}">${eLoc}</p><p class="${priceCls}">${ePrice} <span>${eUnit}</span></p></div>
     </div>`
   }
   const badge = it.badge==='new'?`<span class="bBadge bNew">NEW</span>`:it.badge==='free'?`<span class="bBadge bFree">無料</span>`:''
   return `<div class="${cls}" onclick="openDetail(${it.id},'${mode}')">
     <div class="${imgCls} ${it.bg}" style="position:relative;">${badge}${imgContent}</div>
-    <div class="${bodyCls}"><p class="${nameCls}">${it.name}</p><p class="${locCls}">${it.loc}</p><p class="${priceCls}">${it.price} <span>${it.unit}</span></p></div>
+    <div class="${bodyCls}"><p class="${nameCls}">${eName}</p><p class="${locCls}">${eLoc}</p><p class="${priceCls}">${ePrice} <span>${eUnit}</span></p></div>
   </div>`
 }
 function renderGrid(list: Item[], gridId: string, mode: string) {
@@ -1521,7 +1526,7 @@ function openDetail(id: number, mode: string) {
   const sellerAvtSrc = curItem.mine ? USER.avt : ''
   const setAvt = (el: HTMLElement|null) => {
     if (!el) return
-    if (sellerAvtSrc) { el.style.fontSize='0'; el.innerHTML=`<img src="${sellerAvtSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />` }
+    if (sellerAvtSrc) { el.style.fontSize='0'; el.innerHTML=`<img src="${escAttrUrl(sellerAvtSrc)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />` }
     else {
       el.style.fontSize = ''
       el.textContent = chatPartnerInitial(curItem.mine ? USER.name : curItem.seller)
@@ -1532,7 +1537,7 @@ function openDetail(id: number, mode: string) {
     pcGo('detail')
     renderDetailGallery(curItem, 'pc')
     const title=document.getElementById('pc-det-title'); if(title) title.textContent=curItem.name
-    const price=document.getElementById('pc-det-price'); if(price) price.innerHTML=`${curItem.price} <small>${curItem.unit}</small>`
+    const price=document.getElementById('pc-det-price'); if(price) price.innerHTML=`${escChatHtml(curItem.price)} <small>${escChatHtml(curItem.unit)}</small>`
     const cat=document.getElementById('pc-det-cat-tag'); if(cat) cat.textContent=CATMAP[curItem.cat]||curItem.cat
     applyItemDescriptionToDetail(curItem.desc, 'pc')
     const loc=document.getElementById('pc-det-loc'); if(loc) loc.textContent=curItem.loc
@@ -1563,7 +1568,7 @@ function openDetail(id: number, mode: string) {
     const sname=document.getElementById('m-d-sname'); if(sname) sname.textContent=sellerName
     const sloc=document.getElementById('m-d-sloc'); if(sloc) sloc.textContent=sellerLoc
     const title=document.getElementById('m-d-title'); if(title) title.textContent=curItem.name
-    const price=document.getElementById('m-d-price'); if(price) price.innerHTML=`${curItem.price} <small>${curItem.unit}</small>`
+    const price=document.getElementById('m-d-price'); if(price) price.innerHTML=`${escChatHtml(curItem.price)} <small>${escChatHtml(curItem.unit)}</small>`
     applyItemDescriptionToDetail(curItem.desc, 'mob')
     const qty=document.getElementById('m-d-qty'); if(qty) qty.textContent=curItem.unit||'記載なし'
     const cat=document.getElementById('m-d-cat'); if(cat) cat.textContent=CATMAP[curItem.cat]||curItem.cat
@@ -1763,7 +1768,7 @@ function setCisIcon(elId: string, chatId: string) {
   if (!chat) return
   const item = getChatLinkedItem(chat)
   if (item?.imgSrc) {
-    el.innerHTML = `<img src="${item.imgSrc}" />`
+    el.innerHTML = `<img src="${escAttrUrl(item.imgSrc)}" />`
     el.style.background = 'none'
   } else if (item) {
     const svgIcon = (CAT_CARD_ICONS[item.cat] ?? CAT_CARD_ICONS.misc)
@@ -3390,7 +3395,7 @@ function renderPhotoGrid(mode: string) {
       ondragend="photoDragEnd(event,'${mode}')"
       ondrop="photoDrop(event,${i},'${mode}')">
       ${i===0?'<span class="pf-main-badge">メイン</span>':''}
-      <img src="${src}" alt="">
+      <img src="${escAttrUrl(src)}" alt="">
       <button class="pf-img-del" onclick="event.stopPropagation();removePhoto('${mode}',${i})">×</button>
     </div>`
   ).join('')
@@ -4082,7 +4087,7 @@ function renderDetailGallery(it: Item, mode: string) {
       ? 'width:100%;height:100%;object-fit:contain;display:block;'
       : 'width:100%;height:auto;max-height:300px;object-fit:contain;display:block;'
     mainEl.innerHTML = imgs.length
-      ? `<img src="${imgs[0]}" alt="${it.name}" style="${imgStyle}" />`
+      ? `<img src="${escAttrUrl(imgs[0])}" alt="${escChatHtml(it.name)}" style="${imgStyle}" />`
       : icon
   }
   if (mode === 'pc') {
@@ -4098,10 +4103,10 @@ function renderDetailGallery(it: Item, mode: string) {
     if (thumbEl) {
       if (imgs.length > 1) {
         thumbEl.innerHTML = imgs.map((src,i) =>
-          `<div class="pc-det-thumb ${i===0?'on':''}" onclick="setDetailImg(${i},'pc')"><img src="${src}" alt="" /></div>`
+          `<div class="pc-det-thumb ${i===0?'on':''}" onclick="setDetailImg(${i},'pc')"><img src="${escAttrUrl(src)}" alt="" /></div>`
         ).join('')
       } else if (imgs.length === 1) {
-        thumbEl.innerHTML = `<div class="pc-det-thumb on"><img src="${imgs[0]}" alt="" /></div>`
+        thumbEl.innerHTML = `<div class="pc-det-thumb on"><img src="${escAttrUrl(imgs[0])}" alt="" /></div>`
       } else {
         thumbEl.innerHTML = `<div class="pc-det-thumb on">${icon}</div>`
       }
@@ -4113,7 +4118,7 @@ function renderDetailGallery(it: Item, mode: string) {
     if (thumbEl) {
       if (imgs.length > 1) {
         thumbEl.style.display='flex'
-        thumbEl.innerHTML=imgs.map((src,i)=>`<div class="m-det-thumb ${i===0?'on':''}" onclick="setDetailImg(${i},'mob')"><img src="${src}" alt="" /></div>`).join('')
+        thumbEl.innerHTML=imgs.map((src,i)=>`<div class="m-det-thumb ${i===0?'on':''}" onclick="setDetailImg(${i},'mob')"><img src="${escAttrUrl(src)}" alt="" /></div>`).join('')
       } else { thumbEl.style.display='none' }
     }
   }
@@ -4130,7 +4135,7 @@ function setDetailImg(idx: number, mode: string) {
     else {
       const isPc = mode==='pc'
       const st = isPc ? 'width:100%;height:100%;object-fit:contain;display:block;' : 'width:100%;height:auto;max-height:300px;object-fit:contain;display:block;'
-      mainEl.innerHTML = `<img src="${imgs[idx]}" alt="" style="${st}" />`
+      mainEl.innerHTML = `<img src="${escAttrUrl(imgs[idx])}" alt="" style="${st}" />`
     }
   }
   document.querySelectorAll(`.${p}-det-thumb`).forEach((t,i) => t.classList.toggle('on', i===idx))
@@ -6413,10 +6418,10 @@ export default function Page() {
           </div>
           <div className="m-body" style={{background:'#F8F4EE'}}>
             <div style={{background:'linear-gradient(135deg,#2D5A27,#3d7a34)',padding:'22px 16px 18px',display:'flex',flexDirection:'column',alignItems:'center',gap:'9px'}}>
-              <div style={{width:'64px',height:'64px',borderRadius:'50%',background:'#F8F4EE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.9rem',border:'3px solid rgba(255,255,255,.35)',cursor:'pointer',position:'relative',overflow:'hidden'}} onClick={() => (document.getElementById('m-avatar-file') as HTMLInputElement)?.click()}>
-                <span id="m-avt-display" style={{display:'flex',alignItems:'center',justifyContent:'center',width:'100%',height:'100%',fontSize:'1.9rem',borderRadius:'50%',overflow:'hidden'}} />
-                <div style={{position:'absolute',bottom:'0',right:'0',width:'20px',height:'20px',borderRadius:'50%',background:'#C4581A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                  <svg viewBox="0 0 24 24" width="11" height="11" stroke="#fff" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <div style={{width:'84px',height:'84px',borderRadius:'50%',background:'#F8F4EE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'2.2rem',border:'3px solid rgba(255,255,255,.5)',cursor:'pointer',position:'relative',overflow:'visible',boxShadow:'0 4px 16px rgba(0,0,0,.18)'}} onClick={() => (document.getElementById('m-avatar-file') as HTMLInputElement)?.click()}>
+                <span id="m-avt-display" style={{display:'flex',alignItems:'center',justifyContent:'center',width:'100%',height:'100%',fontSize:'2.2rem',borderRadius:'50%',overflow:'hidden'}} />
+                <div style={{position:'absolute',bottom:'1px',right:'1px',width:'30px',height:'30px',borderRadius:'50%',background:'#C4581A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,border:'3px solid #fff',boxShadow:'0 2px 8px rgba(0,0,0,.3)'}}>
+                  <svg viewBox="0 0 24 24" width="15" height="15" stroke="#fff" fill="none" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                 </div>
                 <input type="file" id="m-avatar-file" accept="image/*" style={{display:'none'}} onChange={(e) => {
                   const file = e.currentTarget.files?.[0]
