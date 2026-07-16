@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 const FF = "'Noto Sans JP', sans-serif"
 const GREEN = '#2D5A27'
@@ -14,6 +14,9 @@ export function ContactForm() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
+  // ボット対策: ハニーポット（人間は空のまま）＋フォーム表示からの経過時間
+  const [website, setWebsite] = useState('')
+  const startedAt = useRef<number>(Date.now())
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -42,6 +45,8 @@ export function ContactForm() {
           name: name.trim() || undefined,
           email: email.trim(),
           message: msg,
+          website, // ハニーポット
+          elapsedMs: Date.now() - startedAt.current,
         }),
       })
       const data = (await res.json()) as { ok?: boolean; error?: string }
@@ -64,6 +69,17 @@ export function ContactForm() {
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18, fontFamily: FF }}>
+      {/* ハニーポット: 画面外に隠し、人間は入力しない。ボットが埋めたら送信を無視する */}
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        value={website}
+        onChange={(e) => setWebsite(e.target.value)}
+        style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
+      />
       {success && (
         <div
           role="status"

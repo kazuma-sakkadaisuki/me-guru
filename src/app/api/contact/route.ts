@@ -6,6 +6,27 @@ const FROM_EMAIL = 'onboarding@resend.dev'
 const MAX_MESSAGE = 500
 const MAX_NAME = 200
 
+// ── 乱用対策: IP単位の簡易レート制限（同一ウォームインスタンス内で有効） ──
+const RL_WINDOW_MS = 10 * 60 * 1000 // 10分
+const RL_MAX = 3 // 10分あたり最大3件
+const ipHits = new Map<string, number[]>()
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const recent = (ipHits.get(ip) ?? []).filter((t) => now - t < RL_WINDOW_MS)
+  if (recent.length >= RL_MAX) {
+    ipHits.set(ip, recent)
+    return true
+  }
+  recent.push(now)
+  ipHits.set(ip, recent)
+  return false
+}
+function clientIp(req: Request): string {
+  const xff = req.headers.get('x-forwarded-for')
+  if (xff) return xff.split(',')[0]!.trim()
+  return req.headers.get('x-real-ip')?.trim() || 'unknown'
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -24,6 +45,21 @@ export async function POST(req: Request) {
     const name = typeof body.name === 'string' ? body.name.trim().slice(0, MAX_NAME) : ''
     const email = typeof body.email === 'string' ? body.email.trim() : ''
     const message = typeof body.message === 'string' ? body.message.trim() : ''
+    const website = typeof body.website === 'string' ? body.website : '' // ハニーポット
+    const elapsedMs = typeof body.elapsedMs === 'number' ? body.elapsedMs : 0
+
+    // ボット判定: ハニーポットに入力あり、または表示から2秒未満の即送信 → 成功を装って黙って破棄
+    if (website.trim() !== '' || (elapsedMs > 0 && elapsedMs < 2000)) {
+      return NextResponse.json({ ok: true })
+    }
+
+    // IP単位のレート制限
+    if (isRateLimited(clientIp(req))) {
+      return NextResponse.json(
+        { ok: false, error: '送信が多すぎます。しばらく時間をおいてからお試しください。' },
+        { status: 429 }
+      )
+    }
 
     if (!email) {
       return NextResponse.json({ ok: false, error: 'メールアドレスを入力してください。' }, { status: 400 })
