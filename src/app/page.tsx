@@ -4403,6 +4403,20 @@ async function saveProfile() {
   else mBack()
 }
 
+/** Supabase の認証セッション cookie（sb-…）を同期削除する。ログアウトを await せず即時・
+    確実に行うため（従来は await signOut() が onAuthStateChange の重い再読込を待って数秒遅延した）。 */
+function clearSupabaseAuthCookies() {
+  if (typeof document === 'undefined') return
+  try {
+    for (const c of document.cookie.split(';')) {
+      const name = c.split('=')[0].trim()
+      if (name.startsWith('sb-')) {
+        document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`
+      }
+    }
+  } catch { /* noop */ }
+}
+
 /* 動的HTMLの onclick は window 上の関数を呼ぶ。ハイドレーション完了前（＝スマホで
    バンドル読込直後）にタップしても無反応にならないよう、モジュール読込時に同期公開する。 */
 if (typeof window !== 'undefined') {
@@ -4424,16 +4438,20 @@ export default function Page() {
   /** init() で一覧の取得・描画が終わるまで true にしない（マウント直後の userEmail 用 effect がダミー ITEMS でグリッドを上書きしないため） */
   const [homeListReady, setHomeListReady] = useState(false)
 
-  async function handleLogout() {
-    try { await createClient().auth.signOut() } catch { /* 失敗してもローカルは破棄して遷移 */ }
-    // ハードリダイレクトで即座にログイン画面へ（巨大コンポーネントの再描画を待たない・状態を完全クリア）
-    window.location.href = '/login'
+  function handleLogout() {
+    // ① セッションcookieを同期削除して即ログアウト（await一切なし＝待ち時間ゼロ）
+    clearSupabaseAuthCookies()
+    // ② localStorage等の後始末はバックグラウンドで（awaitしない＝重いonAuthStateChangeを待たない）
+    void createClient().auth.signOut({ scope: 'local' }).catch(() => {})
+    // ③ 即座にログイン画面へ
+    window.location.replace('/login')
   }
 
-  async function handleWithdraw() {
+  function handleWithdraw() {
     if (!confirm('本当に退会しますか？この操作は取り消せません')) return
-    try { await createClient().auth.signOut() } catch { /* noop */ }
-    window.location.href = '/login'
+    clearSupabaseAuthCookies()
+    void createClient().auth.signOut({ scope: 'local' }).catch(() => {})
+    window.location.replace('/login')
   }
 
   useEffect(() => {
