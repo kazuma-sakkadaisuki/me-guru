@@ -4403,6 +4403,20 @@ async function saveProfile() {
   else mBack()
 }
 
+/* 動的HTMLの onclick は window 上の関数を呼ぶ。ハイドレーション完了前（＝スマホで
+   バンドル読込直後）にタップしても無反応にならないよう、モジュール読込時に同期公開する。 */
+if (typeof window !== 'undefined') {
+  Object.assign(window as unknown as Record<string, unknown>, {
+    openDetail, selCat, mHomeCat, mSearchCat, openChat, openChatWithSupabase,
+    notifTap, pickDate, showToast, removePhoto, photoDragStart, photoDragOver,
+    photoDragEnd, photoDrop, setDetailImg, showAreaModal, closeAreaModal,
+    selectAreaPref, selectAreaCity, onSelectAreaPref, onSelectAreaCity,
+    toggleAreaDistrict, selectAreaApply, onPostLocPrefChange, onPostLocCityChange,
+    submitRequestForm, deleteRequest, offerForRequest, openReqPostModal,
+    closeReqPostModal, toggleAreaFilter, saveProfile, showFavs,
+  })
+}
+
 /* ══════════════════ COMPONENT ══════════════════ */
 export default function Page() {
   const router = useRouter()
@@ -4411,18 +4425,15 @@ export default function Page() {
   const [homeListReady, setHomeListReady] = useState(false)
 
   async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    try { await createClient().auth.signOut() } catch { /* 失敗してもローカルは破棄して遷移 */ }
+    // ハードリダイレクトで即座にログイン画面へ（巨大コンポーネントの再描画を待たない・状態を完全クリア）
+    window.location.href = '/login'
   }
 
   async function handleWithdraw() {
     if (!confirm('本当に退会しますか？この操作は取り消せません')) return
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    try { await createClient().auth.signOut() } catch { /* noop */ }
+    window.location.href = '/login'
   }
 
   useEffect(() => {

@@ -46,6 +46,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [postSignupEmailSent, setPostSignupEmailSent] = useState(false)
   const [agreeTerms, setAgreeTerms] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   async function handleAuthAction() {
     setError('')
@@ -63,6 +64,7 @@ export default function LoginPage() {
     }
 
     const supabase = createClient()
+    setLoading(true)
 
     try {
       if (isLogin) {
@@ -91,6 +93,8 @@ export default function LoginPage() {
       setPostSignupEmailSent(true)
     } catch {
       setError('通信エラーが発生しました。接続を確認してください。')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -380,6 +384,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={handleAuthAction}
+                disabled={loading}
                 style={{
                   marginTop: 8,
                   padding: '14px',
@@ -390,10 +395,11 @@ export default function LoginPage() {
                   background: GREEN,
                   border: 'none',
                   borderRadius: 12,
-                  cursor: 'pointer',
+                  cursor: loading ? 'wait' : 'pointer',
+                  opacity: loading ? 0.7 : 1,
                 }}
               >
-                {isLogin ? 'ログイン' : '登録する'}
+                {loading ? '処理中…' : isLogin ? 'ログイン' : '登録する'}
               </button>
             </div>
           </>
